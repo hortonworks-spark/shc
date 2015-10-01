@@ -28,10 +28,12 @@ Both are exposed to users by specifying WHERE CLAUSE, e.g., where column > x and
 ## 
 Creatable DataSource  The libary support both read/write from/to HBase.
 
-##Application API/Usage: 
+##Application API/Usage
+Following the the examples how to write and query a HBase table. Please refer to https://github.com/hortonworks/shc/blob/master/src/test/scala/org/apache/spark/sql/DefaultSourceSuite.scala for details.
 
 ### Defined the HBase catalog
-   def catalog = s"""{
+
+    def catalog = s"""{
             |"table":{"namespace":"default", "name":"table1"},
             |"rowkey":"key",
             |"columns":{
@@ -46,22 +48,27 @@ Creatable DataSource  The libary support both read/write from/to HBase.
               |"col8":{"cf":"cf8", "col":"col8", "type":"tinyint"}
             |}
           |}""".stripMargin
+         
 
 ### Write to HBase table to populate data.
+
     sc.parallelize(data).toDF.write.options(
       Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5"))
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .save()
 
 ### Perform data frame operation on top of HBase table
-   def withCatalog(cat: String): DataFrame = {
+
+    def withCatalog(cat: String): DataFrame = {
       sqlContext
       .read
       .options(Map(HBaseTableCatalog.tableCatalog->cat))
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .load()
-  }
-  1 complicated query
+    }
+  
+#### Complicated query
+
     val df = withCatalog(catalog)
     val s = df.filter((($"col0" <= "row050" && $"col0" > "row040") ||
       $"col0" === "row005" ||
@@ -72,9 +79,11 @@ Creatable DataSource  The libary support both read/write from/to HBase.
       $"col4" === 42))
       .select("col0", "col1", "col4")
     s.show
-  2 SQL support
-   // Load the dataframe
-   val df = withCatalog(catalog)
-   //SQL example
-   df.registerTempTable("table")
-   sqlContext.sql("select count(col1) from table").show
+    
+#### SQL support
+
+    // Load the dataframe
+    val df = withCatalog(catalog)
+    //SQL example
+    df.registerTempTable("table")
+    sqlContext.sql("select count(col1) from table").show
