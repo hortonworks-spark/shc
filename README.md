@@ -49,6 +49,7 @@ Following the the examples how to write and query a HBase table. Please refer to
             |}
           |}""".stripMargin
          
+The above defines a schema for a HBase table with name as table1, row key as key and a number of columns (col1-col8). Note that the rowkey also has to be defined in details as a column (col0), which has a specific cf (rowkey).
 
 ### Write to HBase table to populate data.
 
@@ -56,6 +57,8 @@ Following the the examples how to write and query a HBase table. Please refer to
       Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5"))
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .save()
+      
+Given a data frame with specified schema, above will create an HBase table with 5 regions and save the data frame inside. Note that if HBaseTableCatalog.newTable is not specified, the table has to be pre-created.
 
 ### Perform data frame operation on top of HBase table
 
@@ -87,3 +90,31 @@ Following the the examples how to write and query a HBase table. Please refer to
     //SQL example
     df.registerTempTable("table")
     sqlContext.sql("select count(col1) from table").show
+    
+#### TODO:
+
+    val complex = s"""MAP<int, struct<varchar:string>>"""
+    val schema =
+      s"""{"namespace": "example.avro",
+         |   "type": "record",      "name": "User",
+         |    "fields": [      {"name": "name", "type": "string"},
+         |      {"name": "favorite_number",  "type": ["int", "null"]},
+         |        {"name": "favorite_color", "type": ["string", "null"]}      ]    }""".stripMargin
+    val catalog = s"""{
+            |"table":{"namespace":"default", "name":"htable"},
+            |"rowkey":"key1:key2",
+            |"columns":{
+              |"col1":{"cf":"rowkey", "col":"key1", "type":"binary"},
+              |"col2":{"cf":"rowkey", "col":"key2", "type":"double"},
+              |"col3":{"cf":"cf1", "col":"col1", "avro":"schema1"},
+              |"col4":{"cf":"cf1", "col":"col2", "type":"string"},
+              |"col5":{"cf":"cf1", "col":"col3", "type":"double",        "sedes":"org.apache.spark.sql.execution.datasources.hbase.DoubleSedes"},
+              |"col6":{"cf":"cf1", "col":"col4", "type":"$complex"}
+            |}
+          |}""".stripMargin
+       
+    val df = sqlContext.read.options(Map("schema1"->schema, HBaseTableCatalog.tableCatalog->catalog)).format("org.apache.spark.sql.execution.datasources.hbase").load()
+    df.write.options(Map("schema1"->schema, HBaseTableCatalog.tableCatalog->catalog)).format("org.apache.spark.sql.execution.datasources.hbase").save()
+          
+
+Above illustrates our next step, which includes composite key support, complex data types, support of customerized sedes and avro.
