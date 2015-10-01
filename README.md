@@ -31,6 +31,10 @@ Creatable DataSource  The libary support both read/write from/to HBase.
 ##Application API/Usage
 Following the the examples how to write and query a HBase table. Please refer to https://github.com/hortonworks/shc/blob/master/src/test/scala/org/apache/spark/sql/DefaultSourceSuite.scala for details.
 
+###Compile
+
+    mvn package
+    
 ### Defined the HBase catalog
 
     def catalog = s"""{
@@ -117,4 +121,4 @@ Given a data frame with specified schema, above will create an HBase table with 
     df.write.options(Map("schema1"->schema, HBaseTableCatalog.tableCatalog->catalog)).format("org.apache.spark.sql.execution.datasources.hbase").save()
           
 
-Above illustrates our next step, which includes composite key support, complex data types, support of customerized sedes and avro.
+Above illustrates our next step, which includes composite key support, complex data types, support of customerized sedes and avro. Note that although all the major pieces are included in the current code base, but it may not be functioning now.
