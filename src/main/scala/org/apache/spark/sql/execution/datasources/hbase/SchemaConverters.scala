@@ -108,9 +108,9 @@ object SchemaConverters {
    * converter methods in order to do the conversion.
    */
   private def convertStructToAvro[T](
-                                            structType: StructType,
-                                            schemaBuilder: RecordBuilder[T],
-                                            recordNamespace: String): T = {
+      structType: StructType,
+      schemaBuilder: RecordBuilder[T],
+      recordNamespace: String): T = {
     val fieldsAssembler: FieldAssembler[T] = schemaBuilder.fields()
     structType.fields.foreach { field =>
       val newField = fieldsAssembler.name(field.name).`type`()
@@ -214,10 +214,10 @@ object SchemaConverters {
    * be used to construct fields of avro record (convertFieldTypeToAvro is used for that).
    */
   private def convertTypeToAvro[T](
-                                    dataType: DataType,
-                                    schemaBuilder: BaseTypeBuilder[T],
-                                    structName: String,
-                                    recordNamespace: String): T = {
+      dataType: DataType,
+      schemaBuilder: BaseTypeBuilder[T],
+      structName: String,
+      recordNamespace: String): T = {
     dataType match {
       case ByteType => schemaBuilder.intType()
       case ShortType => schemaBuilder.intType()
@@ -257,10 +257,10 @@ object SchemaConverters {
    * from those for everything else, we have to use a separate method.
    */
   private def convertFieldTypeToAvro[T](
-                                         dataType: DataType,
-                                         newFieldBuilder: BaseFieldTypeBuilder[T],
-                                         structName: String,
-                                         recordNamespace: String): FieldDefault[T, _] = {
+      dataType: DataType,
+      newFieldBuilder: BaseFieldTypeBuilder[T],
+      structName: String,
+      recordNamespace: String): FieldDefault[T, _] = {
     dataType match {
       case ByteType => newFieldBuilder.intType()
       case ShortType => newFieldBuilder.intType()
@@ -306,9 +306,9 @@ object SchemaConverters {
    * writing Avro records out to disk
    */
   def createConverterToAvro(
-                                     dataType: DataType,
-                                     structName: String,
-                                     recordNamespace: String): (Any) => Any = {
+      dataType: DataType,
+      structName: String,
+      recordNamespace: String): (Any) => Any = {
     dataType match {
       case BinaryType => (item: Any) => item match {
         case null => null

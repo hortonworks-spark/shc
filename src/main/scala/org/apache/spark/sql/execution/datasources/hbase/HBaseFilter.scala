@@ -22,7 +22,10 @@ import java.util
 import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp
 import org.apache.hadoop.hbase.filter.{Filter => HFilter, FilterList => HFilterList, _}
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.sql.execution.datasources.hbase.HFilterType.HFilterType
+import org.apache.spark.Logging
+import org.apache.spark.sql.execution.datasources.hbase
+import org.apache.spark.sql.execution.datasources.hbase.FilterType.FilterType
+import org.apache.spark.sql.execution.datasources.hbase.TypedFilter
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.BinaryType
 import scala.collection.JavaConverters._
@@ -31,18 +34,14 @@ import scala.collection.mutable.ArrayBuffer
 import scala.math.Ordering
 import scala.reflect.ClassTag
 
-/**
- * Created by zzhang on 9/2/15.
- */
-
-object HFilterType extends Enumeration {
-  type HFilterType = Value
+object FilterType extends Enumeration {
+  type FilterType = Value
   val And, Or, Atomic, Prefix, Und = Value
-  def getOperator(hType: HFilterType): HFilterList.Operator = hType match {
+  def getOperator(hType: FilterType): HFilterList.Operator = hType match {
     case And => HFilterList.Operator.MUST_PASS_ALL
     case Or => HFilterList.Operator.MUST_PASS_ONE
   }
-  def parseFrom(fType: HFilterType): Array[Byte] => HFilter = fType match {
+  def parseFrom(fType: FilterType): Array[Byte] => HFilter = fType match {
     case And | Or => {
       x: Array[Byte] => HFilterList.parseFrom(x).asInstanceOf[HFilter]
     }
@@ -56,24 +55,24 @@ object HFilterType extends Enumeration {
   }
 }
 
-case class HTypedFilter(filter: Option[HFilter], hType: HFilterType)
+case class TypedFilter(filter: Option[HFilter], hType: FilterType)
 
-case class SerializedHTypedFilter(b: Option[Array[Byte]], hType: HFilterType)
+case class SerializedTypedFilter(b: Option[Array[Byte]], hType: FilterType)
 
-object HTypedFilter {
-  def toSerializedHTypedFilter(tf: HTypedFilter): SerializedHTypedFilter = {
+object TypedFilter {
+  def toSerializedTypedFilter(tf: TypedFilter): SerializedTypedFilter = {
     val b = tf.filter.map(_.toByteArray)
-    SerializedHTypedFilter(b, tf.hType)
+    SerializedTypedFilter(b, tf.hType)
   }
 
-  def fromSerializedHTypedFilter(tf: SerializedHTypedFilter): HTypedFilter = {
-    val filter = tf.b.map(x => HFilterType.parseFrom(tf.hType)(x))
-    HTypedFilter(filter, tf.hType)
+  def fromSerializedTypedFilter(tf: SerializedTypedFilter): TypedFilter = {
+    val filter = tf.b.map(x => FilterType.parseFrom(tf.hType)(x))
+    TypedFilter(filter, tf.hType)
   }
 
-  def empty = HTypedFilter(None, HFilterType.Und)
+  def empty = TypedFilter(None, FilterType.Und)
 
-  private def getOne(left: HTypedFilter, right: HTypedFilter) = {
+  private def getOne(left: TypedFilter, right: TypedFilter) = {
     if (left.filter.isEmpty) {
       right
     } else {
@@ -81,7 +80,7 @@ object HTypedFilter {
     }
   }
 
-  private def ops(left: HTypedFilter, right: HTypedFilter, hType: HFilterType) = {
+  private def ops(left: TypedFilter, right: TypedFilter, hType: FilterType) = {
     if (left.hType == hType) {
       val l = left.filter.get.asInstanceOf[HFilterList]
       if (right.hType == hType) {
@@ -96,44 +95,54 @@ object HTypedFilter {
       r.addFilter(left.filter.get)
       right
     } else {
-      val nf = new HFilterList(HFilterType.getOperator(hType))
+      val nf = new HFilterList(FilterType.getOperator(hType))
       nf.addFilter(left.filter.get)
       nf.addFilter(right.filter.get)
-      HTypedFilter(Some(nf), hType)
+      TypedFilter(Some(nf), hType)
     }
   }
 
-  def and(left: HTypedFilter, right: HTypedFilter): HTypedFilter = {
+  def and(left: TypedFilter, right: TypedFilter): TypedFilter = {
     if (left.filter.isEmpty) {
       right
     } else if (right.filter.isEmpty) {
       left
     } else {
-      ops(left, right, HFilterType.And)
+      ops(left, right, FilterType.And)
     }
   }
-  def or(left: HTypedFilter, right: HTypedFilter): HTypedFilter = {
+  def or(left: TypedFilter, right: TypedFilter): TypedFilter = {
     if (left.filter.isEmpty || right.filter.isEmpty) {
-      HTypedFilter.empty
+      TypedFilter.empty
     } else {
-      ops(left, right, HFilterType.Or)
+      ops(left, right, FilterType.Or)
     }
   }
 }
 
 // Combination of HBase range and filters
-case class HRF[T](ranges: Array[ScanRange[T]], tf: HTypedFilter)
+case class HRF[T](ranges: Array[ScanRange[T]], tf: TypedFilter)
 
 object HRF {
-  def empty[T] = HRF[T](Array(ScanRange.empty[T]), HTypedFilter.empty)
+  def empty[T] = HRF[T](Array(ScanRange.empty[T]), TypedFilter.empty)
 }
 
-object HBaseFilter {
-
+object HBaseFilter extends Logging{
+  implicit val order: Ordering[Array[Byte]] =  hbase.ord
   def buildFilters(filters: Array[Filter], relation: HBaseRelation): HRF[Array[Byte]] = {
-    filters.foldLeft(HRF.empty[Array[Byte]]) { case (x, y) =>
-        and[Array[Byte]](x, buildFilter(y, relation))
+    if (log.isDebugEnabled) {
+      logDebug(s"for all filters: ")
+      filters.foreach(x => logDebug(x.toString))
     }
+    val ret =
+      filters.map(x=> buildFilter(x, relation)).reduceOption[HRF[Array[Byte]]] { case (x, y) =>
+        and[Array[Byte]](x, y)
+      }.getOrElse(HRF.empty[Array[Byte]])
+    if (log.isDebugEnabled) {
+      logDebug("ret:")
+      ret.ranges.foreach(x => logDebug(x.toString))
+    }
+    ret
   }
 
   private def toBytes[T](value: T, att: String, relation: HBaseRelation): Array[Byte] = {
@@ -141,102 +150,163 @@ object HBaseFilter {
   }
 
 
+  def process(value: Any, relation: HBaseRelation, attribute: String,
+      primary: BoundRanges => HRF[Array[Byte]],
+      column: BoundRanges => HRF[Array[Byte]],
+      composite:  BoundRanges => HRF[Array[Byte]]): HRF[Array[Byte]] = {
+    val b = BoundRange(value)
+    val ret: Option[HRF[Array[Byte]]] = {
+      if (relation.isPrimaryKey(attribute)) {
+        b.map(primary(_))
+      } else if (relation.isColumn(attribute)) {
+        b.map(column(_))
+      } else {
+        Some(HRF.empty[Array[Byte]])
+        // composite key does not work, need more work
+        /*
+        if (!relation.rows.varLength) {
+          b.map(composite(_))
+        } else {
+          None
+        }*/
+      }
+    }
+    ret.getOrElse(HRF.empty[Array[Byte]])
+  }
+
   def buildFilter(filter: Filter, relation: HBaseRelation): HRF[Array[Byte]] = {
+    // We treat greater and greaterOrEqual as the same
+    def Greater(attribute: String, value: Any): HRF[Array[Byte]]  = {
+        process(value, relation, attribute,
+        bound => {
+          if (relation.singleKey) {
+            HRF(bound.greater.map(x =>
+              ScanRange(Some(Bound(x.low, true)),
+                Some(Bound(x.upper, true)))), TypedFilter.empty)
+          } else {
+            val s = bound.greater.map( x=>
+              ScanRange(relation.rows.length,
+                x.low, true, x.upper, true, relation.getField(attribute).start))
+            HRF(s, TypedFilter.empty)
+          }
+        },
+        bound => {
+          val f = relation.getField(attribute)
+          val filter = bound.greater.map { x =>
+            val lower = new SingleColumnValueFilter(
+              Bytes.toBytes(f.cf),
+              Bytes.toBytes(f.col),
+              CompareOp.GREATER_OR_EQUAL,
+              x.low)
+            val low = TypedFilter(Some(lower), FilterType.Atomic)
+            val upper = new SingleColumnValueFilter(
+              Bytes.toBytes(f.cf),
+              Bytes.toBytes(f.col),
+              CompareOp.LESS_OR_EQUAL,
+              x.upper)
+            val up = TypedFilter(Some(upper), FilterType.Atomic)
+            TypedFilter.and(low, up)
+          }
+          val of = filter.reduce[TypedFilter]{ case (x, y) =>
+            TypedFilter.or(x, y)}
+          HRF(Array(ScanRange.empty[Array[Byte]]), of)
+        },
+        bound => {
+          val s = bound.greater.map( x=>
+            ScanRange(relation.rows.length,
+              x.low, true, x.upper, true, relation.getField(attribute).start))
+          HRF(s, TypedFilter.empty)
+        })
+    }
+    // We treat less and lessOrEqual as the same
+    def Less(attribute: String, value: Any): HRF[Array[Byte]]  = {
+      process(value, relation, attribute,
+        bound => {
+          if (relation.singleKey) {
+            HRF(bound.less.map(x =>
+              ScanRange(Some(Bound(x.low, true)),
+                Some(Bound(x.upper, true)))), TypedFilter.empty)
+          } else {
+            val s = bound.less.map( x=>
+              ScanRange(relation.rows.length,
+                x.low, true, x.upper, true, relation.getField(attribute).start))
+            HRF(s, TypedFilter.empty)
+          }
+        },
+        bound => {
+          val f = relation.getField(attribute)
+          val filter = bound.less.map { x =>
+            val lower = new SingleColumnValueFilter(
+              Bytes.toBytes(f.cf),
+              Bytes.toBytes(f.col),
+              CompareOp.GREATER_OR_EQUAL,
+              x.low)
+            val low = TypedFilter(Some(lower), FilterType.Atomic)
+            val upper = new SingleColumnValueFilter(
+              Bytes.toBytes(f.cf),
+              Bytes.toBytes(f.col),
+              CompareOp.LESS_OR_EQUAL,
+              x.upper)
+            val up = TypedFilter(Some(upper), FilterType.Atomic)
+            TypedFilter.and(low, up)
+          }
+          val ob = filter.reduce[TypedFilter]{ case (x, y) =>
+            TypedFilter.or(x, y)}
+          HRF(Array(ScanRange.empty[Array[Byte]]), ob)
+        },
+        bound => {
+          val s = bound.less.map( x=>
+            ScanRange(relation.rows.length,
+              x.low, true, x.upper, true, relation.getField(attribute).start))
+          HRF(s, TypedFilter.empty)
+        })
+    }
+
     val f = filter match {
       case And(left, right) =>
         and[Array[Byte]](buildFilter(left, relation), buildFilter(right, relation))
       case Or(left, right) =>
         or[Array[Byte]](buildFilter(left, relation), buildFilter(right, relation))
       case EqualTo(attribute, value) =>
-        val b = toBytes(value, attribute, relation)
-        if (relation.isPrimaryKey(attribute)) {
-          HRF(Array(ScanRange(Some(Bound(b, true)), Some(Bound(b, true)))), HTypedFilter.empty)
-        } else if (relation.isColumn(attribute)) {
-          val f = relation.getField(attribute)
-          val filter = new SingleColumnValueFilter(
-            Bytes.toBytes(f.cf),
-            Bytes.toBytes(f.col),
-            CompareOp.EQUAL,
-            b
-          )
-          HRF(Array(ScanRange.empty[Array[Byte]]), HTypedFilter(Some(filter), HFilterType.Atomic))
-        } else {
-          HRF.empty[Array[Byte]]
-        }
+        process(value, relation, attribute,
+          bound => {
+            if (relation.singleKey) {
+              HRF(Array(ScanRange(Some(Bound(bound.value, true)),
+                Some(Bound(bound.value, true)))), TypedFilter.empty)
+            } else {
+              val s = ScanRange(relation.rows.length,
+                bound.value, true, bound.value, true, relation.getField(attribute).start)
+              HRF(Array(s), TypedFilter.empty)
+            }
+          },
+          bound => {
+            val f = relation.getField(attribute)
+            val filter = new SingleColumnValueFilter(
+              Bytes.toBytes(f.cf),
+              Bytes.toBytes(f.col),
+              CompareOp.EQUAL,
+              bound.value)
+            HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
+          },
+          bound => {
+            val s = ScanRange(relation.rows.length,
+              bound.value, true, bound.value, true, relation.getField(attribute).start)
+            HRF(Array(s), TypedFilter.empty)
+          })
       case LessThan(attribute, value) =>
-        val b = toBytes(value, attribute, relation)
-        if (relation.isPrimaryKey(attribute)) {
-          HRF(Array(ScanRange(None, Some(Bound(b, false)))), HTypedFilter.empty)
-        } else if (relation.isColumn(attribute)) {
-          val f = relation.getField(attribute)
-          val filter = new SingleColumnValueFilter(
-            Bytes.toBytes(f.cf),
-            Bytes.toBytes(f.col),
-            CompareOp.LESS,
-            b
-          )
-          HRF(Array(ScanRange.empty[Array[Byte]]), HTypedFilter(Some(filter), HFilterType.Atomic))
-        } else {
-          HRF.empty[Array[Byte]]
-        }
+        Less(attribute, value)
       case LessThanOrEqual(attribute, value)  =>
-        val b = toBytes(value, attribute, relation)
-        if (relation.isPrimaryKey(attribute)) {
-          HRF(Array(ScanRange(None, Some(Bound(b, true)))), HTypedFilter.empty)
-        } else if (relation.isColumn(attribute)) {
-          val f = relation.getField(attribute)
-          val filter = new SingleColumnValueFilter(
-            Bytes.toBytes(f.cf),
-            Bytes.toBytes(f.col),
-            CompareOp.LESS_OR_EQUAL,
-            b
-          )
-          HRF(Array(ScanRange.empty[Array[Byte]]), HTypedFilter(Some(filter), HFilterType.Atomic))
-        } else {
-          HRF.empty[Array[Byte]]
-        }
-
+        Less(attribute, value)
       case GreaterThan(attribute, value) =>
-        val b = toBytes(value, attribute, relation)
-
-        if (relation.isPrimaryKey(attribute)) {
-          HRF(Array(ScanRange(Some(Bound(b, false)), None)), HTypedFilter.empty)
-        } else if (relation.isColumn(attribute)) {
-          val f = relation.getField(attribute)
-          val filter = new SingleColumnValueFilter(
-            Bytes.toBytes(f.cf),
-            Bytes.toBytes(f.col),
-            CompareOp.GREATER,
-            b
-          )
-          HRF(Array(ScanRange.empty[Array[Byte]]), HTypedFilter(Some(filter), HFilterType.Atomic))
-        } else {
-          HRF.empty[Array[Byte]]
-        }
-
+        Greater(attribute, value)
       case GreaterThanOrEqual(attribute, value)  =>
-        val b = toBytes(value, attribute, relation)
-        if (relation.isPrimaryKey(attribute)) {
-          HRF(Array(ScanRange(Some(Bound(b, true)), None)), HTypedFilter.empty)
-        } else if (relation.isColumn(attribute)) {
-          val f = relation.getField(attribute)
-          val filter = new SingleColumnValueFilter(
-            Bytes.toBytes(f.cf),
-            Bytes.toBytes(f.col),
-            CompareOp.GREATER_OR_EQUAL,
-            b
-          )
-          HRF(Array(ScanRange.empty[Array[Byte]]), HTypedFilter(Some(filter), HFilterType.Atomic))
-        } else {
-          HRF.empty[Array[Byte]]
-        }
-
+        Greater(attribute, value)
       case  StringStartsWith(attribute, value)  =>
         val b = Bytes.toBytes(value)
         if (relation.isPrimaryKey(attribute)) {
           val prefixFilter = new PrefixFilter(b)
           HRF(Array(ScanRange.empty[Array[Byte]]),
-            HTypedFilter(Some(prefixFilter), HFilterType.Prefix))
+            TypedFilter(Some(prefixFilter), FilterType.Prefix))
         } else if (relation.isColumn(attribute)) {
           val f = relation.getField(attribute)
           val filter = new SingleColumnValueFilter(
@@ -245,7 +315,7 @@ object HBaseFilter {
             CompareOp.EQUAL,
             new BinaryPrefixComparator(b)
           )
-          HRF(Array(ScanRange.empty[Array[Byte]]), HTypedFilter(Some(filter), HFilterType.Atomic))
+          HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
         } else {
           HRF.empty[Array[Byte]]
         }
@@ -258,7 +328,7 @@ object HBaseFilter {
           CompareOp.EQUAL,
           new RegexStringComparator(s".*$value")
         )
-        HRF(Array(ScanRange.empty[Array[Byte]]), HTypedFilter(Some(filter), HFilterType.Atomic))
+        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
 
       case StringContains(attribute: String, value: String) if relation.isColumn(attribute) =>
         val f = relation.getField(attribute)
@@ -268,9 +338,9 @@ object HBaseFilter {
           CompareOp.EQUAL,
           new SubstringComparator(value)
         )
-        HRF(Array(ScanRange.empty[Array[Byte]]), HTypedFilter(Some(filter), HFilterType.Atomic))
-      // We shoudl also add Not(GreatThan, LessThan, ...)
-      // because if we miss some filter, it may result in a big overhead.
+        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
+      // We should also add Not(GreatThan, LessThan, ...)
+      // because if we miss some filter, it may result in a large scan range.
       case Not(StringContains(attribute: String, value: String)) if relation.isColumn(attribute) =>
         val b = Bytes.toBytes(value)
         val f = relation.getField(attribute)
@@ -280,13 +350,15 @@ object HBaseFilter {
           CompareOp.NOT_EQUAL,
           new SubstringComparator(value)
         )
-        HRF(Array(ScanRange.empty[Array[Byte]]), HTypedFilter(Some(filter), HFilterType.Atomic))
+        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
 
       case _ => HRF.empty[Array[Byte]]
     }
 
-    println(s"start filter $filter")
-    f.ranges.foreach(println(_))
+    if (log.isDebugEnabled) {
+      logDebug(s"start filter $filter")
+      f.ranges.foreach(x => logDebug(x.toString))
+    }
     f
   }
 
@@ -296,7 +368,7 @@ object HBaseFilter {
     // (0, 5), (10, 15) and with (2, 3) (8, 12) = (2, 3), (10, 12)
     val tmp = left.ranges.map(x => ScanRange.and(x, right.ranges))
     val ranges = ScanRange.and(left.ranges, right.ranges)
-    val typeFilter = HTypedFilter.and(left.tf, right.tf)
+    val typeFilter = TypedFilter.and(left.tf, right.tf)
     HRF(ranges, typeFilter)
   }
 
@@ -304,7 +376,7 @@ object HBaseFilter {
       left: HRF[T],
       right: HRF[T])(implicit ordering: Ordering[T]):HRF[T] = {
     val ranges = ScanRange.or(left.ranges, right.ranges)
-    val typeFilter = HTypedFilter.or(left.tf, right.tf)
-    HRF(ranges, HTypedFilter.empty)
+    val typeFilter = TypedFilter.or(left.tf, right.tf)
+    HRF(ranges, TypedFilter.empty)
   }
 }

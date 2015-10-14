@@ -23,6 +23,7 @@ import org.apache.hadoop.hbase.filter.{Filter => HFilter, FilterList => HFilterL
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.catalyst.expressions.Row
 import org.apache.spark.sql.catalyst.expressions.codegen.GeneratePredicate
+import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase._
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.Filter
@@ -34,13 +35,13 @@ import scala.collection.JavaConversions._
 import org.apache.hadoop.hbase.{CellUtil, Cell, HBaseConfiguration}
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.regionserver.RegionScanner
-import org.apache.spark.{InterruptibleIterator, TaskContext, Partition, Logging}
+import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.sources.Filter
 
-private[hbase] case class HBaseRegions(
+private[hbase] case class HBaseRegion(
     override val index: Int,
     val start: Option[HBaseType] = None,
     val end: Option[HBaseType] = None,
@@ -48,9 +49,9 @@ private[hbase] case class HBaseRegions(
 
 private[hbase] case class HBaseScanPartition(
     override val index: Int,
-    val regions: HBaseRegions,
+    val regions: HBaseRegion,
     val scanRanges: Array[ScanRange[Array[Byte]]],
-    val tf: SerializedHTypedFilter) extends Partition
+    val tf: SerializedTypedFilter) extends Partition
 
 
 private[hbase] class HBaseTableScanRDD(
@@ -59,17 +60,25 @@ private[hbase] class HBaseTableScanRDD(
     filters: Array[Filter]) extends RDD[Row](relation.sqlContext.sparkContext, Nil) with Logging  {
 
   val columnFields = relation.splitRowKeyColumns(requiredColumns)._2
+  private def sparkConf = SparkEnv.get.conf
 
   override def getPartitions: Array[Partition] = {
     val hbaseFilter = HBaseFilter.buildFilters(filters, relation)
     val regions = relation.regions
     var idx = 0
-    logInfo(s"There are ${regions.size} regions")
+    logDebug(s"There are ${regions.size} regions")
     regions.flatMap { x=>
-      val pScan = ScanRange(Some(Bound(x.start.get, true)), Some(Bound(x.end.get, false)))
-      val ranges = ScanRange.and(pScan, hbaseFilter.ranges)
+      // HBase take maximum as empty byte array, change it here.
+      val pScan = ScanRange(Some(Bound(x.start.get, true)),
+        if (x.end.get.size == 0) None else Some(Bound(x.end.get, false)))
+      val ranges = ScanRange.and(pScan, hbaseFilter.ranges)(hbase.ord)
+      logDebug(s"partition $idx size: ${ranges.size}")
       if (ranges.size > 0) {
-        val p = Some(HBaseScanPartition(idx, x, ranges, HTypedFilter.toSerializedHTypedFilter(hbaseFilter.tf)))
+        if(log.isDebugEnabled) {
+          ranges.foreach(x => logDebug(x.toString))
+        }
+        val p = Some(HBaseScanPartition(idx, x, ranges,
+          TypedFilter.toSerializedTypedFilter(hbaseFilter.tf)))
         idx += 1
         p
       } else {
@@ -195,7 +204,8 @@ private[hbase] class HBaseTableScanRDD(
     columns.foreach{ c =>
       scan.addColumn(Bytes.toBytes(c.cf), Bytes.toBytes(c.col))
     }
-    scan.setCaching(1000)
+    val size = sparkConf.getInt(SparkHBaseConf.CachingSize, SparkHBaseConf.defaultCachingSize)
+    scan.setCaching(size)
     if (filter.isDefined) {
       scan.setFilter(filter.get)
     }
@@ -203,7 +213,8 @@ private[hbase] class HBaseTableScanRDD(
   }
 
   private def buildGets(g: Array[ScanRange[Array[Byte]]], columns: Seq[Field]): Iterator[Result] = {
-    g.grouped(SparkHBaseConf.BulkGetSize).flatMap{ x =>
+    val size = sparkConf.getInt(SparkHBaseConf.BulkGetSize, SparkHBaseConf.defaultBulkGetSize)
+    g.grouped(size).flatMap{ x =>
       val gets = new ArrayList[Get]()
       x.foreach{ y =>
         val g = new Get(y.start.get.point)
@@ -217,10 +228,10 @@ private[hbase] class HBaseTableScanRDD(
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
-    val ord = implicitly[Ordering[HBaseType]]
+    val ord = hbase.ord//implicitly[Ordering[HBaseType]]
     val partition = split.asInstanceOf[HBaseScanPartition]
-    // remove the inclusive upbound
-    val scanRanges = partition.scanRanges.flatMap(ScanRange.split(_))
+    // remove the inclusive upperbound
+    val scanRanges = partition.scanRanges.flatMap(ScanRange.split(_)(ord))
     val (g, s) = scanRanges.partition{x =>
       x.start.isDefined && x.end.isDefined && ScanRange.compare(x.start, x.end, ord) == 0
     }
@@ -233,7 +244,7 @@ private[hbase] class HBaseTableScanRDD(
     }
     val scans = s.map(x =>
       buildScan(x.get(x.start), x.get(x.end), columnFields,
-        HTypedFilter.fromSerializedHTypedFilter(partition.tf).filter))
+        TypedFilter.fromSerializedTypedFilter(partition.tf).filter))
 
     val sIts = scans.par.map(relation.table.getScanner(_)).map(toResultIterator(_))
 

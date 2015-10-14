@@ -25,34 +25,9 @@ import org.apache.hadoop.hbase.client.{Scan, Put, ConnectionFactory, Table}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.execution.datasources.hbase.SparkHBaseConf
 import org.apache.spark.sql.types.UTF8String
-import org.apache.spark.{SparkConf, Logging}
+import org.apache.spark.{SparkContext, SparkConf, Logging}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
 import scala.collection.JavaConverters._
-
-case class HBaseRecord(
-    col0: String,
-    col1: Boolean,
-    col2: Double,
-    col3: Float,
-    col4: Int,
-    col5: Long,
-    col6: Short,
-    col7: String,
-    col8: Byte)
-
-object HBaseRecord {
-  def apply(i: Int): HBaseRecord = {
-    HBaseRecord(s"row${"%03d".format(i)}",
-      i % 2 == 0,
-      i.toDouble,
-      i.toFloat,
-      i,
-      i.toLong,
-      i.toShort,
-      s"String$i extra",
-      i.toByte)
-  }
-}
 
 class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with Logging {
   implicit class StringToColumn(val sc: StringContext) {
@@ -60,6 +35,7 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
       new ColumnName(sc.s(args: _*))
     }
   }
+
 
   private[spark] var htu = HBaseTestingUtility.createLocalHTU()
   private[spark] def tableName = "table1"
@@ -118,8 +94,6 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
     val bcfs = cfs.map(Bytes.toBytes(_))
     try {
       htu.deleteTable(TableName.valueOf(tName))
-
-      //htu.createTable(TableName.valueOf(tableName), columnFamily, 2, Bytes.toBytes("abc"), Bytes.toBytes("xyz"), 2)
     } catch {
       case _ =>
         logInfo(" - no table " + name + " found")
@@ -131,8 +105,6 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
   def createTable(name: Array[Byte], cfs: Array[Array[Byte]]) {
     try {
       htu.deleteTable(TableName.valueOf(name))
-
-      //htu.createTable(TableName.valueOf(tableName), columnFamily, 2, Bytes.toBytes("abc"), Bytes.toBytes("xyz"), 2)
     } catch {
       case _ =>
         logInfo(" - no table " + Bytes.toString(name) + " found")

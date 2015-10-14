@@ -12,6 +12,9 @@ Java primitive types is supported. In the future, other data types will be suppo
 
 Note that if user want dataframe to only handle byte array, the binary type can be specified. Then user can get the catalyst row with each column as a byte array. User can further deserialize it with customized deserializer, or operate on the RDD of the data frame directly.
 
+## Solve the conflicts of Catalyst datatype order and HBase byte array order
+The libary automatically handle the orderness between the conflicts between the java data type (Short, Integer, Long, Float, Double, String, etc) and HBase bytearray order, which means as long as the format saved in HBase is consistent with the Java native data format, the libary will be able to take care of pruning and comparison instead of relying on a specific import tools.
+
 ## Data locality
 When the spark work node co-located with hbase region servers, data locality is achieved by identifying the region server location, and co-locate the executor with the region server. Each executor will only perform Scan/BulkGet on the part of the data that co-locates on the same host. 
 
@@ -33,8 +36,18 @@ Following the the examples how to write and query a HBase table. Please refer to
 
 ###Compile
 
-    mvn package
-    
+    mvn package -DskipTests
+
+###Running Tests and Examples
+Due to hbase pseducluster setup, currently the tests to be run one by one. 
+
+    mvn -DwildcardSuites=org.apache.spark.sql.DefaultSourceSuite test
+
+The following also illustrate how to run the example in real hbase cluster. You need to provide the hbase-site.xml and related hbase jars. It may subject to change based on your specific cluster configuration.
+
+        ./bin/spark-submit  --class org.apache.spark.sql.execution.datasources.hbase.examples.HBaseSource --master yarn-client     --num-executors 2     --driver-memory 512m     --executor-memory 512m     --executor-cores 1   --jars  /usr/hdp/current/hbase-client/lib/htrace-core-3.1.0-incubating.jar,/usr/hdp/current/hbase-client/lib/hbase-client.jar,/usr/hdp/current/hbase-client/lib/hbase-common.jar,/usr/hdp/current/hbase-client/lib/hbase-server.jar,/usr/hdp/current/hbase-client/lib/guava-12.0.1.jar,/usr/hdp/current/hbase-client/lib/hbase-protocol.jar,/usr/hdp/current/hbase-client/lib/htrace-core-3.1.0-incubating.jar  --files conf/hbase-site.xml /usr/hdp/current/spark-client/lib/hbase-spark-connector-1.0.0.jar
+
+
 ### Defined the HBase catalog
 
     def catalog = s"""{
@@ -122,3 +135,4 @@ Given a data frame with specified schema, above will create an HBase table with 
           
 
 Above illustrates our next step, which includes composite key support, complex data types, support of customerized sedes and avro. Note that although all the major pieces are included in the current code base, but it may not be functioning now.
+

@@ -17,6 +17,12 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
+import org.apache.hadoop.hbase.util.Bytes
+import org.apache.spark.Logging
+import org.apache.spark.sql.execution.datasources.hbase
+import org.apache.spark.sql.execution.datasources.hbase.BoundRange
+import org.apache.spark.sql.types.UTF8String
+
 import scala.collection.mutable.ArrayBuffer
 import scala.math.Ordering
 
@@ -32,7 +38,7 @@ case class Bound[T](point: T, inc: Boolean)(implicit ordering: Ordering[T]) {
 }
 
 // if optional is none, it starts/ends with minimum/maximum
-case class ScanRange[T](start: Option[Bound[T]], end: Option[Bound[T]]) {
+case class ScanRange[T](val start: Option[Bound[T]], var end: Option[Bound[T]]) {
   def get(p: Option[Bound[T]]): Option[T] = {
     if (p.isDefined) {
       Some(p.get.point)
@@ -41,11 +47,14 @@ case class ScanRange[T](start: Option[Bound[T]], end: Option[Bound[T]]) {
     }
   }
   override def toString = {
+   // s"start: ${start.map(x=>Bytes.toString(x.point.asInstanceOf[Array[Byte]])).getOrElse("None")}
+   // end: ${end.map(x=>Bytes.toString(x.point.asInstanceOf[Array[Byte]])).getOrElse("None")}"
     s"start: ${start.map(_.toString).getOrElse("None")} end: ${end.map(_.toString).getOrElse("None")}"
   }
 }
 
 object ScanRange {
+  implicit val order: Ordering[Array[Byte]] =  hbase.ord
   def empty[T] = ScanRange[T](None, None)
 
   // split (a, b] to (a, b) and [b, b]
@@ -66,10 +75,10 @@ object ScanRange {
   // If min is true, None = negative infinity
   // Otherwise, None = positive infinity
   def compare[T](
-                  b: Option[Bound[T]],
-                  point: Option[Bound[T]],
-                  ordering: Ordering[T],
-                  min: Boolean = true): Int = {
+      b: Option[Bound[T]],
+      point: Option[Bound[T]],
+      ordering: Ordering[T],
+      min: Boolean = true): Int = {
     if (b.isEmpty && point.isEmpty) {
       0
     } else if (b.isEmpty) {
@@ -78,7 +87,7 @@ object ScanRange {
       } else {
         1
       }
-    }else if (point.isEmpty) {
+    } else if (point.isEmpty) {
       if (min) {
         1
       } else {
@@ -116,10 +125,10 @@ object ScanRange {
   // If min is true, take None as Minimum
   // Otherwise, take None as Maximum
   private def bSearch[T](
-                          v: IndexedSeq[Option[Bound[T]]],
-                          point: Option[Bound[T]],
-                          ordering: Ordering[T],
-                          min: Boolean): Int = {
+      v: IndexedSeq[Option[Bound[T]]],
+      point: Option[Bound[T]],
+      ordering: Ordering[T],
+      min: Boolean): Int = {
     var start = 0
     var end = v.length
     // invariant: all element left to start is less than k and all elements right to end
@@ -138,8 +147,8 @@ object ScanRange {
   }
 
   def and[T](
-              bounds: ScanRange[T],
-              ranges: Array[ScanRange[T]])(implicit ordering: Ordering[T]): Array[ScanRange[T]] = {
+      bounds: ScanRange[T],
+      ranges: Array[ScanRange[T]])(implicit ordering: Ordering[T]): Array[ScanRange[T]] = {
     val search = new ArrayBuffer[ScanRange[T]]()
     // We assume that the range size is reasonably small, and no need to use binary search
     ranges.foreach { range =>
@@ -168,10 +177,9 @@ object ScanRange {
     search.toArray
   }
 
-
   def or[T](
-             extra: ScanRange[T],
-             ranges: Array[ScanRange[T]])(implicit ordering: Ordering[T]): Array[ScanRange[T]] = {
+      extra: ScanRange[T],
+      ranges: Array[ScanRange[T]])(implicit ordering: Ordering[T]): Array[ScanRange[T]] = {
     val search = new ArrayBuffer[ScanRange[T]]()
     val (l, u) = (ranges.map(_.start), ranges.map(_.end))
     val lIdx = bSearch(l, extra.start, ordering, true)
@@ -232,8 +240,8 @@ object ScanRange {
   }
 
   def and[T](
-              left:  Array[ScanRange[T]],
-              right:  Array[ScanRange[T]])(implicit ordering: Ordering[T]): Array[ScanRange[T]] = {
+      left:  Array[ScanRange[T]],
+      right:  Array[ScanRange[T]])(implicit ordering: Ordering[T]): Array[ScanRange[T]] = {
     // (0, 5), (10, 15) and with (2, 3) (8, 12) = (2, 3), (10, 12)
     val tmp = left.map(x => ScanRange.and(x, right))
     tmp.reduce[Array[ScanRange[T]]] { case (x, y) =>
@@ -244,10 +252,136 @@ object ScanRange {
   }
 
   def or[T](
-             left:  Array[ScanRange[T]],
-             right:  Array[ScanRange[T]])(implicit ordering: Ordering[T]): Array[ScanRange[T]] = {
+      left:  Array[ScanRange[T]],
+      right:  Array[ScanRange[T]])(implicit ordering: Ordering[T]): Array[ScanRange[T]] = {
     left.foldLeft(right){ case (x, y) =>
       ScanRange.or(y, x)
     }
+  }
+
+  // Construct multi-dimensional scan ranges.
+  def apply(
+      length: Int,
+      low: Array[Byte],
+      lowInc: Boolean,
+      up: Array[Byte],
+      upInc: Boolean,
+      offset: Int): ScanRange[Array[Byte]] = {
+    val start = Array.fill(length)(0: Byte)
+    val end = Array.fill(length)(-1: Byte)
+    System.arraycopy(low, 0, start, offset, low.length)
+    System.arraycopy(up, 0, end, offset, up.length)
+    ScanRange(Some(Bound(start, lowInc)), Some(Bound(end, upInc)))
+  }
+}
+
+// Data type for range whose size is known.
+// lower bound and upperbound for each range.
+// If data order is the same as byte order, then left = mid = right.
+// For the data type whose order is not the same as byte order, left != mid != right
+// In this case, left is max, right is min and mid is the byte of the value.
+// By this way, the scan will cover the whole range and will not  miss any data.
+// Typically, mid is used only in Equal in which case, the order does not matter.
+case class BoundRange(
+    low: Array[Byte],
+    upper: Array[Byte])
+
+// The range in less and greater have to be lexi ordered.
+case class BoundRanges(less: Array[BoundRange], greater: Array[BoundRange], value: Array[Byte])
+
+object BoundRange extends Logging{
+  def apply(in: Any): Option[BoundRanges] = in match {
+    // For short, integer, and long, the order of number is consistent with byte array order
+    // regardless of its sign. But the negative number is larger than positive number in byte array.
+    case a: Integer =>
+      val b =  Bytes.toBytes(a)
+      if (a >= 0) {
+        logDebug(s"range is 0 to $a and ${Integer.MIN_VALUE} to -1")
+        Some(BoundRanges(
+          Array(BoundRange(Bytes.toBytes(0: Int), b),
+            BoundRange(Bytes.toBytes(Integer.MIN_VALUE),  Bytes.toBytes(-1: Int))),
+          Array(BoundRange(b,  Bytes.toBytes(Integer.MAX_VALUE))), b))
+      } else {
+        Some(BoundRanges(
+          Array(BoundRange(Bytes.toBytes(Integer.MIN_VALUE), b)),
+          Array(BoundRange(Bytes.toBytes(0: Int), Bytes.toBytes(Integer.MAX_VALUE)),
+            BoundRange(b, Bytes.toBytes(-1: Integer))), b))
+      }
+    case a: Long =>
+      val b =  Bytes.toBytes(a)
+      if (a >= 0) {
+        Some(BoundRanges(
+          Array(BoundRange(Bytes.toBytes(0: Long), b),
+            BoundRange(Bytes.toBytes(Long.MinValue),  Bytes.toBytes(-1: Long))),
+          Array(BoundRange(b,  Bytes.toBytes(Long.MaxValue))), b))
+      } else {
+        Some(BoundRanges(
+          Array(BoundRange(Bytes.toBytes(Long.MinValue), b)),
+          Array(BoundRange(Bytes.toBytes(0: Long), Bytes.toBytes(Long.MaxValue)),
+            BoundRange(b, Bytes.toBytes(-1: Long))), b))
+      }
+    case a: Short =>
+      val b =  Bytes.toBytes(a)
+      if (a >= 0) {
+        Some(BoundRanges(
+          Array(BoundRange(Bytes.toBytes(0: Short), b),
+            BoundRange(Bytes.toBytes(Short.MinValue),  Bytes.toBytes(-1: Short))),
+          Array(BoundRange(b,  Bytes.toBytes(Short.MaxValue))), b))
+      } else {
+        Some(BoundRanges(
+          Array(BoundRange(Bytes.toBytes(Short.MinValue), b)),
+          Array(BoundRange(Bytes.toBytes(0: Short), Bytes.toBytes(Short.MaxValue)),
+            BoundRange(b, Bytes.toBytes(-1: Short))), b))
+      }
+    // For both double and float, the order of positive number is consistent
+    // with byte array order. But the order of negative number is the reverse
+    // order of byte array. Please refer to IEEE-754 and
+    // https://en.wikipedia.org/wiki/Single-precision_floating-point_format
+    case a: Double =>
+      val b =  Bytes.toBytes(a)
+      if (a >= 0.0f) {
+        Some(BoundRanges(
+          Array(BoundRange(Bytes.toBytes(0.0d), b),
+            BoundRange(Bytes.toBytes(-0.0d),  Bytes.toBytes(Double.MinValue))),
+          Array(BoundRange(b,  Bytes.toBytes(Double.MaxValue))), b))
+      } else {
+        Some(BoundRanges(
+          Array(BoundRange(b, Bytes.toBytes(Double.MinValue))),
+          Array(BoundRange(Bytes.toBytes(0.0d), Bytes.toBytes(Double.MaxValue)),
+            BoundRange(Bytes.toBytes(-0.0d), b)), b))
+      }
+    case a: Float =>
+      val b =  Bytes.toBytes(a)
+      if (a >= 0.0f) {
+        Some(BoundRanges(
+          Array(BoundRange(Bytes.toBytes(0.0f), b),
+            BoundRange(Bytes.toBytes(-0.0f),  Bytes.toBytes(Float.MinValue))),
+          Array(BoundRange(b,  Bytes.toBytes(Float.MaxValue))), b))
+      } else {
+        Some(BoundRanges(
+          Array(BoundRange(b, Bytes.toBytes(Float.MinValue))),
+          Array( BoundRange(Bytes.toBytes(0.0f), Bytes.toBytes(Float.MaxValue)),
+            BoundRange(Bytes.toBytes(-0.0f), b)), b))
+      }
+    case a: Array[Byte] =>
+      Some(BoundRanges(
+        Array(BoundRange(Array.fill(a.length)(ByteMin), a)),
+        Array(BoundRange(a, Array.fill(a.length)(ByteMax))), a))
+    case a: Byte =>
+      val b =  Array(a)
+      Some(BoundRanges(
+        Array(BoundRange(Array(ByteMin), b)),
+        Array(BoundRange(b, Array(ByteMax))), b))
+    case a: String =>
+      val b =  Bytes.toBytes(a)
+      Some(BoundRanges(
+        Array(BoundRange(Array.fill(a.length)(ByteMin), b)),
+        Array(BoundRange(b, Array.fill(a.length)(ByteMax))), b))
+    case a: UTF8String =>
+      val b = a.getBytes
+      Some(BoundRanges(
+        Array(BoundRange(Array.fill(a.length)(ByteMin), b)),
+        Array(BoundRange(b, Array.fill(a.length)(ByteMax))), b))
+    case _ => None
   }
 }

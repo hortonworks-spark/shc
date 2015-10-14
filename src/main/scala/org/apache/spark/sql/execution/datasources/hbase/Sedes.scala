@@ -35,10 +35,7 @@ trait Sedes {
 class DoubleSedes extends Sedes {
   override def serialize(value: Any): Array[Byte] = Bytes.toBytes(value.asInstanceOf[Double])
   override def deserialize(bytes: Array[Byte], start: Int, end: Int): Any = {
-    var l: Long = Bytes.toLong(bytes, start, Bytes.SIZEOF_DOUBLE)
-    l = l - 1
-    l ^= (~l >> java.lang.Long.SIZE - 1) | java.lang.Long.MIN_VALUE
-    java.lang.Double.longBitsToDouble(l)
+    Bytes.toLong(bytes, start)
   }
 }
 

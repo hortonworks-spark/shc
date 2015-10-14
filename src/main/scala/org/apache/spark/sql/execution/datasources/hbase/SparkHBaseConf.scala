@@ -19,11 +19,12 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import org.apache.hadoop.conf.Configuration
 
-/**
- * Created by zzhang on 9/8/15.
- */
+
 object SparkHBaseConf {
   val testConf = "spark.hbase.connector.test"
   var conf: Configuration = _
-  var BulkGetSize = 1
+  var BulkGetSize = "spark.hbase.connector.bulkGetSize"
+  var defaultBulkGetSize = 100
+  var CachingSize = "spark.hbase.connector.cacheSize"
+  var defaultCachingSize = 100
 }

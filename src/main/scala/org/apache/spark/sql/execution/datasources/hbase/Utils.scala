@@ -30,10 +30,6 @@ import org.apache.spark.sql.types._
 import scala.collection.mutable.ArrayBuffer
 import scala.math.Ordering
 
-
-/**
- * Created by zzhang on 8/18/15.
- */
 object Utils {
 
   def setRowCol(
@@ -97,60 +93,13 @@ object Utils {
         case _ => throw new Exception(s"unsupported data type ${field.dt}") //TODO
       }
     }
-
   }
 
   def toBoolean(input: HBaseType, offset: Int): Boolean = {
     input(offset) != 0
   }
 
-  def toByte(input: HBaseType, offset: Int): Byte = {
-    // Flip sign bit back
-    val v: Int = input(offset) ^ 0x80
-    v.asInstanceOf[Byte]
-  }
-
-  def toDouble(input: HBaseType, offset: Int): Double = {
-    var l: Long = Bytes.toLong(input, offset, Bytes.SIZEOF_DOUBLE)
-    l = l - 1
-    l ^= (~l >> java.lang.Long.SIZE - 1) | java.lang.Long.MIN_VALUE
-    java.lang.Double.longBitsToDouble(l)
-  }
-  def toFloat(input: HBaseType, offset: Int): Float = {
-    var i = Bytes.toInt(input, offset)
-    i = i - 1
-    i ^= (~i >> Integer.SIZE - 1) | Integer.MIN_VALUE
-    java.lang.Float.intBitsToFloat(i)
-  }
-
-  def toInt(input: HBaseType, offset: Int): Int = {
-    // Flip sign bit back
-    var v: Int = input(offset) ^ 0x80
-    for (i <- 1 to Bytes.SIZEOF_INT - 1) {
-      v = (v << 8) + (input(i + offset) & 0xff)
-    }
-    v
-  }
-
-  def toLong(input: HBaseType, offset: Int): Long = {
-    // Flip sign bit back
-    var v: Long = input(offset) ^ 0x80
-    for (i <- 1 to Bytes.SIZEOF_LONG - 1) {
-      v = (v << 8) + (input(i + offset) & 0xff)
-    }
-    v
-  }
-
-  def toShort(input: HBaseType, offset: Int): Short = {
-    // flip sign bit back
-    var v: Int = input(offset) ^ 0x80
-    v = (v << 8) + (input(1 + offset) & 0xff)
-    v.asInstanceOf[Short]
-  }
-
   def toUTF8String(input: HBaseType, offset: Int, length: Int): UTF8String = {
     UTF8String(input.slice(offset, offset + length))
   }
-
-
 }

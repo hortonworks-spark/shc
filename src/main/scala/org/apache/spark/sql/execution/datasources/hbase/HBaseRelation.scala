@@ -83,7 +83,7 @@ case class HBaseRelation(
         val tableDesc = new HTableDescriptor(tName)
         cfs.foreach { x =>
          val cf = new HColumnDescriptor(x.getBytes())
-          println(s"add family $x to ${catalog.name}")
+          logDebug(s"add family $x to ${catalog.name}")
           tableDesc.addFamily(cf)
         }
         val startKey = Bytes.toBytes("aaaaaaa");
@@ -92,10 +92,10 @@ case class HBaseRelation(
         admin.createTable(tableDesc, splitKeys)
         val r = connection.getRegionLocator(TableName.valueOf(catalog.name)).getAllRegionLocations
         while(r == null || r.size() == 0) {
-          println(s"region not allocated")
+          logDebug(s"region not allocated")
           Thread.sleep(1000)
         }
-        println(s"region allocated $r")
+        logDebug(s"region allocated $r")
         admin.close()
       }
     }
@@ -107,7 +107,6 @@ case class HBaseRelation(
    * @param overwrite
    */
   override def insert(data: DataFrame, overwrite: Boolean): Unit = {
-    println("call insert")
     val jobConfig: JobConf = new JobConf(hbaseConf, this.getClass)
     jobConfig.setOutputFormat(classOf[TableOutputFormat])
     jobConfig.set(TableOutputFormat.OUTPUT_TABLE, catalog.name)
@@ -145,7 +144,6 @@ case class HBaseRelation(
       (new ImmutableBytesWritable, put)
     }
     rdd.map(convertToPut(_)).saveAsHadoopDataset(jobConfig)
-    println("insert Done")
   }
   val catalog = HBaseTableCatalog(parameters)
 
@@ -170,6 +168,11 @@ case class HBaseRelation(
     _table
   }
 
+  def rows = catalog.row
+
+  def singleKey = {
+    rows.fields.size == 1
+  }
   def closeTable() = {
     if (_table != null) {
       _table.close()
@@ -188,6 +191,9 @@ case class HBaseRelation(
     f1 == f2
   }
 
+  def isComposite(): Boolean = {
+    catalog.getRowKey.size > 1
+  }
   def isColumn(c: String): Boolean = {
     !catalog.getRowKey.map(_.colName).contains(c)
   }
@@ -219,14 +225,14 @@ case class HBaseRelation(
   }
 
   // Get all the partitions of the table
-  @transient lazy val regions: Seq[HBaseRegions] = {
+  @transient lazy val regions: Seq[HBaseRegion] = {
     val connection = ConnectionFactory.createConnection(hbaseConf)
     val r = connection.getRegionLocator(TableName.valueOf(catalog.name))
     val keys = r.getStartEndKeys
     keys.getFirst.zip(keys.getSecond)
       .zipWithIndex
       .map (x =>
-        HBaseRegions(x._2,
+        HBaseRegion(x._2,
           Some(x._1._1),
           Some(x._1._2),
           Some(r.getRegionLocation(x._1._1).getHostname)))

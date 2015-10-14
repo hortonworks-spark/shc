@@ -20,11 +20,8 @@ package org.apache.spark.sql
 import org.apache.spark.sql.execution.datasources.hbase.HBaseTableCatalog
 import org.apache.spark.{SparkContext, Logging}
 
-/**
- * Created by zzhang on 9/9/15.
- */
 class DataTypeConverter extends SHC with Logging{
-  test("Basic setup") {
+  ignore("Basic setup") {
     val sc = new SparkContext("local", "HBaseTest", conf)
     val sqlContext = new SQLContext(sc)
 
@@ -44,19 +41,30 @@ class DataTypeConverter extends SHC with Logging{
               |"col2":{"cf":"rowkey", "col":"key2", "type":"double"},
               |"col3":{"cf":"cf1", "col":"col1", "avro":"schema1"},
               |"col4":{"cf":"cf1", "col":"col2", "type":"string"},
-              |"col5":{"cf":"cf1", "col":"col3", "type":"double", "sedes":"org.apache.spark.sql.execution.datasources.hbase.DoubleSedes"},
+              |"col5":{"cf":"cf1", "col":"col3", "type":"double",
+              |"sedes":"org.apache.spark.sql.execution.datasources.hbase.DoubleSedes"},
               |"col6":{"cf":"cf1", "col":"col4", "type":"$complex"}
             |}
           |}""".stripMargin
     val df =
-      sqlContext.read.options(Map("schema1"->schema, HBaseTableCatalog.tableCatalog->catalog)).format("org.apache.spark.sql.execution.datasources.hbase").load()
-    df.write.options(Map("schema1"->schema, HBaseTableCatalog.tableCatalog->catalog)).format("org.apache.spark.sql.execution.datasources.hbase").save()
+      sqlContext.read.options(
+        Map("schema1"->schema, HBaseTableCatalog.tableCatalog->catalog))
+        .format("org.apache.spark.sql.execution.datasources.hbase")
+        .load()
+    df.write.options(
+      Map("schema1"->schema, HBaseTableCatalog.tableCatalog->catalog))
+      .format("org.apache.spark.sql.execution.datasources.hbase")
+      .save()
 
     //val s = df.filter((($"col1" < Array(10.toByte)) and ($"col1" > Array(1.toByte))) or ($"col1" === Array(11.toByte))).select("col1")
     //val s = df.filter(Column("col1").<(Array(10.toByte)).and(Column("col1").>(Array(1.toByte))).or(Column("col1") === Array(11.toByte))).select("col1")
     // val s = df.filter((($"col1" < Array(10.toByte)) && ($"col1" > Array(1.toByte))) || ($"col1" === Array(11.toByte))).select("col1")
     //val s = df.filter(($"col1" < Array(10.toByte) && $"col1" > Array(1.toByte)) || $"col1" === Array(11.toByte) || $"col2" === 2.3).select("col1") // range should be (None, None)
-    val s = df.filter(($"col1" < Array(10.toByte) && $"col1" > Array(1.toByte)) || $"col1" === Array(11.toByte) && $"col2" === 2.3).select("col1")
+    val s = df.filter(($"col1" < Array(10.toByte) &&
+      $"col1" > Array(1.toByte)) ||
+      $"col1" === Array(11.toByte) &&
+        $"col2" === 2.3)
+      .select("col1")
     s.count()
     df.registerTempTable("table")
     val c = sqlContext.sql("select count(col1) from table")

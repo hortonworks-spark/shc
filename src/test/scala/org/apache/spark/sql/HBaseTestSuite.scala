@@ -27,9 +27,6 @@ import org.apache.spark.Logging
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
 import scala.collection.JavaConverters._
 
-/**
- * Created by zzhang on 8/26/15.
- */
 class HBaseTestSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with Logging {
   private[spark] var htu = HBaseTestingUtility.createLocalHTU()
   private[spark] var tableName: Array[Byte] = Bytes.toBytes("t1")

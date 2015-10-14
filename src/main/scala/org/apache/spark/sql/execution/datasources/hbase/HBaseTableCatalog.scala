@@ -18,7 +18,10 @@
 package org.apache.spark.sql.execution.datasources.hbase
 
 import org.apache.avro.Schema
+import org.apache.hadoop.hbase.util.Bytes
+import org.apache.spark.Logging
 import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.execution.SparkSqlSerializer
 import org.apache.spark.sql.types._
 import org.json4s.jackson.JsonMethods._
 
@@ -34,7 +37,7 @@ case class Field(
                   sType: Option[String] = None,
                   avroSchema: Option[String] = None,
                   val sedes: Option[Sedes]= None,
-                  var length: Int = -1) {
+                  len: Int = -1) {
   val isRowKey = cf == HBaseTableCatalog.rowKey
   var start: Int = _
   val schema: Option[Schema] = avroSchema.map { x =>
@@ -61,16 +64,24 @@ case class Field(
     }
   }
 
-  def init() = {
-    if (length == -1) {
+  var length: Int = {
+    if (len == -1) {
       dt match {
         case BinaryType | StringType => -1
+        case BooleanType => Bytes.SIZEOF_BOOLEAN
+        case ByteType => 1
+        case DoubleType => Bytes.SIZEOF_DOUBLE
+        case FloatType => Bytes.SIZEOF_FLOAT
+        case IntegerType => Bytes.SIZEOF_INT
+        case LongType => Bytes.SIZEOF_LONG
+        case ShortType => Bytes.SIZEOF_SHORT
         case _ => dt.defaultSize
       }
+    } else {
+      len
     }
 
   }
-  init()
 
   override def equals(other: Any): Boolean = other match {
     case that: Field =>
@@ -85,6 +96,15 @@ case class RowKey(k: String) {
   val keys = k.split(":")
   var fields: Seq[Field] = _
   var varLength = false
+  def length = {
+    if (varLength) {
+      -1
+    } else {
+      fields.foldLeft(0){case (x, y) =>
+          x + y.length
+      }
+    }
+  }
 }
 // The map between the column presented to Spark and the HBase field
 case class SchemaMap(map: mutable.HashMap[String, Field]) {
@@ -104,7 +124,7 @@ case class HBaseTableCatalog(
     val name: String,
     row: RowKey,
     sMap: SchemaMap,
-    val numReg: Int) {
+    val numReg: Int) extends Logging {
   def toDataType = StructType(sMap.toFields)
   def getField(name: String) = sMap.getField(name)
   def getRowKey: Seq[Field] = row.fields
@@ -115,9 +135,11 @@ case class HBaseTableCatalog(
 
   // Setup the start and length for each dimension of row key at runtime.
   def dynSetupRowKey(rowKey: HBaseType) {
+    logDebug(s"length: ${rowKey.length}")
     if(row.varLength) {
       var start = 0
       row.fields.foreach { f =>
+        logDebug(s"start: $start")
         f.start = start
         f.length = f.dt match {
           case StringType =>

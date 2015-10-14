@@ -17,11 +17,24 @@
 
 package org.apache.spark.sql.execution.datasources
 
+import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.types.BinaryType
 
 import scala.math.Ordering
 
 package object hbase {
-  implicit val order: Ordering[HBaseType] =  BinaryType.ordering
   type HBaseType = Array[Byte]
+  //Do not use BinaryType.ordering
+  implicit val order: Ordering[HBaseType] =  ord
+
+
+  val ord: Ordering[HBaseType] = new Ordering[HBaseType] {
+
+    def compare(x: Array[Byte], y: Array[Byte]): Int = {
+      return Bytes.compareTo(x, y)
+    }
+  }
+
+  val ByteMax = -1.asInstanceOf[Byte]
+  val ByteMin = 0.asInstanceOf[Byte]
 }
