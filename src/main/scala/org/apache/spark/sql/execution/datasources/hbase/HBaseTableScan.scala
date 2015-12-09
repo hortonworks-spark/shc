@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase._
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.{BinaryType, AtomicType}
+import org.apache.spark.sql.types.{StructType, BinaryType, AtomicType}
 
 import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
@@ -40,6 +40,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.execution.datasources.hbase.HBaseResources._
 
 private[hbase] case class HBaseRegion(
     override val index: Int,
@@ -58,16 +59,16 @@ private[hbase] class HBaseTableScanRDD(
     relation: HBaseRelation,
     requiredColumns: Array[String],
     filters: Array[Filter]) extends RDD[Row](relation.sqlContext.sparkContext, Nil) with Logging  {
-
+  val outputs = StructType(requiredColumns.map(relation.schema(_))).toAttributes
   val columnFields = relation.splitRowKeyColumns(requiredColumns)._2
   private def sparkConf = SparkEnv.get.conf
 
   override def getPartitions: Array[Partition] = {
     val hbaseFilter = HBaseFilter.buildFilters(filters, relation)
-    val regions = relation.regions
     var idx = 0
-    logDebug(s"There are ${regions.size} regions")
-    regions.flatMap { x=>
+    val r = RegionResource(relation)
+    logDebug(s"There are ${r.size} regions")
+    val ps = r.flatMap { x=>
       // HBase take maximum as empty byte array, change it here.
       val pScan = ScanRange(Some(Bound(x.start.get, true)),
         if (x.end.get.size == 0) None else Some(Bound(x.end.get, false)))
@@ -85,6 +86,8 @@ private[hbase] class HBaseTableScanRDD(
         None
       }
     }.toArray
+    r.release()
+    ps.asInstanceOf[Array[Partition]]
   }
 
   def buildRow(
@@ -104,7 +107,7 @@ private[hbase] class HBaseTableScanRDD(
         val kv = result.getColumnLatestCell(Bytes.toBytes(x._1.cf), Bytes.toBytes(x._1.col))
         if (kv == null || kv.getValueLength == 0) {
           row.setNullAt(x._2)
-        } else if (x._1.dt.isInstanceOf[AtomicType]) {
+        } else {
           val v = CellUtil.cloneValue(kv)
           Utils.setRowCol(row, x, v, 0, v.length)
         }
@@ -112,11 +115,10 @@ private[hbase] class HBaseTableScanRDD(
     }
   }
 
-  private def toResultIterator(result: Array[Result]): Iterator[Result] = {
+  private def toResultIterator(result: GetResource): Iterator[Result] = {
     val iterator = new Iterator[Result] {
       var idx = 0
       var cur: Option[Result] = None
-      val stream = result.toStream
       override def hasNext: Boolean = {
         while(idx < result.length && cur.isEmpty) {
           val tmp = result(idx)
@@ -124,6 +126,9 @@ private[hbase] class HBaseTableScanRDD(
           if (!tmp.isEmpty) {
             cur = Some(tmp)
           }
+        }
+        if (cur.isEmpty) {
+          result.release()
         }
         cur.isDefined
       }
@@ -137,16 +142,23 @@ private[hbase] class HBaseTableScanRDD(
     iterator
   }
 
-  private def toResultIterator(scanner: ResultScanner): Iterator[Result] = {
+  private def toResultIterator(scanner: ScanResource): Iterator[Result] = {
     val iterator = new Iterator[Result] {
       var cur: Option[Result] = None
       override def hasNext: Boolean = {
         if (cur.isEmpty) {
-          val r = scanner.next()
-          if (r == null) {
-            scanner.close()
-          } else {
-            cur = Some(r)
+          try {
+            val r = scanner.next()
+            if (r == null) {
+              scanner.release()
+            } else {
+              cur = Some(r)
+            }
+          } catch {
+            case e: Throwable =>
+              logError("error iterating on scanner " + e)
+              scanner.release()
+              throw e
           }
         }
         cur.isDefined
@@ -165,7 +177,7 @@ private[hbase] class HBaseTableScanRDD(
       it: Iterator[Result]): Iterator[Row] = {
 
     val iterator = new Iterator[Row] {
-      val row = new GenericMutableRow(requiredColumns.size)
+      val row = new SpecificMutableRow(outputs.map(_.dataType))
       val indexedFields = relation.getIndexedProjections(requiredColumns)
 
       override def hasNext: Boolean = {
@@ -212,7 +224,7 @@ private[hbase] class HBaseTableScanRDD(
     scan
   }
 
-  private def buildGets(g: Array[ScanRange[Array[Byte]]], columns: Seq[Field]): Iterator[Result] = {
+  private def buildGets(tbr: TableResource, g: Array[ScanRange[Array[Byte]]], columns: Seq[Field]): Iterator[Result] = {
     val size = sparkConf.getInt(SparkHBaseConf.BulkGetSize, SparkHBaseConf.defaultBulkGetSize)
     g.grouped(size).flatMap{ x =>
       val gets = new ArrayList[Get]()
@@ -223,7 +235,7 @@ private[hbase] class HBaseTableScanRDD(
         }
         gets.add(g)
       }
-      toResultIterator(relation.table.get(gets))
+      toResultIterator(tbr.get(gets))
     }
   }
 
@@ -235,18 +247,20 @@ private[hbase] class HBaseTableScanRDD(
     val (g, s) = scanRanges.partition{x =>
       x.start.isDefined && x.end.isDefined && ScanRange.compare(x.start, x.end, ord) == 0
     }
+    val tableResource = TableResource(relation)
     val gIt: Iterator[Result] = {
       if (g.isEmpty) {
         Iterator.empty: Iterator[Result]
       } else {
-        buildGets(g, columnFields)
+        buildGets(tableResource, g, columnFields)
       }
     }
     val scans = s.map(x =>
       buildScan(x.get(x.start), x.get(x.end), columnFields,
         TypedFilter.fromSerializedTypedFilter(partition.tf).filter))
 
-    val sIts = scans.par.map(relation.table.getScanner(_)).map(toResultIterator(_))
+    val sIts = scans.par.map(tableResource.getScanner(_))
+      .map(toResultIterator(_))
 
     val rIt = sIts.fold(Iterator.empty: Iterator[Result]){ case (x, y) =>
       x ++ y

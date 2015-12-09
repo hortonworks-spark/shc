@@ -20,6 +20,7 @@ package org.apache.spark.sql.execution.datasources.hbase
 import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 import java.sql.Timestamp
+import java.util
 import java.util.HashMap
 
 import org.apache.avro.io._
@@ -168,7 +169,12 @@ object SchemaConverters {
         (item: Any) => if (item == null) {
           null
         } else {
-          item.asInstanceOf[GenericData.Array[Any]].map(elementConverter)
+          try {
+            item.asInstanceOf[GenericData.Array[Any]].map(elementConverter)
+          } catch {
+            case e: Throwable =>
+              item.asInstanceOf[util.ArrayList[Any]].map(elementConverter)
+          }
         }
       case MAP =>
         val valueConverter = createConverterToSQL(schema.getValueType)
@@ -327,10 +333,10 @@ object SchemaConverters {
           } else {
             val sourceArray = item.asInstanceOf[Seq[Any]]
             val sourceArraySize = sourceArray.size
-            val targetArray = new Array[Any](sourceArraySize)
+            val targetArray = new util.ArrayList[Any](sourceArraySize)
             var idx = 0
             while (idx < sourceArraySize) {
-              targetArray(idx) = elementConverter(sourceArray(idx))
+              targetArray.add(elementConverter(sourceArray(idx)))
               idx += 1
             }
             targetArray
@@ -389,12 +395,11 @@ object AvroSedes {
       case STRING => Bytes.toBytes(input.asInstanceOf[String])
       case RECORD =>
         val gr = input.asInstanceOf[GenericRecord]
-        val writer2 = new GenericDatumWriter[GenericRecord](gr.getSchema())
+        val writer2 = new GenericDatumWriter[GenericRecord](schema)
         val bao2 = new ByteArrayOutputStream()
         val encoder2: BinaryEncoder = EncoderFactory.get().directBinaryEncoder(bao2, null)
         writer2.write(gr, encoder2)
         bao2.toByteArray()
-      // Todo: ARRAY, MAP, UNION
       case _ => throw new Exception(s"unsupported data type ${schema.getType}") //TODO
     }
   }

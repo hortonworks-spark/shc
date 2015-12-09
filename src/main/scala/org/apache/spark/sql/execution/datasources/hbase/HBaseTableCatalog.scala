@@ -31,29 +31,31 @@ import scala.collection.mutable
 
 // The definition of each column cell, which may be composite type
 case class Field(
-                  colName: String,
-                  cf: String,
-                  col: String,
-                  sType: Option[String] = None,
-                  avroSchema: Option[String] = None,
-                  val sedes: Option[Sedes]= None,
-                  len: Int = -1) {
+    colName: String,
+    cf: String,
+    col: String,
+    sType: Option[String] = None,
+    avroSchema: Option[String] = None,
+    val sedes: Option[Sedes]= None,
+    len: Int = -1) extends Logging{
   val isRowKey = cf == HBaseTableCatalog.rowKey
   var start: Int = _
-  val schema: Option[Schema] = avroSchema.map { x =>
-    println(s"avro: $x")
+  def schema: Option[Schema] = avroSchema.map { x =>
+    logDebug(s"avro: $x")
     val p = new Schema.Parser
     p.parse(x)
   }
 
+  lazy val exeSchema = schema
+
   // converter from avro to catalyst structure
-  def avroToCatalyst: Option[Any => Any] = {
+  lazy val avroToCatalyst: Option[Any => Any] = {
     schema.map(SchemaConverters.createConverterToSQL(_))
   }
 
   // converter from catalyst to avro
-  def catalystToAvro(name: String, namespace: String) ={
-    SchemaConverters.createConverterToAvro(dt, name, "recordNamespace")
+  lazy val catalystToAvro: (Any) => Any ={
+    SchemaConverters.createConverterToAvro(dt, colName, "recordNamespace")
   }
 
   val dt = {
@@ -88,8 +90,8 @@ case class Field(
       colName == that.colName && cf == that.cf && col == that.col
     case _ => false
   }
-
 }
+
 // The row key definition, with each key refer to the col defined in Field, e.g.,
 // key1:key2:key3
 case class RowKey(k: String) {
@@ -233,8 +235,6 @@ object HBaseTableCatalog {
   }
 
   def main(args: Array[String]) {
-
-
     val complex = s"""MAP<int, struct<varchar:string>>"""
     val schema =
       s"""{"namespace": "example.avro",

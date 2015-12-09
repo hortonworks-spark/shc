@@ -17,12 +17,13 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import java.io.ByteArrayInputStream
+import java.io.{IOException, ObjectInputStream, ObjectOutputStream, ByteArrayInputStream}
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumWriter, GenericDatumReader, GenericRecord}
 import org.apache.avro.io._
 import org.apache.commons.io.output.ByteArrayOutputStream
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapred.TableOutputFormat
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat
@@ -40,6 +41,7 @@ import org.json4s.jackson.JsonMethods._
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.util.control.NonFatal
 
 /**
  * val people = sqlContext.read.format("hbase").load("people")
@@ -67,9 +69,9 @@ private[sql] class DefaultSource extends RelationProvider with CreatableRelation
 }
 
 case class HBaseRelation(
-                          parameters: Map[String, String],
-                          userSpecifiedschema: Option[StructType]
-                          )(@transient val sqlContext: SQLContext)
+    parameters: Map[String, String],
+    userSpecifiedschema: Option[StructType]
+  )(@transient val sqlContext: SQLContext)
   extends BaseRelation with PrunedFilteredScan with InsertableRelation with Logging {
 
   def createTable() {
@@ -96,8 +98,10 @@ case class HBaseRelation(
           Thread.sleep(1000)
         }
         logDebug(s"region allocated $r")
-        admin.close()
+
       }
+      admin.close()
+      connection.close()
     }
   }
 
@@ -148,36 +152,23 @@ case class HBaseRelation(
   val catalog = HBaseTableCatalog(parameters)
 
   val df: DataFrame = null
-  @transient private var _table: Table = null
 
   val testConf = sqlContext.sparkContext.conf.getBoolean(SparkHBaseConf.testConf, false)
 
-  def hbaseConf = {
+  @transient val  hConf = {
     if (testConf) {
       SparkHBaseConf.conf
     } else {
       HBaseConfiguration.create
     }
   }
-
-  def table: Table = {
-    if (_table == null) {
-      val connection = ConnectionFactory.createConnection(hbaseConf)
-      _table = connection.getTable(TableName.valueOf(catalog.name))
-    }
-    _table
-  }
+  val wrappedConf = new SerializableConfiguration(hConf)
+  def hbaseConf = wrappedConf.value
 
   def rows = catalog.row
 
   def singleKey = {
     rows.fields.size == 1
-  }
-  def closeTable() = {
-    if (_table != null) {
-      _table.close()
-    }
-    _table = null
   }
 
   def getField(name: String): Field = {
@@ -223,18 +214,25 @@ case class HBaseRelation(
   def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
     new HBaseTableScanRDD(this, requiredColumns, filters)
   }
+}
 
-  // Get all the partitions of the table
-  @transient lazy val regions: Seq[HBaseRegion] = {
-    val connection = ConnectionFactory.createConnection(hbaseConf)
-    val r = connection.getRegionLocator(TableName.valueOf(catalog.name))
-    val keys = r.getStartEndKeys
-    keys.getFirst.zip(keys.getSecond)
-      .zipWithIndex
-      .map (x =>
-        HBaseRegion(x._2,
-          Some(x._1._1),
-          Some(x._1._2),
-          Some(r.getRegionLocation(x._1._1).getHostname)))
+class SerializableConfiguration(@transient var value: Configuration) extends Serializable {
+  private def writeObject(out: ObjectOutputStream): Unit = tryOrIOException {
+    out.defaultWriteObject()
+    value.write(out)
+  }
+
+  private def readObject(in: ObjectInputStream): Unit = tryOrIOException {
+    value = new Configuration(false)
+    value.readFields(in)
+  }
+
+  def tryOrIOException(block: => Unit) {
+    try {
+      block
+    } catch {
+      case e: IOException => throw e
+      case NonFatal(t) => throw new IOException(t)
+    }
   }
 }

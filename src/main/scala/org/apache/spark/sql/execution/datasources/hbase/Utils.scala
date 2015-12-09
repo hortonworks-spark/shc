@@ -39,18 +39,21 @@ object Utils {
       offset: Int,
       length: Int): Unit = {
     val index = field._2
-    if (field._1.sedes.isDefined) {
+    val f = field._1
+    if (f.sedes.isDefined) {
       // If we already have sedes defined , use it.
-      val m = field._1.sedes.get.deserialize(src, offset, length)
+      val m = f.sedes.get.deserialize(src, offset, length)
       row.update(index, m)
-    } else if (field._1.schema.isDefined) {
+    } else if (f.exeSchema.isDefined) {
+      // println("avro schema is defined to do deserialization")
       // If we have avro schema defined, use it to get record, and then covert them to catalyst data type
-      val m = AvroSedes.deserialize(src, field._1.schema.get)
-      val n = field._1.avroToCatalyst.map(_(m))
-      row.update(index, n)
+      val m = AvroSedes.deserialize(src, f.exeSchema.get)
+      // println(m)
+      val n = f.avroToCatalyst.map(_(m))
+      row.update(index, n.get)
     } else  {
       // Fall back to atomic type
-      field._1.dt match {
+      f.dt match {
         case BooleanType => row.setBoolean(index, toBoolean(src, offset))
         case ByteType => row.setByte(index, src(offset))
         case DoubleType => row.setDouble(index, Bytes.toDouble(src, offset))
@@ -74,8 +77,7 @@ object Utils {
       field.sedes.get.serialize(input)
     } else if (field.schema.isDefined) {
       // Here we assume the top level type is structType
-      val record =field.catalystToAvro(field.colName, "recordNamespace")(input)
-
+      val record = field.catalystToAvro(input)
       AvroSedes.serialize(record, field.schema.get)
     } else {
       input match {
