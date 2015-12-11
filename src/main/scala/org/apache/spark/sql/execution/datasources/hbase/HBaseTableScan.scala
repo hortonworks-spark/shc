@@ -42,6 +42,8 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.execution.datasources.hbase.HBaseResources._
 
+import scala.collection.mutable
+
 private[hbase] case class HBaseRegion(
     override val index: Int,
     val start: Option[HBaseType] = None,
@@ -128,7 +130,7 @@ private[hbase] class HBaseTableScanRDD(
           }
         }
         if (cur.isEmpty) {
-          result.release()
+          rddResources.release(result)
         }
         cur.isDefined
       }
@@ -147,18 +149,11 @@ private[hbase] class HBaseTableScanRDD(
       var cur: Option[Result] = None
       override def hasNext: Boolean = {
         if (cur.isEmpty) {
-          try {
-            val r = scanner.next()
-            if (r == null) {
-              scanner.release()
-            } else {
-              cur = Some(r)
-            }
-          } catch {
-            case e: Throwable =>
-              logError("error iterating on scanner " + e)
-              scanner.release()
-              throw e
+          val r = scanner.next()
+          if (r == null) {
+            rddResources.release(scanner)
+          } else {
+            cur = Some(r)
           }
         }
         cur.isDefined
@@ -235,8 +230,15 @@ private[hbase] class HBaseTableScanRDD(
         }
         gets.add(g)
       }
-      toResultIterator(tbr.get(gets))
+      val tmp = tbr.get(gets)
+      rddResources.addResource(tmp)
+      toResultIterator(tmp)
     }
+  }
+  lazy val rddResources = RDDResources(new mutable.HashSet[Resource]())
+
+  private def close() {
+    rddResources.release()
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
@@ -247,6 +249,8 @@ private[hbase] class HBaseTableScanRDD(
     val (g, s) = scanRanges.partition{x =>
       x.start.isDefined && x.end.isDefined && ScanRange.compare(x.start, x.end, ord) == 0
     }
+
+    context.addTaskCompletionListener(context => close())
     val tableResource = TableResource(relation)
     val gIt: Iterator[Result] = {
       if (g.isEmpty) {
@@ -259,13 +263,32 @@ private[hbase] class HBaseTableScanRDD(
       buildScan(x.get(x.start), x.get(x.end), columnFields,
         TypedFilter.fromSerializedTypedFilter(partition.tf).filter))
 
-    val sIts = scans.par.map(tableResource.getScanner(_))
-      .map(toResultIterator(_))
+    val sIts = scans.par.map { scan =>
+      val scanner = tableResource.getScanner(scan)
+      rddResources.addResource(scanner)
+      scanner
+    }.map(toResultIterator(_))
 
     val rIt = sIts.fold(Iterator.empty: Iterator[Result]){ case (x, y) =>
       x ++ y
     } ++ gIt
 
     toRowIterator(rIt)
+  }
+}
+
+case class RDDResources(set: mutable.HashSet[Resource]) {
+  def addResource(s: Resource) {
+    set += s
+  }
+  def release() {
+    set.foreach(release(_))
+  }
+  def release(rs: Resource) {
+    try {
+      rs.release()
+    } finally {
+      set.remove(rs)
+    }
   }
 }

@@ -22,7 +22,31 @@ import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client._
 
 
+// Resource and ReferencedResources are defined for extensibility,
+// e.g., consolidate scan and bulkGet in the future work.
+
+// User has to invoke release explicitly to release the resource,
+// and potentially parent resources
 trait Resource {
+  def release(): Unit
+}
+
+case class ScanResource(tbr: TableResource, rs: ResultScanner) extends Resource {
+  def release() {
+    rs.close()
+    tbr.release()
+  }
+}
+
+case class GetResource(tbr: TableResource, rs: Array[Result]) extends Resource {
+  def release() {
+    tbr.release()
+  }
+}
+
+// Multiple child resource may use this one, which is reference counted.
+// It will not be released until the counter reaches 0
+trait ReferencedResource {
   var count: Int = 0
   def init(): Unit
   def destroy(): Unit
@@ -38,7 +62,6 @@ trait Resource {
         throw e
     }
   }
-
 
   def release() = synchronized {
     count -= 1
@@ -62,7 +85,7 @@ trait Resource {
   }
 }
 
-case class RegionResource(relation: HBaseRelation) extends Resource {
+case class RegionResource(relation: HBaseRelation) extends ReferencedResource {
   var connection: Connection = _
   var rl: RegionLocator = _
 
@@ -94,20 +117,7 @@ case class RegionResource(relation: HBaseRelation) extends Resource {
   }
 }
 
-case class ScanResource(tbr: TableResource, rs: ResultScanner) {
-  def release() {
-    rs.close()
-    tbr.release()
-  }
-}
-
-case class GetResource(tbr: TableResource, rs: Array[Result]) {
-  def release() {
-    tbr.release()
-  }
-}
-
-case class TableResource(relation: HBaseRelation) extends Resource {
+case class TableResource(relation: HBaseRelation) extends ReferencedResource {
   var connection: Connection = _
   var table: Table = _
 
