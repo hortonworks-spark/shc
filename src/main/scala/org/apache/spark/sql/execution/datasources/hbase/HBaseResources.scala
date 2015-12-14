@@ -150,6 +150,7 @@ object HBaseResources{
   implicit def ScanResToScan(sr: ScanResource): ResultScanner = {
     sr.rs
   }
+
   implicit def GetResToResult(gr: GetResource): Array[Result] = {
     gr.rs
   }
