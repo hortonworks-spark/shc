@@ -77,7 +77,7 @@ case class Field(
         case IntegerType => Bytes.SIZEOF_INT
         case LongType => Bytes.SIZEOF_LONG
         case ShortType => Bytes.SIZEOF_SHORT
-        case _ => dt.defaultSize
+        case _ => -1
       }
     } else {
       len
@@ -143,17 +143,23 @@ case class HBaseTableCatalog(
       row.fields.foreach { f =>
         logDebug(s"start: $start")
         f.start = start
-        f.length = f.dt match {
-          case StringType =>
-            var pos = rowKey.indexOf(HBaseTableCatalog.delimiter, start)
-            if (pos == -1 || pos > rowKey.length) {
-              // this is at the last dimension
-              pos = rowKey.length
+        f.length = {
+          // If the length is not defined
+          if (f.length == -1) {
+            f.dt match {
+              case StringType =>
+                var pos = rowKey.indexOf(HBaseTableCatalog.delimiter, start)
+                if (pos == -1 || pos > rowKey.length) {
+                  // this is at the last dimension
+                  pos = rowKey.length
+                }
+                pos - start
+              // We don't know the length, assume it extend to the end of the rowkey.
+              case _ => rowKey.length - start
             }
-            pos - start
-          case BinaryType =>
-            rowKey.length - start
-          case _ => f.length
+          } else {
+            f.length
+          }
         }
         start += f.length
       }

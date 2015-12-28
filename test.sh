@@ -1,3 +1,5 @@
+mvn -DwildcardSuites=org.apache.spark.sql.AvroSourceKeySuite test
+mvn -DwildcardSuites=org.apache.spark.sql.AvroKeySourceSuite test
 mvn -DwildcardSuites=org.apache.spark.sql.AvroRecordSuite test
 mvn -DwildcardSuites=org.apache.spark.sql.AvroSourceSuite test
 mvn -DwildcardSuites=org.apache.spark.sql.CatalogSuite test

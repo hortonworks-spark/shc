@@ -100,8 +100,14 @@ private[hbase] class HBaseTableScanRDD(
     relation.catalog.dynSetupRowKey(r)
     indexedFields.map { x =>
       if (x._1.isRowKey) {
-        if (x._1.start + x._1.length <= r.length) {
-          Utils.setRowCol(row, x, r, x._1.start, x._1.length)
+
+        val tmp = Math.min(x._1.length, (r.length - x._1.start))
+        if (log.isDebugEnabled) {
+          logDebug(s"start: ${x._1.start} length: ${x._1.length} " +
+            s"rowkeyLength ${r.length}  tmp: $tmp")
+        }
+        if (tmp > 0) {
+          Utils.setRowCol(row, x, r, x._1.start, tmp)
         } else {
           row.setNullAt(x._2)
         }
