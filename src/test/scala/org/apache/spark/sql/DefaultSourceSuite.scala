@@ -17,10 +17,11 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.sql.execution.datasources.hbase.HBaseTableCatalog
+import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
 import org.apache.spark.{SparkContext, Logging}
 import  org.apache.spark.sql.SQLContext
 import org.apache.spark.sql._
+import org.apache.spark.sql.functions._
 
 case class HBaseRecord(
     col0: String,
@@ -34,7 +35,7 @@ case class HBaseRecord(
     col8: Byte)
 
 object HBaseRecord {
-  def apply(i: Int): HBaseRecord = {
+  def apply(i: Int, t: String): HBaseRecord = {
     val s = s"""row${"%03d".format(i)}"""
     HBaseRecord(s,
       i % 2 == 0,
@@ -43,7 +44,7 @@ object HBaseRecord {
       i,
       i.toLong,
       i.toShort,
-      s"String$i extra",
+      s"String$i: $t",
       i.toByte)
   }
 }
@@ -65,7 +66,7 @@ class DefaultSourceSuite extends SHC with Logging {
     import sqlContext.implicits._
 
     val data = (0 to 255).map { i =>
-      HBaseRecord(i)
+      HBaseRecord(i, "extra")
     }
     sc.parallelize(data).toDF.write.options(
       Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5"))
@@ -200,5 +201,70 @@ class DefaultSourceSuite extends SHC with Logging {
       .select("col0", "col1", "col7")
     s.show
     assert(s.count() == 52)
+  }
+
+  test("Timestamp semantics") {
+    import sqlContext.implicits._
+
+    // There's already some data in here from recently. Let's throw something in
+    // from 1993 which we can include/exclude and add some data with the implicit (now) timestamp.
+    // Then we should be able to cross-section it and only get points in between, get the most recent view
+    // and get an old view.
+    val oldMs = 754869600000L
+    val startMs = System.currentTimeMillis()
+    val oldData = (0 to 100).map { i =>
+      HBaseRecord(i, "old")
+    }
+    val newData = (200 to 255).map { i =>
+      HBaseRecord(i, "new")
+    }
+
+    sc.parallelize(oldData).toDF.write.options(
+      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.tableName -> "5", HBaseRelation.TIMESTAMP -> oldMs.toString))
+      .format("org.apache.spark.sql.execution.datasources.hbase")
+      .save()
+    sc.parallelize(newData).toDF.write.options(
+      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.tableName -> "5"))
+      .format("org.apache.spark.sql.execution.datasources.hbase")
+      .save()
+
+    // Test specific timestamp -- Full scan, Timestamp
+    val individualTimestamp = sqlContext.read
+      .options(Map(HBaseTableCatalog.tableCatalog->catalog, HBaseRelation.TIMESTAMP -> oldMs.toString))
+      .format("org.apache.spark.sql.execution.datasources.hbase")
+      .load();
+    assert(individualTimestamp.count() == 101)
+
+    // Test getting everything -- Full Scan, No range
+    val everything = sqlContext.read
+      .options(Map(HBaseTableCatalog.tableCatalog->catalog))
+      .format("org.apache.spark.sql.execution.datasources.hbase")
+      .load()
+    assert(everything.count() == 256)
+    // Test getting everything -- Pruned Scan, TimeRange
+    val element50 = everything.where(col("col0") === lit("row050")).select("col7").collect()(0)(0)
+    assert(element50 == "String50: extra")
+    val element200 = everything.where(col("col0") === lit("row200")).select("col7").collect()(0)(0)
+    assert(element200 == "String200: new")
+
+    // Test Getting old stuff -- Full Scan, TimeRange
+    val oldRange = sqlContext.read
+      .options(Map(HBaseTableCatalog.tableCatalog->catalog, HBaseRelation.MIN_STAMP -> "0", HBaseRelation.MAX_STAMP -> (oldMs + 100).toString))
+      .format("org.apache.spark.sql.execution.datasources.hbase")
+      .load()
+    assert(oldRange.count() == 101)
+    // Test Getting old stuff -- Pruned Scan, TimeRange
+    val oldElement50 = oldRange.where(col("col0") === lit("row050")).select("col7").collect()(0)(0)
+    assert(oldElement50 == "String50: old")
+
+    // Test Getting middle stuff -- Full Scan, TimeRange
+    val middleRange = sqlContext.read
+      .options(Map(HBaseTableCatalog.tableCatalog->catalog, HBaseRelation.MIN_STAMP -> "0", HBaseRelation.MAX_STAMP -> (startMs + 100).toString))
+      .format("org.apache.spark.sql.execution.datasources.hbase")
+      .load()
+    assert(middleRange.count() == 256)
+    // Test Getting middle stuff -- Pruned Scan, TimeRange
+    val middleElement200 = middleRange.where(col("col0") === lit("row200")).select("col7").collect()(0)(0)
+    assert(middleElement200 == "String200: extra")
   }
 }
