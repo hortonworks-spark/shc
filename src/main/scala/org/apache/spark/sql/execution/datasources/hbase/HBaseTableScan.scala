@@ -212,6 +212,8 @@ private[hbase] class HBaseTableScanRDD(
         case _ => new Scan
       }
     }
+    handleTimeSemantics(scan)
+
     // set fetch size
     // scan.setCaching(scannerFetchSize)
     columns.foreach{ c =>
@@ -233,6 +235,7 @@ private[hbase] class HBaseTableScanRDD(
       val gets = new ArrayList[Get]()
       x.foreach{ y =>
         val g = new Get(y.start.get.point)
+        handleTimeSemantics(g)
         columns.foreach{ c =>
           g.addColumn(Bytes.toBytes(c.cf), Bytes.toBytes(c.col))
         }
@@ -284,6 +287,28 @@ private[hbase] class HBaseTableScanRDD(
     } ++ gIt
 
     toRowIterator(rIt)
+  }
+
+  private def handleTimeSemantics(query: Query): Unit = {
+    // Set timestamp related values if present
+    (query, relation.timestamp, relation.minStamp, relation.maxStamp)  match {
+      case (q: Scan, Some(ts), None, None) => q.setTimeStamp(ts)
+      case (q: Get, Some(ts), None, None) => q.setTimeStamp(ts)
+
+      case (q:Scan, None, Some(minStamp), Some(maxStamp)) => q.setTimeRange(minStamp, maxStamp)
+      case (q:Get, None, Some(minStamp), Some(maxStamp)) => q.setTimeRange(minStamp, maxStamp)
+
+      case (q, None, None, None) =>
+
+      case _ => throw new IllegalArgumentException("Invalid combination of query/timestamp/time range provided")
+    }
+    if (relation.maxVersions.isDefined) {
+      query match {
+        case q: Scan => q.setMaxVersions(relation.maxVersions.get)
+        case q: Get => q.setMaxVersions(relation.maxVersions.get)
+        case _ => throw new IllegalArgumentException("Invalid query provided with maxVersions")
+      }
+    }
   }
 }
 

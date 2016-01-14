@@ -74,6 +74,11 @@ case class HBaseRelation(
   )(@transient val sqlContext: SQLContext)
   extends BaseRelation with PrunedFilteredScan with InsertableRelation with Logging {
 
+  val timestamp = parameters.get(HBaseRelation.TIMESTAMP).map(_.toLong)
+  val minStamp = parameters.get(HBaseRelation.MIN_STAMP).map(_.toLong)
+  val maxStamp = parameters.get(HBaseRelation.MAX_STAMP).map(_.toLong)
+  val maxVersions = parameters.get(HBaseRelation.MAX_VERSIONS).map(_.toInt)
+
   def createTable() {
     if (catalog.numReg > 3) {
       val tName = TableName.valueOf(catalog.name)
@@ -138,7 +143,7 @@ case class HBaseRelation(
         System.arraycopy(x, 0, rBytes, offset, x.length)
         offset += x.length
       }
-      val put = new Put(rBytes)
+      val put = timestamp.fold(new Put(rBytes))(new Put(rBytes, _))
 
       colsIdxedFields.foreach { case (x, y) =>
         val b = Utils.toBytes(row(x), y)
@@ -235,4 +240,13 @@ class SerializableConfiguration(@transient var value: Configuration) extends Ser
       case NonFatal(t) => throw new IOException(t)
     }
   }
+}
+
+object HBaseRelation {
+
+  val TIMESTAMP = "timestamp"
+  val MIN_STAMP = "minStamp"
+  val MAX_STAMP = "maxStamp"
+  val MAX_VERSIONS = "maxVersions"
+
 }
