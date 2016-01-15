@@ -167,8 +167,8 @@ case class HBaseRelation(
       HBaseConfiguration.create
     }
   }
-  val wrappedConf = new SerializableConfiguration(hConf)
-  def hbaseConf = wrappedConf.value
+  val wrappedConf = sqlContext.sparkContext.broadcast(new SerializableConfiguration(hConf))
+  def hbaseConf = wrappedConf.value.value
 
   def rows = catalog.row
 
