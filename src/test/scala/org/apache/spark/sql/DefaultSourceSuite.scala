@@ -19,8 +19,6 @@ package org.apache.spark.sql
 
 import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
 import org.apache.spark.{SparkContext, Logging}
-import  org.apache.spark.sql.SQLContext
-import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
 
 case class HBaseRecord(

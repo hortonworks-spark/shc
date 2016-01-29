@@ -24,7 +24,6 @@ import org.apache.hadoop.hbase.{HColumnDescriptor, HTableDescriptor, TableName, 
 import org.apache.hadoop.hbase.client.{Scan, Put, ConnectionFactory, Table}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.execution.datasources.hbase.SparkHBaseConf
-import org.apache.spark.sql.types.UTF8String
 import org.apache.spark.{SparkContext, SparkConf, Logging}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
 import scala.collection.JavaConverters._
@@ -85,7 +84,7 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
       logInfo(" - minicluster shut down")
       htu.cleanupTestDir
     } catch {
-      case _ => logError("teardown error")
+      case _: Throwable => logError("teardown error")
     }
   }
 
@@ -95,7 +94,7 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
     try {
       htu.deleteTable(TableName.valueOf(tName))
     } catch {
-      case _ =>
+      case _: Throwable =>
         logInfo(" - no table " + name + " found")
     }
     htu.createMultiRegionTable(TableName.valueOf(tName), bcfs)
@@ -106,7 +105,7 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
     try {
       htu.deleteTable(TableName.valueOf(name))
     } catch {
-      case _ =>
+      case _: Throwable =>
         logInfo(" - no table " + Bytes.toString(name) + " found")
     }
     htu.createMultiRegionTable(TableName.valueOf(name), cfs)

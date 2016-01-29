@@ -21,7 +21,7 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.BoundRange
-import org.apache.spark.sql.types.UTF8String
+import org.apache.spark.unsafe.types.UTF8String
 
 import scala.collection.mutable.ArrayBuffer
 import scala.math.Ordering
@@ -380,8 +380,8 @@ object BoundRange extends Logging{
     case a: UTF8String =>
       val b = a.getBytes
       Some(BoundRanges(
-        Array(BoundRange(Array.fill(a.length)(ByteMin), b)),
-        Array(BoundRange(b, Array.fill(a.length)(ByteMax))), b))
+        Array(BoundRange(Array.fill(a.numBytes())(ByteMin), b)),
+        Array(BoundRange(b, Array.fill(a.numBytes())(ByteMax))), b))
     case _ => None
   }
 }

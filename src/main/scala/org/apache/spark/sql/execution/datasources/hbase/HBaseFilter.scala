@@ -25,7 +25,6 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.FilterType.FilterType
-import org.apache.spark.sql.execution.datasources.hbase.TypedFilter
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.BinaryType
 import scala.collection.JavaConverters._

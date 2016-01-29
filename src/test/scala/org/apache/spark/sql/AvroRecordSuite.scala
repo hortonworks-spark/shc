@@ -20,7 +20,6 @@ package org.apache.spark.sql
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
-import org.apache.spark.sql.AvroHBaseRecord
 import org.apache.spark.sql.execution.datasources.hbase.{AvroSedes, SchemaConverters}
 import org.apache.spark.{SparkContext, Logging}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}

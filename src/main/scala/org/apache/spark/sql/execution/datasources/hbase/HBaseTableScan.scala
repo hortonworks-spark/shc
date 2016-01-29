@@ -21,7 +21,7 @@ import java.util.ArrayList
 
 import org.apache.hadoop.hbase.filter.{Filter => HFilter, FilterList => HFilterList}
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.sql.catalyst.expressions.Row
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.GeneratePredicate
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase._
@@ -60,7 +60,7 @@ private[hbase] case class HBaseScanPartition(
 private[hbase] class HBaseTableScanRDD(
     relation: HBaseRelation,
     requiredColumns: Array[String],
-    filters: Array[Filter]) extends RDD[Row](relation.sqlContext.sparkContext, Nil) with Logging  {
+    filters: Array[Filter]) extends RDD[InternalRow](relation.sqlContext.sparkContext, Nil) with Logging  {
   val outputs = StructType(requiredColumns.map(relation.schema(_))).toAttributes
   val columnFields = relation.splitRowKeyColumns(requiredColumns)._2
   private def sparkConf = SparkEnv.get.conf
@@ -175,9 +175,9 @@ private[hbase] class HBaseTableScanRDD(
   }
 
   private def toRowIterator(
-      it: Iterator[Result]): Iterator[Row] = {
+      it: Iterator[Result]): Iterator[InternalRow] = {
 
-    val iterator = new Iterator[Row] {
+    val iterator = new Iterator[InternalRow] {
       val row = new SpecificMutableRow(outputs.map(_.dataType))
       val indexedFields = relation.getIndexedProjections(requiredColumns)
 
@@ -185,7 +185,7 @@ private[hbase] class HBaseTableScanRDD(
         it.hasNext
       }
 
-      override def next(): Row = {
+      override def next(): InternalRow = {
         val r = it.next()
         buildRow(indexedFields, r, row)
         row
@@ -253,7 +253,7 @@ private[hbase] class HBaseTableScanRDD(
     rddResources.release()
   }
 
-  override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
+  override def compute(split: Partition, context: TaskContext): Iterator[InternalRow] = {
     val ord = hbase.ord//implicitly[Ordering[HBaseType]]
     val partition = split.asInstanceOf[HBaseScanPartition]
     // remove the inclusive upperbound

@@ -12,7 +12,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 import com.google.common.io.Files
-import org.apache.spark.sql.SQLContext
 
 import scala.util.Random
 

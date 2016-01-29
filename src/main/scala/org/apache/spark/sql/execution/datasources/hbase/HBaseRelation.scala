@@ -33,6 +33,7 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.mapred.JobConf
 import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{SaveMode, DataFrame, Row, SQLContext}
 import org.apache.spark.sql.sources._
@@ -78,6 +79,7 @@ case class HBaseRelation(
   val minStamp = parameters.get(HBaseRelation.MIN_STAMP).map(_.toLong)
   val maxStamp = parameters.get(HBaseRelation.MAX_STAMP).map(_.toLong)
   val maxVersions = parameters.get(HBaseRelation.MAX_VERSIONS).map(_.toInt)
+  override def needConversion: Boolean = false
 
   def createTable() {
     if (catalog.numReg > 3) {
@@ -217,7 +219,7 @@ case class HBaseRelation(
   override val schema: StructType = userSpecifiedschema.getOrElse(catalog.toDataType)
 
   def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
-    new HBaseTableScanRDD(this, requiredColumns, filters)
+    new HBaseTableScanRDD(this, requiredColumns, filters).asInstanceOf[RDD[Row]]
   }
 }
 

@@ -26,6 +26,7 @@ import org.apache.spark.sql.catalyst.expressions.MutableRow
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.execution.SparkSqlSerializer
 import org.apache.spark.sql.types._
+import org.apache.spark.unsafe.types.UTF8String
 
 import scala.collection.mutable.ArrayBuffer
 import scala.math.Ordering
@@ -102,6 +103,6 @@ object Utils {
   }
 
   def toUTF8String(input: HBaseType, offset: Int, length: Int): UTF8String = {
-    UTF8String(input.slice(offset, offset + length))
+    UTF8String.fromBytes(input, offset,  offset + length)
   }
 }
