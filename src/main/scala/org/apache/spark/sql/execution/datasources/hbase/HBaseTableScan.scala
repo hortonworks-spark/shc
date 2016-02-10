@@ -19,28 +19,18 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import java.util.ArrayList
 
+import org.apache.hadoop.hbase.CellUtil
+import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{Filter => HFilter, FilterList => HFilterList}
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.sql.catalyst.expressions.Row
-import org.apache.spark.sql.catalyst.expressions.codegen.GeneratePredicate
-import org.apache.spark.sql.execution.datasources.hbase
-import org.apache.spark.sql.execution.datasources.hbase._
-import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.{StructType, BinaryType, AtomicType}
-
-import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
-
-import org.apache.hadoop.hbase.{CellUtil, Cell, HBaseConfiguration}
-import org.apache.hadoop.hbase.client._
-import org.apache.hadoop.hbase.regionserver.RegionScanner
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
+import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.HBaseResources._
+import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.types.StructType
 
 import scala.collection.mutable
 
@@ -93,34 +83,35 @@ private[hbase] class HBaseTableScanRDD(
   }
 
   def buildRow(
-      indexedFields: Seq[(Field, Int)],
-      result: Result,
-      row: MutableRow) = {
+      fields: Seq[Field],
+      result: Result): Row = {
     val r = result.getRow
     relation.catalog.dynSetupRowKey(r)
-    indexedFields.map { x =>
-      if (x._1.isRowKey) {
+    val valueSeq = fields.map { x =>
+      if (x.isRowKey) {
 
-        val tmp = Math.min(x._1.length, (r.length - x._1.start))
+        val tmp = Math.min(x.length, (r.length - x.start))
         if (log.isDebugEnabled) {
-          logDebug(s"start: ${x._1.start} length: ${x._1.length} " +
+          logDebug(s"start: ${x.start} length: ${x.length} " +
             s"rowkeyLength ${r.length}  tmp: $tmp")
         }
         if (tmp > 0) {
-          Utils.setRowCol(row, x, r, x._1.start, tmp)
+          Utils.getRowCol(x, r, x.start, tmp)
         } else {
-          row.setNullAt(x._2)
+          null
         }
       } else {
-        val kv = result.getColumnLatestCell(Bytes.toBytes(x._1.cf), Bytes.toBytes(x._1.col))
+        val kv = result.getColumnLatestCell(Bytes.toBytes(x.cf), Bytes.toBytes(x.col))
         if (kv == null || kv.getValueLength == 0) {
-          row.setNullAt(x._2)
+          null
         } else {
           val v = CellUtil.cloneValue(kv)
-          Utils.setRowCol(row, x, v, 0, v.length)
+          Utils.getRowCol(x, v, 0, v.length)
         }
       }
     }
+    val schema = StructType(requiredColumns.map(relation.schema(_)))
+    new GenericRowWithSchema(valueSeq.toArray, schema)
   }
 
   private def toResultIterator(result: GetResource): Iterator[Result] = {
@@ -178,7 +169,6 @@ private[hbase] class HBaseTableScanRDD(
       it: Iterator[Result]): Iterator[Row] = {
 
     val iterator = new Iterator[Row] {
-      val row = new SpecificMutableRow(outputs.map(_.dataType))
       val indexedFields = relation.getIndexedProjections(requiredColumns)
 
       override def hasNext: Boolean = {
@@ -187,8 +177,7 @@ private[hbase] class HBaseTableScanRDD(
 
       override def next(): Row = {
         val r = it.next()
-        buildRow(indexedFields, r, row)
-        row
+        buildRow(indexedFields.map(_._1), r)
       }
     }
     iterator

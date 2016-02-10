@@ -20,14 +20,12 @@ package org.apache.spark.sql
 import java.io.File
 
 import com.google.common.io.Files
-import org.apache.hadoop.hbase.{HColumnDescriptor, HTableDescriptor, TableName, HBaseTestingUtility}
-import org.apache.hadoop.hbase.client.{Scan, Put, ConnectionFactory, Table}
+import org.apache.hadoop.hbase.client.Table
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.hadoop.hbase.{HBaseTestingUtility, TableName}
 import org.apache.spark.sql.execution.datasources.hbase.SparkHBaseConf
-import org.apache.spark.sql.types.UTF8String
-import org.apache.spark.{SparkContext, SparkConf, Logging}
+import org.apache.spark.{Logging, SparkConf}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
-import scala.collection.JavaConverters._
 
 class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with Logging {
   implicit class StringToColumn(val sc: StringContext) {
