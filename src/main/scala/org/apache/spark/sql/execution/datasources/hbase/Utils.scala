@@ -24,7 +24,12 @@ import org.apache.spark.unsafe.types.UTF8String
 
 object Utils {
 
-  def getRowCol(
+  /**
+   * Parses the hbase field to it's corresponding
+   * scala type which can then be put into a Spark GenericRow
+   * which is then automatically converted by Spark.
+   */
+  def hbaseFieldToScalaType(
       f: Field,
       src: HBaseType,
       offset: Int,

@@ -26,7 +26,6 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.HBaseResources._
 import org.apache.spark.sql.sources.Filter
@@ -96,7 +95,7 @@ private[hbase] class HBaseTableScanRDD(
             s"rowkeyLength ${r.length}  tmp: $tmp")
         }
         if (tmp > 0) {
-          Utils.getRowCol(x, r, x.start, tmp)
+          Utils.hbaseFieldToScalaType(x, r, x.start, tmp)
         } else {
           null
         }
@@ -106,12 +105,11 @@ private[hbase] class HBaseTableScanRDD(
           null
         } else {
           val v = CellUtil.cloneValue(kv)
-          Utils.getRowCol(x, v, 0, v.length)
+          Utils.hbaseFieldToScalaType(x, v, 0, v.length)
         }
       }
     }
-    val schema = StructType(requiredColumns.map(relation.schema(_)))
-    new GenericRowWithSchema(valueSeq.toArray, schema)
+    Row.fromSeq(valueSeq)
   }
 
   private def toResultIterator(result: GetResource): Iterator[Result] = {
