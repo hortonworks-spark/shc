@@ -17,56 +17,49 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import java.util
-import java.util.Comparator
-
-import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.sql.catalyst.expressions.MutableRow
-import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.execution.SparkSqlSerializer
 import org.apache.spark.sql.types._
-
-import scala.collection.mutable.ArrayBuffer
-import scala.math.Ordering
+import org.apache.spark.unsafe.types.UTF8String
 
 object Utils {
 
-  def setRowCol(
-      row: MutableRow,
-      field: (Field, Int),
+  /**
+   * Parses the hbase field to it's corresponding
+   * scala type which can then be put into a Spark GenericRow
+   * which is then automatically converted by Spark.
+   */
+  def hbaseFieldToScalaType(
+      f: Field,
       src: HBaseType,
       offset: Int,
-      length: Int): Unit = {
-    val index = field._2
-    val f = field._1
+      length: Int): Any = {
     if (f.sedes.isDefined) {
       // If we already have sedes defined , use it.
-      val m = f.sedes.get.deserialize(src, offset, length)
-      row.update(index, m)
+      f.sedes.get.deserialize(src, offset, length)
     } else if (f.exeSchema.isDefined) {
       // println("avro schema is defined to do deserialization")
       // If we have avro schema defined, use it to get record, and then covert them to catalyst data type
       val m = AvroSedes.deserialize(src, f.exeSchema.get)
       // println(m)
       val n = f.avroToCatalyst.map(_(m))
-      row.update(index, n.get)
+      n.get
     } else  {
       // Fall back to atomic type
       f.dt match {
-        case BooleanType => row.setBoolean(index, toBoolean(src, offset))
-        case ByteType => row.setByte(index, src(offset))
-        case DoubleType => row.setDouble(index, Bytes.toDouble(src, offset))
-        case FloatType => row.setFloat(index, Bytes.toFloat(src, offset))
-        case IntegerType => row.setInt(index, Bytes.toInt(src, offset))
-        case LongType => row.setLong(index, Bytes.toLong(src, offset))
-        case ShortType => row.setShort(index, Bytes.toShort(src, offset))
-        case StringType => row.update(index, toUTF8String(src, offset, length))
+        case BooleanType => toBoolean(src, offset)
+        case ByteType => src(offset)
+        case DoubleType => Bytes.toDouble(src, offset)
+        case FloatType => Bytes.toFloat(src, offset)
+        case IntegerType => Bytes.toInt(src, offset)
+        case LongType => Bytes.toLong(src, offset)
+        case ShortType => Bytes.toShort(src, offset)
+        case StringType => toUTF8String(src, offset, length)
         case BinaryType =>
           val newArray = new Array[Byte](length)
           System.arraycopy(src, offset, newArray, 0, length)
-          row.update(index, newArray)
-        case _ => row.update(index, SparkSqlSerializer.deserialize[Any](src)) //TODO
+          newArray
+        case _ => SparkSqlSerializer.deserialize[Any](src) //TODO
       }
     }
   }
@@ -102,6 +95,6 @@ object Utils {
   }
 
   def toUTF8String(input: HBaseType, offset: Int, length: Int): UTF8String = {
-    UTF8String(input.slice(offset, offset + length))
+    UTF8String.fromBytes(input.slice(offset, offset + length))
   }
 }
