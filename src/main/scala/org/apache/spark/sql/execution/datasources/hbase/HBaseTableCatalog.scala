@@ -66,7 +66,7 @@ case class Field(
     }
   }
 
-  var length: Int = {
+  val length: Int = {
     if (len == -1) {
       dt match {
         case BinaryType | StringType => -1
@@ -133,37 +133,6 @@ case class HBaseTableCatalog(
   def getPrimaryKey= row.keys(0)
   def getColumnFamilies = {
     sMap.fields.map(_.cf).filter(_ != HBaseTableCatalog.rowKey)
-  }
-
-  // Setup the start and length for each dimension of row key at runtime.
-  def dynSetupRowKey(rowKey: HBaseType) {
-    logDebug(s"length: ${rowKey.length}")
-    if(row.varLength) {
-      var start = 0
-      row.fields.foreach { f =>
-        logDebug(s"start: $start")
-        f.start = start
-        f.length = {
-          // If the length is not defined
-          if (f.length == -1) {
-            f.dt match {
-              case StringType =>
-                var pos = rowKey.indexOf(HBaseTableCatalog.delimiter, start)
-                if (pos == -1 || pos > rowKey.length) {
-                  // this is at the last dimension
-                  pos = rowKey.length
-                }
-                pos - start
-              // We don't know the length, assume it extend to the end of the rowkey.
-              case _ => rowKey.length - start
-            }
-          } else {
-            f.length
-          }
-        }
-        start += f.length
-      }
-    }
   }
 
   def initRowKey = {

@@ -18,10 +18,8 @@
 package org.apache.spark.sql
 
 import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
-import org.apache.spark.{SparkContext, Logging}
-import  org.apache.spark.sql.SQLContext
-import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
+import org.apache.spark.{Logging, SparkContext}
 
 case class HBaseRecord(
     col0: String,
@@ -37,6 +35,19 @@ case class HBaseRecord(
 object HBaseRecord {
   def apply(i: Int, t: String): HBaseRecord = {
     val s = s"""row${"%03d".format(i)}"""
+    HBaseRecord(s,
+      i % 2 == 0,
+      i.toDouble,
+      i.toFloat,
+      i,
+      i.toLong,
+      i.toShort,
+      s"String$i: $t",
+      i.toByte)
+  }
+
+  def unpadded(i: Int, t: String): HBaseRecord = {
+    val s = s"""row${i}"""
     HBaseRecord(s,
       i % 2 == 0,
       i.toDouble,
@@ -266,5 +277,29 @@ class DefaultSourceSuite extends SHC with Logging {
     // Test Getting middle stuff -- Pruned Scan, TimeRange
     val middleElement200 = middleRange.where(col("col0") === lit("row200")).select("col7").collect()(0)(0)
     assert(middleElement200 == "String200: extra")
+  }
+
+  test("Variable sized keys") {
+    import sqlContext.implicits._
+    val data = (0 to 100).map { i =>
+      HBaseRecord.unpadded(i, "old")
+    }
+
+    // Delete the table because for this test we want to check the different number of values
+    htu.deleteTable(tableName)
+    createTable(tableName, columnFamilies)
+
+    sc.parallelize(data).toDF.write.options(
+      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.tableName -> "5"))
+      .format("org.apache.spark.sql.execution.datasources.hbase")
+      .save()
+
+    val keys = withCatalog(catalog).select("col0").distinct().collect().map(a => a.getString(0))
+    // There was an issue with the keys being truncated during buildrow.
+    // This would result in only the number of keys as large as the first one
+    assert(keys.length == 101)
+    assert(keys.contains("row0"))
+    assert(keys.contains("row100"))
+    assert(keys.contains("row57"))
   }
 }

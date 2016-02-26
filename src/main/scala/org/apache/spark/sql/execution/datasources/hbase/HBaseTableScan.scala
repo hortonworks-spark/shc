@@ -29,7 +29,7 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.HBaseResources._
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{StringType, StructType}
 
 import scala.collection.mutable
 
@@ -81,35 +81,54 @@ private[hbase] class HBaseTableScanRDD(
     ps.asInstanceOf[Array[Partition]]
   }
 
-  def buildRow(
-      fields: Seq[Field],
-      result: Result): Row = {
-    val r = result.getRow
-    relation.catalog.dynSetupRowKey(r)
-    val valueSeq = fields.map { x =>
-      if (x.isRowKey) {
-
-        val tmp = Math.min(x.length, (r.length - x.start))
-        if (log.isDebugEnabled) {
-          logDebug(s"start: ${x.start} length: ${x.length} " +
-            s"rowkeyLength ${r.length}  tmp: $tmp")
-        }
-        if (tmp > 0) {
-          Utils.hbaseFieldToScalaType(x, r, x.start, tmp)
-        } else {
-          null
-        }
+  /**
+   * Takes a HBase Row object and parses all of the fields from it.
+   * This is independent of which fields were requested from the key
+   * Because we have all the data it's less complex to parse everything.
+   * @param keyFields all of the fields in the row key, ORDERED by their order in the row key.
+   */
+  def parseRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {
+    keyFields.foldLeft((0, Seq[(Field, Any)]()))((state, field) => {
+      val idx = state._1
+      val parsed = state._2
+      if (field.length != -1) {
+        val value = Utils.hbaseFieldToScalaType(field, row, idx, field.length)
+        // Return the new index and appended value
+        (idx + field.length, parsed ++ Seq((field, value)))
       } else {
-        val kv = result.getColumnLatestCell(Bytes.toBytes(x.cf), Bytes.toBytes(x.col))
-        if (kv == null || kv.getValueLength == 0) {
-          null
-        } else {
-          val v = CellUtil.cloneValue(kv)
-          Utils.hbaseFieldToScalaType(x, v, 0, v.length)
+        field.dt match {
+          case StringType =>
+            val pos = row.indexOf(HBaseTableCatalog.delimiter, idx)
+            if (pos == -1 || pos > row.length) {
+              // this is at the last dimension
+              val value = Utils.hbaseFieldToScalaType(field, row, idx, row.length)
+              (row.length + 1, parsed ++ Seq((field, value)))
+            } else {
+              val value = Utils.hbaseFieldToScalaType(field, row, idx, pos - idx)
+              (pos, parsed ++ Seq((field, value)))
+            }
+          // We don't know the length, assume it extend to the end of the rowkey.
+          case _ => (row.length + 1, parsed ++ Seq((field, Utils.hbaseFieldToScalaType(field, row, idx, row.length))))
         }
       }
-    }
-    Row.fromSeq(valueSeq)
+    })._2.toMap
+  }
+
+  def buildRow(fields: Seq[Field], result: Result): Row = {
+    val r = result.getRow
+    val keySeq = parseRowKey(r, relation.catalog.getRowKey)
+    val valueSeq = fields.filter(!_.isRowKey).map { x =>
+      val kv = result.getColumnLatestCell(Bytes.toBytes(x.cf), Bytes.toBytes(x.col))
+      if (kv == null || kv.getValueLength == 0) {
+        (x, null)
+      } else {
+        val v = CellUtil.cloneValue(kv)
+        (x, Utils.hbaseFieldToScalaType(x, v, 0, v.length))
+      }
+    }.toMap
+    val unioned = keySeq ++ valueSeq
+    // Return the row ordered by the requested order
+    Row.fromSeq(fields.map(unioned.get(_)))
   }
 
   private def toResultIterator(result: GetResource): Iterator[Result] = {
@@ -167,7 +186,7 @@ private[hbase] class HBaseTableScanRDD(
       it: Iterator[Result]): Iterator[Row] = {
 
     val iterator = new Iterator[Row] {
-      val indexedFields = relation.getIndexedProjections(requiredColumns)
+      val indexedFields = relation.getIndexedProjections(requiredColumns).map(_._1)
 
       override def hasNext: Boolean = {
         it.hasNext
@@ -175,7 +194,7 @@ private[hbase] class HBaseTableScanRDD(
 
       override def next(): Row = {
         val r = it.next()
-        buildRow(indexedFields.map(_._1), r)
+        buildRow(indexedFields, r)
       }
     }
     iterator
