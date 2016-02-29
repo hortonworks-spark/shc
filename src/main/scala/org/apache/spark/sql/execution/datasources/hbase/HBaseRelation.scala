@@ -17,30 +17,21 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import java.io.{IOException, ObjectInputStream, ObjectOutputStream, ByteArrayInputStream}
+import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
 
-import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericDatumWriter, GenericDatumReader, GenericRecord}
-import org.apache.avro.io._
-import org.apache.commons.io.output.ByteArrayOutputStream
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.hbase.client.{ConnectionFactory, Put}
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapred.TableOutputFormat
-import org.apache.hadoop.hbase.mapreduce.TableInputFormat
-import org.apache.hadoop.hbase.{HColumnDescriptor, HTableDescriptor, TableName, HBaseConfiguration}
-import org.apache.hadoop.hbase.client.{HBaseAdmin, Put, ConnectionFactory, Table}
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.hadoop.hbase.{HBaseConfiguration, HColumnDescriptor, HTableDescriptor, TableName}
 import org.apache.hadoop.mapred.JobConf
 import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.types._
-import org.apache.spark.sql.{SaveMode, DataFrame, Row, SQLContext}
 import org.apache.spark.sql.sources._
-import org.json4s.JsonAST.JValue
-import org.json4s.jackson.JsonMethods._
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.{DataFrame, Row, SQLContext, SaveMode}
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.util.control.NonFatal
 
 /**
