@@ -1076,6 +1076,7 @@
             <spark.ui.showConsoleProgress>false</spark.ui.showConsoleProgress>
             <spark.driver.allowMultipleContexts>true</spark.driver.allowMultipleContexts>
           </systemProperties>
+         <parallel>false</parallel>
         </configuration>
         <executions>
           <execution>

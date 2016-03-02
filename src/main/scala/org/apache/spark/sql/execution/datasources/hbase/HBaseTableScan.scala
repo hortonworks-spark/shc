@@ -128,7 +128,7 @@ private[hbase] class HBaseTableScanRDD(
     }.toMap
     val unioned = keySeq ++ valueSeq
     // Return the row ordered by the requested order
-    Row.fromSeq(fields.map(unioned.get(_)))
+    Row.fromSeq(fields.map(unioned.get(_).getOrElse(null)))
   }
 
   private def toResultIterator(result: GetResource): Iterator[Result] = {
