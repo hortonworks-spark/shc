@@ -52,8 +52,6 @@ object HBaseCompositeRecord {
 }
 
 class CompositeKeySuite extends SHC with Logging {
-  val sc = new SparkContext("local", "HBaseTest", conf)
-  val sqlContext = new SQLContext(sc)
   override def catalog = s"""{
             |"table":{"namespace":"default", "name":"table1"},
             |"rowkey":"key1:key2",
@@ -81,7 +79,8 @@ class CompositeKeySuite extends SHC with Logging {
 
   test("populate table with composite key") {
     //createTable(tableName, columnFamilies)
-    import sqlContext.implicits._
+    val sql = sqlContext
+    import sql.implicits._
 
     val data = (0 to 255).map { i =>
       HBaseCompositeRecord(i)

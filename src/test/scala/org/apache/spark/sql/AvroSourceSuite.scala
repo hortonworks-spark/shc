@@ -70,8 +70,6 @@ class AvroSourceSuite extends SHC with Logging{
             |}
           |}""".stripMargin
 
-  val sc = new SparkContext("local", "HBaseTest", conf)
-  val sqlContext = new SQLContext(sc)
 
   def withCatalog(cat: String): DataFrame = {
     sqlContext
@@ -83,7 +81,8 @@ class AvroSourceSuite extends SHC with Logging{
 
   test("populate table") {
     //createTable(tableName, columnFamilies)
-    import sqlContext.implicits._
+    val sql = sqlContext
+    import sql.implicits._
 
     val data = (0 to 255).map { i =>
       AvroHBaseRecord(i)
