@@ -31,6 +31,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Row, SQLContext, SaveMode}
+import org.json4s.DefaultFormats
+import org.json4s.jackson.JsonMethods._
 
 import scala.util.control.NonFatal
 
@@ -69,6 +71,9 @@ case class HBaseRelation(
   val minStamp = parameters.get(HBaseRelation.MIN_STAMP).map(_.toLong)
   val maxStamp = parameters.get(HBaseRelation.MAX_STAMP).map(_.toLong)
   val maxVersions = parameters.get(HBaseRelation.MAX_VERSIONS).map(_.toInt)
+
+  @transient implicit val formats = DefaultFormats
+  val hBaseConfiguration = parameters.get(HBaseRelation.HBASE_CONFIGURATION).map(parse(_).extract[Map[String, String]])
 
   def createTable() {
     if (catalog.numReg > 3) {
@@ -155,7 +160,9 @@ case class HBaseRelation(
     if (testConf) {
       SparkHBaseConf.conf
     } else {
-      HBaseConfiguration.create
+      val conf = HBaseConfiguration.create
+      hBaseConfiguration.foreach(_.foreach(e => conf.set(e._1, e._2)))
+      conf
     }
   }
   val wrappedConf = sqlContext.sparkContext.broadcast(new SerializableConfiguration(hConf))
@@ -239,5 +246,6 @@ object HBaseRelation {
   val MIN_STAMP = "minStamp"
   val MAX_STAMP = "maxStamp"
   val MAX_VERSIONS = "maxVersions"
+  val HBASE_CONFIGURATION = "hbaseConfiguration"
 
 }
