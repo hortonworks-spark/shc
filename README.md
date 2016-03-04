@@ -39,7 +39,11 @@ Following the the examples how to write and query a HBase table. Please refer to
     mvn package -DskipTests
 
 ###Running Tests and Examples
-Due to hbase pseducluster setup, currently the tests to be run one by one. 
+Run test
+
+    mvn clean pacakge test
+
+Run indiviudal test
 
     mvn -DwildcardSuites=org.apache.spark.sql.DefaultSourceSuite test
 
