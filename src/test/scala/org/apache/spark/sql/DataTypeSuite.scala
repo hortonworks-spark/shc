@@ -48,8 +48,6 @@ object IntKeyRecord {
 }
 
 class DataTypeSuite extends SHC with Logging {
-  val sc = new SparkContext("local", "HBaseTest", conf)
-  val sqlContext = new SQLContext(sc)
 
   override def catalog = s"""{
             |"table":{"namespace":"default", "name":"table1"},
@@ -79,7 +77,8 @@ class DataTypeSuite extends SHC with Logging {
 
   test("populate table") {
     //createTable(tableName, columnFamilies)
-    import sqlContext.implicits._
+    val sql = sqlContext
+    import sql.implicits._
 
     val data = (0 until 32).map { i =>
       IntKeyRecord(i)

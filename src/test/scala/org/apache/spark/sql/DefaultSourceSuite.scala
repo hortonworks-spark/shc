@@ -61,8 +61,6 @@ object HBaseRecord {
 }
 
 class DefaultSourceSuite extends SHC with Logging {
-  val sc = new SparkContext("local", "HBaseTest", conf)
-  val sqlContext = new SQLContext(sc)
 
   def withCatalog(cat: String): DataFrame = {
     sqlContext
@@ -74,7 +72,8 @@ class DefaultSourceSuite extends SHC with Logging {
 
   test("populate table") {
     //createTable(tableName, columnFamilies)
-    import sqlContext.implicits._
+    val sql = sqlContext
+    import sql.implicits._
 
     val data = (0 to 255).map { i =>
       HBaseRecord(i, "extra")
@@ -215,7 +214,8 @@ class DefaultSourceSuite extends SHC with Logging {
   }
 
   test("Timestamp semantics") {
-    import sqlContext.implicits._
+    val sql = sqlContext
+    import sql.implicits._
 
     // There's already some data in here from recently. Let's throw something in
     // from 1993 which we can include/exclude and add some data with the implicit (now) timestamp.
@@ -280,7 +280,8 @@ class DefaultSourceSuite extends SHC with Logging {
   }
 
   test("Variable sized keys") {
-    import sqlContext.implicits._
+    val sql = sqlContext
+    import sql.implicits._
     val data = (0 to 100).map { i =>
       HBaseRecord.unpadded(i, "old")
     }
