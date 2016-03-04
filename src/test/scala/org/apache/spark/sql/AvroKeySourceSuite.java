@@ -60,7 +60,7 @@ public class AvroKeySourceSuite {
   private static final String KEY1 = "KEY1";
   private static final String KEY2 = "KEY2";
 
-  private final HBaseTestingUtility hBaseTestingUtility = HBaseTestingUtility.createLocalHTU();
+  private final HBaseTestingUtility hBaseTestingUtility = new HBaseTestingUtility();
 
   private HBaseCluster hbase;
   private SparkContext sparkContext;
@@ -81,8 +81,8 @@ public class AvroKeySourceSuite {
 
   @After
   public void tearDown() throws Exception {
+    hBaseTestingUtility.shutdownMiniCluster();
     sparkContext.stop();
-    hbase.shutdown();
   }
 
   public static Comparator<Row> rowComparator = new Comparator<Row>() {
@@ -192,4 +192,5 @@ public class AvroKeySourceSuite {
     }
     return baos.toByteArray();
   }
+
 }
