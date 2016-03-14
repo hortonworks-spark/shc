@@ -41,7 +41,7 @@ Following the the examples how to write and query a HBase table. Please refer to
 ###Running Tests and Examples
 Run test
 
-    mvn clean pacakge test
+    mvn clean package test
 
 Run indiviudal test
 
