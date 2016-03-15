@@ -156,65 +156,7 @@
         </includes>
       </resource>
     </resources>
-
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>2.4</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>jar</goal>
-              <goal>test-jar</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>test-jar-on-test-compile</id>
-            <phase>test-compile</phase>
-            <goals>
-              <goal>test-jar</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- This plugin dumps the test classpath into a file -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <version>2.9</version>
-        <executions>
-          <execution>
-            <id>copy-dependencies</id>
-            <phase>package</phase>
-            <goals>
-              <goal>copy-dependencies</goal>
-            </goals>
-            <configuration>
-              <!-- basedir is spark/sql/hbase/ -->
-              <!-- <outputDirectory>${basedir}/../../lib_managed/jars</outputDirectory> -->
-              <!-- basedir is hbase/ -->
-              <outputDirectory>${basedir}/lib_managed/jars</outputDirectory>
-              <overWriteReleases>false</overWriteReleases>
-              <overWriteSnapshots>false</overWriteSnapshots>
-              <overWriteIfNewer>true</overWriteIfNewer>
-              <includeGroupIds>org.datanucleus</includeGroupIds>
-            </configuration>
-          </execution>
-          <execution>
-            <phase>test-compile</phase>
-            <goals>
-              <goal>build-classpath</goal>
-            </goals>
-            <configuration>
-              <includeScope>test</includeScope>
-              <outputFile>${test_classpath_file}</outputFile>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
@@ -275,52 +217,6 @@
           </compilerPlugins>
         </configuration>
       </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.1</version>
-        <configuration>
-          <source>${java.version}</source>
-          <target>${java.version}</target>
-          <encoding>UTF-8</encoding>
-          <maxmem>1024m</maxmem>
-          <fork>true</fork>
-        </configuration>
-      </plugin>
-
-      <!-- Surefire runs all Java tests -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.18</version>
-        <!-- Note config is repeated in scalatest config -->
-        <configuration>
-          <includes>
-            <include>**/Test*.java</include>
-            <include>**/*Test.java</include>
-            <include>**/*TestCase.java</include>
-            <include>**/*Suite.java</include>
-          </includes>
-          <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-          <argLine>-Xmx3g -XX:MaxPermSize=${MaxPermGen} -XX:ReservedCodeCacheSize=512m</argLine>
-          <systemProperties>
-            <java.awt.headless>true</java.awt.headless>
-            <!--
-            <spark.test.home>${session.executionRootDirectory}</spark.test.home>
-            -->
-            <spark.hbase.test.home>${basedir}</spark.hbase.test.home>
-
-            <spark.testing>1</spark.testing>
-            <spark.ui.enabled>false</spark.ui.enabled>
-            <spark.ui.showConsoleProgress>false</spark.ui.showConsoleProgress>
-            <spark.executor.extraClassPath>${test_classpath}</spark.executor.extraClassPath>
-            <spark.driver.allowMultipleContexts>true</spark.driver.allowMultipleContexts>
-          </systemProperties>
-          <failIfNoTests>false</failIfNoTests>
-        </configuration>
-      </plugin>
-
       <!-- Scalatest runs all Scala tests -->
       <plugin>
         <groupId>org.scalatest</groupId>
@@ -333,20 +229,12 @@
           <filereports>SparkTestSuite.txt</filereports>
           <argLine>-ea -Xmx3g -XX:MaxPermSize=${MaxPermGen} -XX:ReservedCodeCacheSize=${CodeCacheSize}</argLine>
           <stderr/>
-          <environmentVariables>
-            <!--
-              Setting SPARK_DIST_CLASSPATH is a simple way to make sure any child processes
-              launched by the tests have access to the correct test-time classpath.
-            -->
-            <SPARK_DIST_CLASSPATH>${test_classpath}</SPARK_DIST_CLASSPATH>
-          </environmentVariables>
           <systemProperties>
             <java.awt.headless>true</java.awt.headless>
             <!--
             <spark.test.home>${spark.test.home}</spark.test.home>
             -->
             <spark.hbase.test.home>${basedir}</spark.hbase.test.home>
-
             <spark.testing>1</spark.testing>
             <spark.ui.enabled>false</spark.ui.enabled>
             <spark.ui.showConsoleProgress>false</spark.ui.showConsoleProgress>
@@ -363,29 +251,6 @@
           </execution>
         </executions>
       </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <version>1.7</version>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-        <version>2.2.1</version>
-        <configuration>
-          <attach>true</attach>
-        </configuration>
-        <executions>
-          <execution>
-            <id>create-source-jar</id>
-            <goals>
-              <goal>jar-no-fork</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-clean-plugin</artifactId>
@@ -404,13 +269,6 @@
           </filesets>
         </configuration>
       </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-        <version>2.10.1</version>
-      </plugin>
     </plugins>
   </build>
-
 </project>
