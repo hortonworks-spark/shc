@@ -300,57 +300,6 @@
       </resource>
     </resources>
     <plugins>
-      <!-- Deploy datanucleus jars to the spark/lib_managed/jars directory -->
-	  <plugin>
-		  <groupId>org.apache.maven.plugins</groupId>
-		  <artifactId>maven-shade-plugin</artifactId>
-		  <version>2.3</version>
-		  <configuration>
-			<createDependencyReducedPom>false</createDependencyReducedPom>
-			<filters>
-				<filter>
-					<artifact>*:*</artifact>
-					<excludes>
-						<exclude>META-INF/*.SF</exclude>
-						<exclude>META-INF/*.DSA</exclude>
-						<exclude>META-INF/*.RSA</exclude>
-					</excludes>
-				</filter>
-			</filters>
-			<relocations>
-				<relocation>
-					<pattern>org.eclipse.jetty</pattern>
-					<shadedPattern>org.spark-project.jetty</shadedPattern>
-					<includes>
-						<include>org.eclipse.jetty.**</include>
-					</includes>
-				</relocation>
-				<relocation>
-					<pattern>com.google.common</pattern>
-					<shadedPattern>org.spark-project.guava</shadedPattern>
-					<excludes>
-					<!--
-						These classes cannot be relocated, because the Java API exposes the
-						"Optional" type; the others are referenced by the Optional class.
-					-->
-						<exclude>com/google/common/base/Absent*</exclude>
-						<exclude>com/google/common/base/Function</exclude>
-						<exclude>com/google/common/base/Optional*</exclude>
-						<exclude>com/google/common/base/Present*</exclude>
-						<exclude>com/google/common/base/Supplier</exclude>
-					</excludes>
-				</relocation>
-			</relocations>
-		  </configuration>
-		  <executions>
-			<execution>
-				<phase>package</phase>
-				<goals>
-					<goal>shade</goal>
-				</goals>
-			</execution>
-		  </executions>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -402,30 +351,6 @@
             <configuration>
               <includeScope>test</includeScope>
               <outputFile>${test_classpath_file}</outputFile>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-
-      <!-- This plugin reads a file into maven property. And it lets us write groovy !! -->
-      <plugin>
-        <groupId>org.codehaus.gmavenplus</groupId>
-        <artifactId>gmavenplus-plugin</artifactId>
-        <version>1.2</version>
-        <executions>
-          <execution>
-            <phase>process-test-classes</phase>
-            <goals>
-              <goal>execute</goal>
-            </goals>
-            <configuration>
-              <scripts>
-                <script><![CDATA[
-                def file = new File(project.properties.test_classpath_file)
-                project.properties.test_classpath = file.getText().split().join(":")
-                ]]></script>
-              </scripts>
             </configuration>
           </execution>
         </executions>
