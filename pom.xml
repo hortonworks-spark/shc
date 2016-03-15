@@ -98,11 +98,6 @@
       <version>${spark.version}</version>
     </dependency>
     <dependency>
-      <groupId>jline</groupId>
-      <artifactId>jline</artifactId>
-      <version>0.9.94</version>
-    </dependency>
-    <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-common</artifactId>
       <version>${hbase.version}</version>
@@ -238,37 +233,6 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-hadoop2-compat</artifactId>
-      <version>${hbase.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>asm</groupId>
-          <artifactId>asm</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.jboss.netty</groupId>
-          <artifactId>netty</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.jruby</groupId>
-          <artifactId>jruby-complete</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.mortbay.jetty</groupId>
-          <artifactId>servlet-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>org.codehaus.jackson</groupId>
       <artifactId>jackson-mapper-asl</artifactId>
       <version>${codehaus.jackson.version}</version>
@@ -321,167 +285,7 @@
       <version>${hbase.version}</version>
       <scope>test</scope>
     </dependency>
-
   </dependencies>
-
-  <!-- TODO Replace this profile with HBase version profiles. -->
-  <profiles>
-    <profile>
-      <id>hbase</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-            <version>1.8</version>
-            <executions>
-              <execution>
-                <id>add-scala-test-sources</id>
-                <phase>generate-test-sources</phase>
-                <goals>
-                  <goal>add-test-source</goal>
-                </goals>
-                <configuration>
-                  <sources>
-                    <source>src/test/scala</source>
-                    <source>compatibility/src/test/scala</source>
-                  </sources>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>hadoop-2.6</id>
-      <activation>  
-        <activeByDefault>true</activeByDefault>
-      </activation>  
-      <properties>
-        <hadoop.version>2.6.0</hadoop.version>
-        <protobuf.version>2.5.0</protobuf.version>
-        <jets3t.version>0.9.0</jets3t.version>
-        <commons.math3.version>3.1.1</commons.math3.version>
-        <avro.mapred.classifier>hadoop2</avro.mapred.classifier>
-      </properties>
-
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-minicluster</artifactId>
-          <version>${hadoop.version}</version>
-          <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>asm</groupId>
-              <artifactId>asm</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.jboss.netty</groupId>
-              <artifactId>netty</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>commons-logging</groupId>
-              <artifactId>commons-logging</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.jruby</groupId>
-              <artifactId>jruby-complete</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>javax.servlet</groupId>
-              <artifactId>servlet-api</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.mortbay.jetty</groupId>
-              <artifactId>servlet-api-2.5</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-hdfs</artifactId>
-          <version>${hadoop.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>asm</groupId>
-              <artifactId>asm</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.jboss.netty</groupId>
-              <artifactId>netty</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>commons-logging</groupId>
-              <artifactId>commons-logging</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.jruby</groupId>
-              <artifactId>jruby-complete</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>javax.servlet</groupId>
-              <artifactId>servlet-api</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.mortbay.jetty</groupId>
-              <artifactId>servlet-api-2.5</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-common</artifactId>
-          <version>${hadoop.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>asm</groupId>
-              <artifactId>asm</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.jboss.netty</groupId>
-              <artifactId>netty</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>commons-logging</groupId>
-              <artifactId>commons-logging</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.jruby</groupId>
-              <artifactId>jruby-complete</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>javax.servlet</groupId>
-              <artifactId>servlet-api</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.mortbay.jetty</groupId>
-              <artifactId>servlet-api-2.5</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>net.java.dev.jets3t</groupId>
-              <artifactId>jets3t</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-
-      </dependencies>
-    </profile>
-
-  </profiles>
 
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
@@ -820,7 +624,7 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>2.10.1</version>
       </plugin>
-
     </plugins>
   </build>
+
 </project>
