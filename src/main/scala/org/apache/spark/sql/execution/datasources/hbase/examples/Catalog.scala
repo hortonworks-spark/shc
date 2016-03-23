@@ -22,7 +22,7 @@ import org.apache.spark.sql.execution.datasources.hbase._
 object Catalog {
   def main(args: Array[String]){
     def catalog = s"""{
-                      |"table":{"namespace":"default", "name":"table1"},
+                      |"table":{"namespace":"default", "name":"shcExampleTable"},
                       |"rowkey":"key1:key2",
                       |"columns":{
                       |"col00":{"cf":"rowkey", "col":"key1", "type":"string", "length":"6"},

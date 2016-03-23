@@ -54,7 +54,7 @@ object HBaseCompositeRecord {
 
 object CompositeKey {
   def cat = s"""{
-                    |"table":{"namespace":"default", "name":"table4"},
+                    |"table":{"namespace":"default", "name":"shcExampleTable"},
                     |"rowkey":"key1:key2",
                     |"columns":{
                       |"col00":{"cf":"rowkey", "col":"key1", "type":"string", "length":"6"},

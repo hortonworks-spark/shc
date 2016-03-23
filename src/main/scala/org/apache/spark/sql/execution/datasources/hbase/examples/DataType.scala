@@ -48,7 +48,7 @@ object IntKeyRecord {
 
 object DataType {
   val cat = s"""{
-                    |"table":{"namespace":"default", "name":"table1"},
+                    |"table":{"namespace":"default", "name":"shcExampleTable"},
                     |"rowkey":"key",
                     |"columns":{
                     |"col0":{"cf":"rowkey", "col":"key", "type":"int"},

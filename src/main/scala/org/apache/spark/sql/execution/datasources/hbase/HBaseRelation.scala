@@ -82,6 +82,13 @@ case class HBaseRelation(
       val connection = ConnectionFactory.createConnection(hbaseConf)
       // Initialize hBase table if necessary
       val admin = connection.getAdmin()
+
+      // The names of tables which are created by the Examples has prefix "shcExample"
+      if (admin.isTableAvailable(tName) && tName.toString.startsWith("shcExample")){
+        admin.disableTable(tName)
+        admin.deleteTable(tName)
+      }
+
       if (!admin.isTableAvailable(tName)) {
         val tableDesc = new HTableDescriptor(tName)
         cfs.foreach { x =>

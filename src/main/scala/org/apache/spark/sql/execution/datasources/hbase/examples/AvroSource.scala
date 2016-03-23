@@ -65,7 +65,7 @@ object AvroHBaseRecord {
 
 object AvroSource {
   def catalog = s"""{
-                     |"table":{"namespace":"default", "name":"avrotable"},
+                     |"table":{"namespace":"default", "name":"shcExampleAvrotable"},
                      |"rowkey":"key",
                      |"columns":{
                      |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
@@ -74,7 +74,7 @@ object AvroSource {
                      |}""".stripMargin
 
   def avroCatalog = s"""{
-                        |"table":{"namespace":"default", "name":"avrotable"},
+                        |"table":{"namespace":"default", "name":"shcExampleAvrotable"},
                         |"rowkey":"key",
                         |"columns":{
                         |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
@@ -83,7 +83,7 @@ object AvroSource {
                         |}""".stripMargin
 
   def avroCatalogInsert = s"""{
-                              |"table":{"namespace":"default", "name":"avrotableInsert"},
+                              |"table":{"namespace":"default", "name":"shcExampleAvrotableInsert"},
                               |"rowkey":"key",
                               |"columns":{
                               |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
@@ -118,8 +118,8 @@ object AvroSource {
     val df = withCatalog(catalog)
     df.show
     df.printSchema()
-    df.registerTempTable("avrotable")
-    val c = sqlContext.sql("select count(1) from avrotable")
+    df.registerTempTable("shcExampleAvrotable")
+    val c = sqlContext.sql("select count(1) from shcExampleAvrotable")
     c.show
 
     val filtered = df.select($"col0", $"col1.favorite_array").where($"col0" === "name001")

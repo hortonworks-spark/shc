@@ -17,10 +17,9 @@
 
 package org.apache.spark.sql.execution.datasources.hbase.examples
 
-import org.apache.spark.{SparkConf, Logging, SparkContext}
+import org.apache.spark.sql.{SQLContext, _}
 import org.apache.spark.sql.execution.datasources.hbase._
-import  org.apache.spark.sql.SQLContext
-import org.apache.spark.sql._
+import org.apache.spark.{SparkConf, SparkContext}
 
 case class HBaseRecord(
     col0: String,
@@ -50,7 +49,7 @@ object HBaseRecord {
 
 object HBaseSource {
   val cat = s"""{
-            |"table":{"namespace":"default", "name":"table1"},
+            |"table":{"namespace":"default", "name":"shcExampleTable"},
             |"rowkey":"key",
             |"columns":{
               |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
@@ -70,7 +69,6 @@ object HBaseSource {
     val sc = new SparkContext(sparkConf)
     val sqlContext = new SQLContext(sc)
 
-    import sqlContext._
     import sqlContext.implicits._
 
 
