@@ -41,7 +41,7 @@ class CatalogSuite  extends FunSuite with BeforeAndAfterEach with BeforeAndAfter
 
   test("Catalog meta data check") {
      val m = HBaseTableCatalog(Map(HBaseTableCatalog.tableCatalog->catalog))
-    assert(m.row.varLength == false)
+    assert(m.row.fields.filter(_.length == -1).isEmpty)
     assert(m.row.length == 10)
   }
 

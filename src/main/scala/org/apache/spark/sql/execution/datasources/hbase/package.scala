@@ -37,4 +37,5 @@ package object hbase {
 
   val ByteMax = -1.asInstanceOf[Byte]
   val ByteMin = 0.asInstanceOf[Byte]
+  val MaxLength = 256
 }

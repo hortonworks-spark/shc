@@ -96,24 +96,14 @@ private[hbase] class HBaseTableScanRDD(
         // Return the new index and appended value
         (idx + field.length, parsed ++ Seq((field, value)))
       } else {
-        field.dt match {
-          case StringType =>
-            val pos = row.indexOf(HBaseTableCatalog.delimiter, idx)
-            if (pos == -1 || pos > row.length) {
-              // this is at the last dimension
-              val value = Utils.hbaseFieldToScalaType(field, row, idx, row.length)
-              (row.length + 1, parsed ++ Seq((field, value)))
-            } else {
-              val value = Utils.hbaseFieldToScalaType(field, row, idx, pos - idx)
-              (pos, parsed ++ Seq((field, value)))
-            }
-          // We don't know the length, assume it extend to the end of the rowkey.
-          case _ => (row.length + 1, parsed ++ Seq((field, Utils.hbaseFieldToScalaType(field, row, idx, row.length))))
-        }
+        // This is the last dimension.
+        val value = Utils.hbaseFieldToScalaType(field, row, idx, row.length - idx)
+        (row.length + 1, parsed ++ Seq((field, value)))
       }
     })._2.toMap
   }
 
+  // TODO: It is a big performance overhead, as for each row, there is a hashmap lookup.
   def buildRow(fields: Seq[Field], result: Result): Row = {
     val r = result.getRow
     val keySeq = parseRowKey(r, relation.catalog.getRowKey)

@@ -266,11 +266,9 @@ object ScanRange {
       up: Array[Byte],
       upInc: Boolean,
       offset: Int): ScanRange[Array[Byte]] = {
-    val start = Array.fill(length)(0: Byte)
     val end = Array.fill(length)(-1: Byte)
-    System.arraycopy(low, 0, start, offset, low.length)
     System.arraycopy(up, 0, end, offset, up.length)
-    ScanRange(Some(Bound(start, lowInc)), Some(Bound(end, upInc)))
+    ScanRange(Some(Bound(low, lowInc)), Some(Bound(end, upInc)))
   }
 }
 

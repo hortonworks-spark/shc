@@ -37,7 +37,7 @@ case class Field(
     sType: Option[String] = None,
     avroSchema: Option[String] = None,
     val sedes: Option[Sedes]= None,
-    len: Int = -1) extends Logging{
+    private val len: Int = -1) extends Logging{
   val isRowKey = cf == HBaseTableCatalog.rowKey
   var start: Int = _
   def schema: Option[Schema] = avroSchema.map { x =>
@@ -99,12 +99,13 @@ case class RowKey(k: String) {
   var fields: Seq[Field] = _
   var varLength = false
   def length = {
-    if (varLength) {
-      -1
-    } else {
-      fields.foldLeft(0){case (x, y) =>
-          x + y.length
+    fields.foldLeft(0) { case (x, y) =>
+      val yLen = if (y.length == -1) {
+        MaxLength
+      } else {
+        y.length
       }
+      x + y.length
     }
   }
 }
@@ -138,15 +139,16 @@ case class HBaseTableCatalog(
   def initRowKey = {
     val fields = sMap.fields.filter(_.cf == HBaseTableCatalog.rowKey)
     row.fields = row.keys.flatMap(n => fields.find(_.col == n))
-    // The length is determined at run time if it is string or binary and the length is undefined.
-    if (row.fields.filter(_.length == -1).isEmpty) {
+    // We only allowed there is one key at the end that is determined at runtime.
+    if (row.fields.reverse.tail.filter(_.length == -1).isEmpty) {
       var start = 0
       row.fields.foreach { f =>
         f.start = start
         start += f.length
       }
     } else {
-      row.varLength = true
+      throw new Exception("Only the last dimension of " +
+        "RowKey is allowed to have varied length")
     }
   }
   initRowKey
