@@ -29,8 +29,6 @@ import scala.util.Random
 
 class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with Logging {
 
-
-
   test("avro to schema converterBasic setup") {
     val schemaString  =
       s"""{"namespace": "example.avro",

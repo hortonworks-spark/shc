@@ -73,11 +73,7 @@ object TypedFilter {
   def empty = TypedFilter(None, FilterType.Und)
 
   private def getOne(left: TypedFilter, right: TypedFilter) = {
-    if (left.filter.isEmpty) {
-      right
-    } else {
-      left
-    }
+    left.filter.fold(right)(x => left)
   }
 
   private def ops(left: TypedFilter, right: TypedFilter, hType: FilterType) = {
@@ -366,7 +362,6 @@ object HBaseFilter extends Logging{
       left: HRF[T],
       right: HRF[T])(implicit ordering: Ordering[T]):HRF[T] = {
     // (0, 5), (10, 15) and with (2, 3) (8, 12) = (2, 3), (10, 12)
-    val tmp = left.ranges.map(x => ScanRange.and(x, right.ranges))
     val ranges = ScanRange.and(left.ranges, right.ranges)
     val typeFilter = TypedFilter.and(left.tf, right.tf)
     HRF(ranges, typeFilter)
@@ -377,6 +372,6 @@ object HBaseFilter extends Logging{
       right: HRF[T])(implicit ordering: Ordering[T]):HRF[T] = {
     val ranges = ScanRange.or(left.ranges, right.ranges)
     val typeFilter = TypedFilter.or(left.tf, right.tf)
-    HRF(ranges, TypedFilter.empty)
+    HRF(ranges, typeFilter)
   }
 }
