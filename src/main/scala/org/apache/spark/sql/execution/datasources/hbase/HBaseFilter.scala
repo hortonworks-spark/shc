@@ -261,8 +261,12 @@ object HBaseFilter extends Logging{
     val f = filter match {
       case And(left, right) =>
         and[Array[Byte]](buildFilter(left, relation), buildFilter(right, relation))
+      case Not(And(left, right)) =>
+        or[Array[Byte]](buildFilter(Not(left), relation), buildFilter(Not(right), relation))
       case Or(left, right) =>
         or[Array[Byte]](buildFilter(left, relation), buildFilter(right, relation))
+      case Not(Or(left, right)) =>
+        and[Array[Byte]](buildFilter(Not(left), relation), buildFilter(Not(right), relation))
       case EqualTo(attribute, value) =>
         process(value, relation, attribute,
           bound => {
@@ -289,14 +293,24 @@ object HBaseFilter extends Logging{
               bound.value, true, bound.value, true, relation.getField(attribute).start)
             HRF(Array(s), TypedFilter.empty)
           })
+      case Not(EqualTo(attribute, value)) =>
+        or[Array[Byte]](Less(attribute, relation), Greater(attribute, relation))
       case LessThan(attribute, value) =>
         Less(attribute, value)
+      case Not(LessThan(attribute, value)) =>
+        Greater(attribute, value)
       case LessThanOrEqual(attribute, value)  =>
         Less(attribute, value)
+      case Not(LessThanOrEqual(attribute, value)) =>
+        Greater(attribute, value)
       case GreaterThan(attribute, value) =>
         Greater(attribute, value)
+      case Not(GreaterThan(attribute, value)) =>
+        Less(attribute, value)
       case GreaterThanOrEqual(attribute, value)  =>
         Greater(attribute, value)
+      case Not(GreaterThanOrEqual(attribute, value)) =>
+        Less(attribute, value)
       case  StringStartsWith(attribute, value)  =>
         val b = Bytes.toBytes(value)
         if (relation.isPrimaryKey(attribute)) {
@@ -347,14 +361,20 @@ object HBaseFilter extends Logging{
           new SubstringComparator(value)
         )
         HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
+      case In(attribute: String, values: Array[Any]) =>
+        //converting a "key in (x1, x2, x3..) filter to (key == x1) or (key == x2) or ...
+        //this may be a temporary hack to get this filter working
+        val filter = values.map(v => EqualTo(attribute, v)).reduce[Filter]{case (op1, op2) => Or(op1, op2)}
+        buildFilter(filter, relation)
 
+      case Not(In(attribute: String, values: Array[Any])) =>
+        //converting a "key in (x1, x2, x3..) filter to (key == x1) or (key == x2) or ...
+        //this may be a temporary hack to get this filter working
+        val filter = values.map(v => Not(EqualTo(attribute, v))).reduce[Filter]{case (op1, op2) => And(op1, op2)}
+        buildFilter(filter, relation)
       case _ => HRF.empty[Array[Byte]]
     }
-
-    if (log.isDebugEnabled) {
-      logDebug(s"start filter $filter")
-      f.ranges.foreach(x => logDebug(x.toString))
-    }
+    logDebug(s"""start filter $filter:  ${f.ranges.map(_.toString).mkString(" ")}""")
     f
   }
 
