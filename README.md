@@ -1,6 +1,6 @@
-# Spark-HBase Connector
+# Apache Spark - Apache HBase Connector
 
-Spark-HBase Connector is a library to support Spark accessing HBase table as external data source or sink. With it, user can operate HBase with Spark-SQL on data frame level. 
+The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apache.org/) Connector is a library to support Spark accessing HBase table as external data source or sink. With it, user can operate HBase with Spark-SQL on data frame level. 
 
 With the data frame support, the lib leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc. 
 
@@ -139,4 +139,9 @@ Given a data frame with specified schema, above will create an HBase table with 
           
 
 Above illustrates our next step, which includes composite key support, complex data types, support of customerized sedes and avro. Note that although all the major pieces are included in the current code base, but it may not be functioning now.
+
+
+## Trademarks
+
+Apache®, Apache Spark, Apache HBase, Spark, and HBase are either registered trademarks or trademarks of the Apache Software Foundation in the United States and/or other countries.
 
