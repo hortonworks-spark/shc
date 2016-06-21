@@ -130,10 +130,8 @@ object HBaseFilter extends Logging{
       logDebug(s"for all filters: ")
       filters.foreach(x => logDebug(x.toString))
     }
-    val ret =
-      filters.map(x=> buildFilter(x, relation)).reduceOption[HRF[Array[Byte]]] { case (x, y) =>
-        and[Array[Byte]](x, y)
-      }.getOrElse(HRF.empty[Array[Byte]])
+    val filter = filters.reduceOption[Filter](And(_, _))
+    val ret = filter.map(buildFilter(_, relation)).getOrElse(HRF.empty[Array[Byte]])
     if (log.isDebugEnabled) {
       logDebug("ret:")
       ret.ranges.foreach(x => logDebug(x.toString))
@@ -258,7 +256,22 @@ object HBaseFilter extends Logging{
         })
     }
 
+    def setDiff(inValues: Array[Any], notInValues: Array[Any], attrib: String): HRF[Array[Byte]] = {
+      val diff = inValues.toSet diff notInValues.toSet
+      buildFilter(In(attrib, diff.toArray), relation)
+    }
+
     val f = filter match {
+      case And(Not(In(notInAttrib: String, notInValues: Array[Any])), In(inAttrib: String, inValues: Array[Any]))
+        if inAttrib == notInAttrib =>
+        //this is set difference being performed
+        setDiff(inValues, notInValues, inAttrib)
+
+      case And(In(inAttrib: String, inValues: Array[Any]), Not(In(notInAttrib: String, notInValues: Array[Any])))
+        if inAttrib == notInAttrib =>
+        //this is set difference being performed
+        setDiff(inValues, notInValues, inAttrib)
+
       case And(left, right) =>
         and[Array[Byte]](buildFilter(left, relation), buildFilter(right, relation))
       case Not(And(left, right)) =>
