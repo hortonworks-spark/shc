@@ -158,4 +158,13 @@ class AvroSourceSuite extends SHC with Logging{
     assert(s.count() == 7)
   }
 
+  test("IN and Not IN filter") {
+    val df = withCatalog(catalog)
+    val s = df.filter(($"col0" isin ("name000", "name001", "name002", "name003", "name004")) and !($"col0" isin ("name001", "name002", "name003")))
+      .select("col0", "col1.favorite_number", "col1.favorite_color")
+    s.explain(true)
+    s.show
+    assert(s.count() == 2)
+  }
+
 }
