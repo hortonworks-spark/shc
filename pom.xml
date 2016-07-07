@@ -32,6 +32,14 @@
   <packaging>jar</packaging>
   <name>HBase Spark Connector</name>
   <url>http://spark.apache.org/</url>
+  
+  <distributionManagement>
+    <repository>
+      <id>${repoid}</id>
+      <name>${reponame}</name>
+      <url>${repourl}</url>
+    </repository>
+  </distributionManagement> 
 
   <properties>
     <spark.version>1.6.0</spark.version>
