@@ -22,10 +22,10 @@ import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.{ConnectionFactory, Put}
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
-import org.apache.hadoop.hbase.mapred.TableOutputFormat
+import org.apache.hadoop.hbase.mapreduce.TableOutputFormat
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{HBaseConfiguration, HColumnDescriptor, HTableDescriptor, TableName}
-import org.apache.hadoop.mapred.JobConf
+import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
@@ -115,13 +115,14 @@ case class HBaseRelation(
 
   /**
    *
-   * @param data
-   * @param overwrite
+   * @param data DataFrame to write to hbase
+   * @param overwrite Overwrite existing values
    */
   override def insert(data: DataFrame, overwrite: Boolean): Unit = {
-    val jobConfig: JobConf = new JobConf(hbaseConf, this.getClass)
-    jobConfig.setOutputFormat(classOf[TableOutputFormat])
-    jobConfig.set(TableOutputFormat.OUTPUT_TABLE, catalog.name)
+    hbaseConf.set(TableOutputFormat.OUTPUT_TABLE, catalog.name)
+    val job = Job.getInstance(hbaseConf)
+    job.setOutputFormatClass(classOf[TableOutputFormat[String]])
+
     var count = 0
     val rkFields = catalog.getRowKey
     val rkIdxedFields = rkFields.map{ case x =>
@@ -155,7 +156,7 @@ case class HBaseRelation(
       count += 1
       (new ImmutableBytesWritable, put)
     }
-    rdd.map(convertToPut(_)).saveAsHadoopDataset(jobConfig)
+    rdd.map(convertToPut).saveAsNewAPIHadoopDataset(job.getConfiguration)
   }
   val catalog = HBaseTableCatalog(parameters)
 
