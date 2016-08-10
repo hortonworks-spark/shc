@@ -176,6 +176,7 @@ private[hbase] class HBaseTableScanRDD(
       it: Iterator[Result]): Iterator[Row] = {
 
     val iterator = new Iterator[Row] {
+      val start         = System.currentTimeMillis()
       var rowCount: Int = 0
       val indexedFields = relation.getIndexedProjections(requiredColumns).map(_._1)
 
@@ -184,7 +185,8 @@ private[hbase] class HBaseTableScanRDD(
           true
         }
         else {
-          logDebug(s"returned ${rowCount} rows from hbase")
+          val end = System.currentTimeMillis()
+          logDebug(s"returned ${rowCount} rows from hbase in ${end - start} ms")
           false
         }
       }
