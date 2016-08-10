@@ -17,8 +17,10 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.sql.sources.In
 import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.sources.PrunedFilteredScan
 import org.apache.spark.{Logging, SparkContext}
 
 case class HBaseRecord(
@@ -68,6 +70,10 @@ class DefaultSourceSuite extends SHC with Logging {
       .options(Map(HBaseTableCatalog.tableCatalog->cat))
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .load()
+  }
+
+  private def prunedFilterScan(cat: String): PrunedFilteredScan = {
+    HBaseRelation(Map(HBaseTableCatalog.tableCatalog->cat),None)(sqlContext)
   }
 
   test("populate table") {
@@ -129,6 +135,16 @@ class DefaultSourceSuite extends SHC with Logging {
     s.explain(true)
     s.show
     assert(s.count() == df.count())
+  }
+
+  test("IN filter, RDD") {
+    val scan    = prunedFilterScan(catalog)
+    val columns = Array("col0")
+    val filters =
+      Array[org.apache.spark.sql.sources.Filter](
+        org.apache.spark.sql.sources.In("col0", Array("row001")))
+    val rows    = scan.buildScan(columns,filters).collect()
+    assert(rows.size == 1)
   }
 
   test("full query") {
