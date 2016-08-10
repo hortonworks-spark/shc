@@ -387,9 +387,9 @@ object HBaseFilter extends Logging{
       case Not(In(attribute: String, values: Array[Any])) =>
         //converting a "not(key in (x1, x2, x3..)) filter to (key != x1) and (key != x2) and ..
         values.map{v => buildFilter(Not(EqualTo(attribute, v)),relation)}
-              .foldLeft(HRF.empty[Array[Byte]]){
+              .reduceOption[HRF[Array[Byte]]]{
                   case (lhs, rhs) => and(lhs,rhs)
-              }
+              }.getOrElse(HRF.empty[Array[Byte]])
       case _ => HRF.empty[Array[Byte]]
     }
     logDebug(s"""start filter $filter:  ${f.ranges.map(_.toString).mkString(" ")}""")
