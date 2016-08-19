@@ -176,13 +176,23 @@ private[hbase] class HBaseTableScanRDD(
       it: Iterator[Result]): Iterator[Row] = {
 
     val iterator = new Iterator[Row] {
+      val start         = System.currentTimeMillis()
+      var rowCount: Int = 0
       val indexedFields = relation.getIndexedProjections(requiredColumns).map(_._1)
 
       override def hasNext: Boolean = {
-        it.hasNext
+        if(it.hasNext) {
+          true
+        }
+        else {
+          val end = System.currentTimeMillis()
+          logDebug(s"returned ${rowCount} rows from hbase in ${end - start} ms")
+          false
+        }
       }
 
       override def next(): Row = {
+        rowCount += 1
         val r = it.next()
         buildRow(indexedFields, r)
       }
@@ -257,7 +267,7 @@ private[hbase] class HBaseTableScanRDD(
     val (g, s) = scanRanges.partition{x =>
       x.start.isDefined && x.end.isDefined && ScanRange.compare(x.start, x.end, ord) == 0
     }
-
+    logDebug(s"${g.length} gets, ${s.length} scans")
     context.addTaskCompletionListener(context => close())
     val tableResource = TableResource(relation)
     val filter = TypedFilter.fromSerializedTypedFilter(partition.tf).filter

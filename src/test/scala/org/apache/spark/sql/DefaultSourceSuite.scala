@@ -17,8 +17,10 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.sql.sources.In
 import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.sources.PrunedFilteredScan
 import org.apache.spark.{Logging, SparkContext}
 
 case class HBaseRecord(
@@ -70,6 +72,10 @@ class DefaultSourceSuite extends SHC with Logging {
       .load()
   }
 
+  private def prunedFilterScan(cat: String): PrunedFilteredScan = {
+    HBaseRelation(Map(HBaseTableCatalog.tableCatalog->cat),None)(sqlContext)
+  }
+
   test("populate table") {
     //createTable(tableName, columnFamilies)
     val sql = sqlContext
@@ -107,6 +113,53 @@ class DefaultSourceSuite extends SHC with Logging {
     s.explain(true)
     s.show
     assert(s.count() == 1)
+  }
+
+  test("IN filter stack overflow") {
+    val df = withCatalog(catalog)
+    val items          = (0 to 2000).map{i => s"xaz${i}"}
+    val filterInItems  = Seq("row001") ++: items
+
+    val s = df.filter($"col0" isin(filterInItems:_*)).select("col0")
+    s.explain(true)
+    s.show()
+    assert(s.count() == 1)
+  }
+
+  test("NOT IN filter stack overflow") {
+    val df               = withCatalog(catalog)
+    val items            = (0 to 2000).map{i => s"xaz${i}"}
+    var filterNotInItems = items
+
+    val s = df.filter(not($"col0" isin(filterNotInItems:_*))).select("col0")
+    s.explain(true)
+    s.show
+    assert(s.count() == df.count())
+  }
+
+  test("IN filter, RDD") {
+    val scan    = prunedFilterScan(catalog)
+    val columns = Array("col0")
+    val filters =
+      Array[org.apache.spark.sql.sources.Filter](
+        org.apache.spark.sql.sources.In("col0", Array("row001")))
+    val rows    = scan.buildScan(columns,filters).collect()
+    assert(rows.size == 1)
+  }
+
+  ignore("NOT IN filter, RDD") {
+    val items   = Array[Any]("row001")
+    val scan    = prunedFilterScan(catalog)
+    val columns = Array("col0")
+    val filters =
+      Array[org.apache.spark.sql.sources.Filter](
+        org.apache.spark.sql.sources.Not(
+          org.apache.spark.sql.sources.In("col0", items))
+      )
+
+    val rows    = scan.buildScan(columns,filters).collect()
+    val df      = withCatalog(catalog).filter(not($"col0".isin(items:_*)))
+    assert(rows.size == df.count())
   }
 
   test("full query") {

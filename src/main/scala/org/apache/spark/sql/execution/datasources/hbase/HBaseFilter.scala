@@ -25,7 +25,6 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.FilterType.FilterType
-import org.apache.spark.sql.execution.datasources.hbase.TypedFilter
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.BinaryType
 import scala.collection.JavaConverters._
@@ -376,15 +375,21 @@ object HBaseFilter extends Logging{
         HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
       case In(attribute: String, values: Array[Any]) =>
         //converting a "key in (x1, x2, x3..) filter to (key == x1) or (key == x2) or ...
-        //this may be a temporary hack to get this filter working
-        val filter = values.map(v => EqualTo(attribute, v)).reduce[Filter]{case (op1, op2) => Or(op1, op2)}
-        buildFilter(filter, relation)
-
+        val ranges = new ArrayBuffer[ScanRange[Array[Byte]]]()
+        values.foreach{
+          value =>
+            val sparkFilter = EqualTo(attribute,value)
+            val hbaseFilter = buildFilter(sparkFilter,relation)
+            ranges ++= hbaseFilter.ranges
+        }
+        val result = HRF[Array[Byte]](ranges.toArray, TypedFilter.empty)
+        result
       case Not(In(attribute: String, values: Array[Any])) =>
-        //converting a "key in (x1, x2, x3..) filter to (key == x1) or (key == x2) or ...
-        //this may be a temporary hack to get this filter working
-        val filter = values.map(v => Not(EqualTo(attribute, v))).reduce[Filter]{case (op1, op2) => And(op1, op2)}
-        buildFilter(filter, relation)
+        //converting a "not(key in (x1, x2, x3..)) filter to (key != x1) and (key != x2) and ..
+        values.map{v => buildFilter(Not(EqualTo(attribute, v)),relation)}
+              .reduceOption[HRF[Array[Byte]]]{
+                  case (lhs, rhs) => and(lhs,rhs)
+              }.getOrElse(HRF.empty[Array[Byte]])
       case _ => HRF.empty[Array[Byte]]
     }
     logDebug(s"""start filter $filter:  ${f.ranges.map(_.toString).mkString(" ")}""")
