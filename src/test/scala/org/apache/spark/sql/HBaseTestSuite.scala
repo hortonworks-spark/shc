@@ -19,11 +19,12 @@ package org.apache.spark.sql
 
 import java.io.File
 
+import org.apache.spark.sql.execution.datasources.hbase.Logging
+
 import com.google.common.io.Files
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{CellUtil, TableName, HBaseTestingUtility}
-import org.apache.spark.Logging
+import org.apache.hadoop.hbase.{TableName, HBaseTestingUtility}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
 import scala.collection.JavaConverters._
 

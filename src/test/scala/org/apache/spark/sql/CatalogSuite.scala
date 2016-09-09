@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.Logging
+import org.apache.spark.sql.execution.datasources.hbase.Logging
 import org.apache.spark.sql.execution.datasources.hbase.HBaseTableCatalog
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
 

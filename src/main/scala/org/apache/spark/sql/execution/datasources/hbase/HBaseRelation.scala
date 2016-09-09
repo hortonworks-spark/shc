@@ -26,7 +26,6 @@ import org.apache.hadoop.hbase.mapreduce.TableOutputFormat
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{HBaseConfiguration, HColumnDescriptor, HTableDescriptor, TableName}
 import org.apache.hadoop.mapreduce.Job
-import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
@@ -96,9 +95,9 @@ case class HBaseRelation(
           logDebug(s"add family $x to ${catalog.name}")
           tableDesc.addFamily(cf)
         }
-        val startKey = Bytes.toBytes("aaaaaaa");
-        val endKey = Bytes.toBytes("zzzzzzz");
-        val splitKeys = Bytes.split(startKey, endKey, catalog.numReg - 3);
+        val startKey = Bytes.toBytes("aaaaaaa")
+        val endKey = Bytes.toBytes("zzzzzzz")
+        val splitKeys = Bytes.split(startKey, endKey, catalog.numReg - 3)
         admin.createTable(tableDesc, splitKeys)
         val r = connection.getRegionLocator(TableName.valueOf(catalog.name)).getAllRegionLocations
         while(r == null || r.size() == 0) {

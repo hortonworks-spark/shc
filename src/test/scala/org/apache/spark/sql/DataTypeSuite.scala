@@ -17,10 +17,7 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.sql.execution.datasources.hbase.HBaseTableCatalog
-import org.apache.spark.{SparkContext, Logging}
-import  org.apache.spark.sql.SQLContext
-import org.apache.spark.sql._
+import org.apache.spark.sql.execution.datasources.hbase.{HBaseTableCatalog, Logging}
 
 case class IntKeyRecord(
     col0: Integer,

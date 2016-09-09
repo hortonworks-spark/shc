@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.sql.execution.datasources.hbase.Logging
+
 import java.io.File
 
 import com.google.common.io.Files
@@ -24,7 +26,7 @@ import org.apache.hadoop.hbase.client.Table
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{HBaseTestingUtility, TableName}
 import org.apache.spark.sql.execution.datasources.hbase.SparkHBaseConf
-import org.apache.spark.{SparkContext, Logging, SparkConf}
+import org.apache.spark.{SparkContext, SparkConf}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
 
 class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with Logging {
