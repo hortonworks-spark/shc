@@ -17,11 +17,10 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.sql.sources.In
-import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
+import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog, Logging}
+
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.sources.PrunedFilteredScan
-import org.apache.spark.{Logging, SparkContext}
 
 case class HBaseRecord(
     col0: String,
@@ -137,7 +136,7 @@ class DefaultSourceSuite extends SHC with Logging {
     assert(s.count() == df.count())
   }
 
-  test("IN filter, RDD") {
+  ignore("IN filter, RDD") {
     val scan    = prunedFilterScan(catalog)
     val columns = Array("col0")
     val filters =

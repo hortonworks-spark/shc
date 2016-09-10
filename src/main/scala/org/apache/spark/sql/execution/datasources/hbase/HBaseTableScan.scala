@@ -21,7 +21,7 @@ import java.util.ArrayList
 
 import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.client._
-import org.apache.hadoop.hbase.filter.{Filter => HFilter, FilterList => HFilterList}
+import org.apache.hadoop.hbase.filter.{Filter => HFilter}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
@@ -29,7 +29,7 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.HBaseResources._
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.{StringType, StructType}
+import org.apache.spark.sql.types.StructType
 
 import scala.collection.mutable
 
@@ -49,7 +49,7 @@ private[hbase] case class HBaseScanPartition(
 private[hbase] class HBaseTableScanRDD(
     relation: HBaseRelation,
     requiredColumns: Array[String],
-    filters: Array[Filter]) extends RDD[Row](relation.sqlContext.sparkContext, Nil) with Logging  {
+    filters: Array[Filter]) extends RDD[Row](relation.sqlContext.sparkContext, Nil) {
   val outputs = StructType(requiredColumns.map(relation.schema(_))).toAttributes
   val columnFields = relation.splitRowKeyColumns(requiredColumns)._2
   private def sparkConf = SparkEnv.get.conf

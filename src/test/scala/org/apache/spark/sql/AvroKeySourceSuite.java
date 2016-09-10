@@ -33,9 +33,6 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
-import org.apache.spark.sql.DataFrame;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.execution.datasources.hbase.HBaseTableCatalog;
 import org.apache.spark.sql.execution.datasources.hbase.SparkHBaseConf;
 import org.junit.After;
@@ -92,17 +89,17 @@ public class AvroKeySourceSuite {
     }
   };
 
-
   @Test
   public void testAvroKey() throws Exception {
     hBaseTestingUtility.createTable(TABLE_NAME, COLUMN_FAMILY);
     writeDataToHBase(hbase);
 
     // Assert contents look as expected.
-    DataFrame df = sqlContext.read().format("org.apache.spark.sql.execution.datasources.hbase")
-        .options(getHBaseSourceOptions()).load();
+    Dataset<Row> df = sqlContext.read().format("org.apache.spark.sql.execution.datasources.hbase")
+      .options(getHBaseSourceOptions()).load();
     assertEquals(2, df.count());
-    Row[] rows = df.collect();
+    df.show();
+    Row[] rows = (Row[])df.collect();
 
     // Arrays.sort(rows, (a, b) -> {
     //   return a.getStruct(1).getStruct(1).getInt(0) - b.getStruct(1).getStruct(1).getInt(0);

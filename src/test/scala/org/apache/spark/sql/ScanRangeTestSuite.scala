@@ -17,8 +17,9 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.sql.execution.datasources.hbase.Logging
+
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.{Bound, ScanRange}
 import org.apache.spark.sql.types.BinaryType

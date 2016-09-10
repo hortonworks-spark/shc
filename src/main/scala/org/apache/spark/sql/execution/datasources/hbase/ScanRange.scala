@@ -18,7 +18,6 @@
 package org.apache.spark.sql.execution.datasources.hbase
 
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.unsafe.types.UTF8String
 

@@ -23,8 +23,6 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.execution.datasources.hbase.{AvroSedes, HBaseTableCatalog}
 import org.apache.spark.{SparkConf, SparkContext}
 
-
-
 case class AvroHBaseRecord(col0: String,
                            col1: Array[Byte])
 

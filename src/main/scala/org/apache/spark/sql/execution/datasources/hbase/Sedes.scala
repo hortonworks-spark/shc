@@ -17,15 +17,7 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import java.io.ByteArrayInputStream
-
-import org.apache.avro.Schema
-import org.apache.avro.Schema.Type._
-import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
-import org.apache.avro.io._
-import org.apache.commons.io.output.ByteArrayOutputStream
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.sql.types._
 
 trait Sedes {
   def serialize(value: Any): Array[Byte]

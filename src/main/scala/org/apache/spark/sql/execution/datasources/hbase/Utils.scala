@@ -18,7 +18,6 @@
 package org.apache.spark.sql.execution.datasources.hbase
 
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.sql.execution.SparkSqlSerializer
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -59,7 +58,7 @@ object Utils {
           val newArray = new Array[Byte](length)
           System.arraycopy(src, offset, newArray, 0, length)
           newArray
-        case _ => SparkSqlSerializer.deserialize[Any](src) //TODO
+        case _ => throw new Exception(s"unsupported data type ${f.dt}")
       }
     }
   }

@@ -22,16 +22,12 @@ import java.util
 import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp
 import org.apache.hadoop.hbase.filter.{Filter => HFilter, FilterList => HFilterList, _}
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.FilterType.FilterType
 import org.apache.spark.sql.sources._
-import org.apache.spark.sql.types.BinaryType
-import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 import scala.math.Ordering
-import scala.reflect.ClassTag
 
 object FilterType extends Enumeration {
   type FilterType = Value
