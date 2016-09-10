@@ -135,7 +135,17 @@ class DefaultSourceSuite extends SHC with Logging {
     s.show
     assert(s.count() == df.count())
   }
-  
+
+  ignore("IN filter, RDD") {
+    val scan    = prunedFilterScan(catalog)
+    val columns = Array("col0")
+    val filters =
+      Array[org.apache.spark.sql.sources.Filter](
+        org.apache.spark.sql.sources.In("col0", Array("row001")))
+    val rows    = scan.buildScan(columns,filters).collect()
+    assert(rows.size == 1)
+  }
+
   test("full query") {
     val df = withCatalog(catalog)
     df.show
