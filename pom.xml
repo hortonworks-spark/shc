@@ -27,11 +27,11 @@
     <version>14</version>
   </parent>
   <groupId>HBase-Spark</groupId>
-  <artifactId>hbase-spark-connector</artifactId>
-  <version>1.0.0</version>
+  <artifactId>hbase-spark-connector_1.6</artifactId>
+  <version>1.0</version>
   <packaging>jar</packaging>
   <name>HBase Spark Connector</name>
-  <url>http://spark.apache.org/</url>
+  <url>https://github.com/hortonworks-spark/shc</url>
   
   <distributionManagement>
     <repository>
@@ -42,11 +42,11 @@
   </distributionManagement> 
 
   <properties>
-    <spark.version>1.6.0</spark.version>
+    <spark.version>1.6.1</spark.version>
     <hbase.version>1.1.1</hbase.version>
     <test_classpath_file>${project.build.directory}/spark-test-classpath.txt</test_classpath_file>
     <java.version>1.7</java.version>
-    <scala.version>2.10.4</scala.version>
+    <scala.version>2.10.5</scala.version>
     <scala.macros.version>2.0.1</scala.macros.version>
     <scala.binary.version>2.10</scala.binary.version>
     <avro.version>1.7.6</avro.version>
