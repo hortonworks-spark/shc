@@ -374,17 +374,21 @@ object HBaseFilter extends Logging{
           new SubstringComparator(value)
         )
         HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
+
       case In(attribute: String, values: Array[Any]) =>
         //converting a "key in (x1, x2, x3..) filter to (key == x1) or (key == x2) or ...
-        //this may be a temporary hack to get this filter working
-        val filter = values.map(v => EqualTo(attribute, v)).reduce[Filter]{case (op1, op2) => Or(op1, op2)}
-        buildFilter(filter, relation)
+        values.map{v => buildFilter(EqualTo(attribute, v), relation)}
+          .reduce[HRF[Array[Byte]]]{
+            case (lhs, rhs) => or(lhs,rhs)
+        }
 
       case Not(In(attribute: String, values: Array[Any])) =>
         //converting a "key in (x1, x2, x3..) filter to (key == x1) or (key == x2) or ...
-        //this may be a temporary hack to get this filter working
-        val filter = values.map(v => Not(EqualTo(attribute, v))).reduce[Filter]{case (op1, op2) => And(op1, op2)}
-        buildFilter(filter, relation)
+        values.map{v => buildFilter(Not(EqualTo(attribute, v)),relation)}
+          .reduceOption[HRF[Array[Byte]]]{
+            case (lhs, rhs) => and(lhs,rhs)
+        }.getOrElse(HRF.empty[Array[Byte]])
+
       case _ => HRF.empty[Array[Byte]]
     }
     logDebug(s"""start filter $filter:  ${f.ranges.map(_.toString).mkString(" ")}""")
