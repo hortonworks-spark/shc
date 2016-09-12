@@ -29,7 +29,8 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.HBaseResources._
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.{StringType, StructType}
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.BinaryType
 
 import scala.collection.mutable
 
@@ -113,7 +114,11 @@ private[hbase] class HBaseTableScanRDD(
         (x, null)
       } else {
         val v = CellUtil.cloneValue(kv)
-        (x, Utils.hbaseFieldToScalaType(x, v, 0, v.length))
+        (x,  x.dt match {
+          // Here, to avoid arraycopy, return v directly instead of calling hbaseFieldToScalaType
+          case BinaryType => v
+          case _ => Utils.hbaseFieldToScalaType(x, v, 0, v.length)
+        })
       }
     }.toMap
     val unioned = keySeq ++ valueSeq
