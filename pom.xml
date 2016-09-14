@@ -26,9 +26,9 @@
     <artifactId>apache</artifactId>
     <version>14</version>
   </parent>
-  <groupId>HBase-Spark</groupId>
-  <artifactId>hbase-spark-connector_1.6</artifactId>
-  <version>1.0.0</version>
+  <groupId>com.hortonworks</groupId>
+  <artifactId>shc</artifactId>
+  <version>1.0.0-1.6-s_2.10</version>
   <packaging>jar</packaging>
   <name>HBase Spark Connector</name>
   <url>https://github.com/hortonworks-spark/shc</url>
