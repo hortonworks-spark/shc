@@ -20,16 +20,16 @@ package org.apache.spark.sql.execution.datasources.hbase
 import org.apache.hadoop.hbase.client.{Connection, ConnectionFactory}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.spark.Logging
 import org.apache.spark.sql.execution.SparkSqlSerializer
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-import scala.util.control.NonFatal
 import java.io.IOException
 
 import com.google.common.cache.{RemovalNotification, RemovalListener, CacheBuilder, CacheLoader}
 
-object Utils {
+object Utils extends Logging{
 
   /**
    * Parses the hbase field to it's corresponding
@@ -119,8 +119,7 @@ object Utils {
       try{
         rm.getValue.close()
       } catch {
-        case e: IOException => throw e
-        case NonFatal(t) => throw new IOException(t)
+        case e: IOException => logWarning("Fail to close HBase connection")
       }
     }
   }
