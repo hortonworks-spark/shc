@@ -24,6 +24,9 @@ import org.apache.spark.sql.execution.SparkSqlSerializer
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
+import scala.util.control.NonFatal
+import java.io.IOException
+
 import com.google.common.cache.{RemovalNotification, RemovalListener, CacheBuilder, CacheLoader}
 
 object Utils {
@@ -113,18 +116,22 @@ object Utils {
     */
   val removalListener = new RemovalListener[Configuration, Connection] {
     override def onRemoval(rm: RemovalNotification[Configuration, Connection]): Unit = {
-      rm.getValue.close()
+      try{
+        rm.getValue.close()
+      } catch {
+        case e: IOException => throw e
+        case NonFatal(t) => throw new IOException(t)
+      }
     }
   }
 
   val cache = CacheBuilder.newBuilder()
-    .maximumSize(100)
+    .maximumSize(SparkHBaseConf.connectCacheMaxSize)
     .removalListener(removalListener)
     .build(
       new CacheLoader[Configuration, Connection]() {
         override def load(hbaseConf: Configuration): Connection = {
-          val connection = ConnectionFactory.createConnection(hbaseConf)
-          connection
+          ConnectionFactory.createConnection(hbaseConf)
         }
       })
 }
