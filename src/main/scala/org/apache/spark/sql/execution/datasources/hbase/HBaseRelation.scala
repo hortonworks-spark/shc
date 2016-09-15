@@ -79,7 +79,7 @@ case class HBaseRelation(
     if (catalog.numReg > 3) {
       val tName = TableName.valueOf(catalog.name)
       val cfs = catalog.getColumnFamilies
-      val connection = ConnectionFactory.createConnection(hbaseConf)
+      val connection = Utils.cache.get(hbaseConf)
       // Initialize hBase table if necessary
       val admin = connection.getAdmin()
 
@@ -96,9 +96,9 @@ case class HBaseRelation(
           logDebug(s"add family $x to ${catalog.name}")
           tableDesc.addFamily(cf)
         }
-        val startKey = Bytes.toBytes("aaaaaaa");
-        val endKey = Bytes.toBytes("zzzzzzz");
-        val splitKeys = Bytes.split(startKey, endKey, catalog.numReg - 3);
+        val startKey = Bytes.toBytes("aaaaaaa")
+        val endKey = Bytes.toBytes("zzzzzzz")
+        val splitKeys = Bytes.split(startKey, endKey, catalog.numReg - 3)
         admin.createTable(tableDesc, splitKeys)
         val r = connection.getRegionLocator(TableName.valueOf(catalog.name)).getAllRegionLocations
         while(r == null || r.size() == 0) {
@@ -109,7 +109,6 @@ case class HBaseRelation(
 
       }
       admin.close()
-      connection.close()
     }
   }
 
