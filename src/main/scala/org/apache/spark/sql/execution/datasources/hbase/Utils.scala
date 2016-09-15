@@ -17,10 +17,14 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
+import org.apache.hadoop.hbase.client.{Connection, ConnectionFactory}
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.execution.SparkSqlSerializer
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
+
+import com.google.common.cache.{RemovalNotification, RemovalListener, CacheBuilder, CacheLoader}
 
 object Utils {
 
@@ -97,4 +101,30 @@ object Utils {
   def toUTF8String(input: HBaseType, offset: Int, length: Int): UTF8String = {
     UTF8String.fromBytes(input.slice(offset, offset + length))
   }
+
+  /**
+    * A cache of Spark-HBase connections.
+    *
+    * From the Guava Docs: A Cache is similar to ConcurrentMap, but not quite the same. The most
+    * fundamental difference is that a ConcurrentMap persists all elements that are added to it until
+    * they are explicitly removed. A Cache on the other hand is generally configured to evict entries
+    * automatically, in order to constrain its memory footprint.  Note that this cache does not use
+    * weak keys/values and thus does not respond to memory pressure.
+    */
+  val removalListener = new RemovalListener[Configuration, Connection] {
+    override def onRemoval(rm: RemovalNotification[Configuration, Connection]): Unit = {
+      rm.getValue.close()
+    }
+  }
+
+  val cache = CacheBuilder.newBuilder()
+    .maximumSize(100)
+    .removalListener(removalListener)
+    .build(
+      new CacheLoader[Configuration, Connection]() {
+        override def load(hbaseConf: Configuration): Connection = {
+          val connection = ConnectionFactory.createConnection(hbaseConf)
+          connection
+        }
+      })
 }
