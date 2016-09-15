@@ -46,9 +46,9 @@ Run indiviudal test
 
 The following illustrates how to run your application in real hbase cluster. You need to provide the hbase-site.xml. It may subject to change based on your specific cluster configuration.
 
-    ./bin/spark-submit  --class your.application.class --master yarn-client     --num-executors 2     --driver-memory 512m     --executor-memory 512m     --executor-cores 1   --packages hortonworks:shc:2.0.0-2.0.0-s_2.11  --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
+    ./bin/spark-submit  --class your.application.class --master yarn-client     --num-executors 2     --driver-memory 512m     --executor-memory 512m     --executor-cores 1   --packages com.hortonworks:shc:1.0.0-2.0-s_2.11  --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
 
-Note: hortonworks:shc:2.0.0-2.0.0-s_2.11 will be upload to [spark-packages.org](https://spark-packages.org/package/hortonworks-spark/shc) soon.
+Note: com.hortonworks:shc:1.0.0-2.0-s_2.11 will be upload to [spark-packages.org](https://spark-packages.org/package/hortonworks-spark/shc) soon.
 Before that, you can use the command below to run your application.
 
     ./bin/spark-submit  --class your.application.class --master yarn-client     --num-executors 2     --driver-memory 512m     --executor-memory 512m     --executor-cores 1   --jars /usr/hdp/current/spark-client/lib/hbase-spark-connector-2.0.0.jar,/usr/hdp/current/hbase-client/lib/htrace-core-3.1.0-incubating.jar,/usr/hdp/current/hbase-client/lib/hbase-client.jar,/usr/hdp/current/hbase-client/lib/hbase-common.jar,/usr/hdp/current/hbase-client/lib/hbase-server.jar,/usr/hdp/current/hbase-client/lib/guava-12.0.1.jar,/usr/hdp/current/hbase-client/lib/hbase-protocol.jar,/usr/hdp/current/hbase-client/lib/htrace-core-3.1.0-incubating.jar --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
@@ -122,11 +122,11 @@ Users can use the Spark-on-HBase connector as a standard Spark package. To inclu
 
 spark-shell, pyspark, or spark-submit
 
-    $SPARK_HOME/bin/spark-shell --packages zhzhan:shc:0.0.11-1.6.1-s_2.10
+    $SPARK_HOME/bin/spark-shell --packages com.hortonworks:shc:1.0.0-2.0-s_2.11
 
 Users can include the package as the dependency in your SBT file as well. The format is the spark-package-name:version
 
-    spDependencies += “zhzhan/shc:0.0.11-1.6.1-s_2.10”
+    spDependencies += “com.hortonworks/shc:1.0.0-2.0-s_2.11”
 
 ## Running in secure cluster
 
@@ -142,9 +142,9 @@ Suppose hrt_qa is a headless account, user can use following command for kinit:
 
     kinit -k -t /tmp/hrt_qa.headless.keytab hrt_qa
 
-    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-client --packages hortonworks:shc:2.0.0-2.0.0-s_2.11 --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
+    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-client --packages com.hortonworks:shc:1.0.0-2.0-s_2.11 --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
 
-    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-cluster --files /etc/hbase/conf/hbase-site.xml --packages hortonworks:shc:2.0.0-2.0.0-s_2.11 --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
+    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-cluster --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc:1.0.0-2.0-s_2.11 --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
 
 #### TODO:
 
