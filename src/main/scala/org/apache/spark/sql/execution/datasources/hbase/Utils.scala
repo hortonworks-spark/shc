@@ -26,10 +26,11 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 import com.google.common.cache.{RemovalNotification, RemovalListener, CacheBuilder, CacheLoader}
 
-object Utils extends Logging{
+object Utils extends Logging {
 
   /**
    * Parses the hbase field to it's corresponding
@@ -106,7 +107,8 @@ object Utils extends Logging{
   }
 
   /**
-    * A cache of Spark-HBase connections.
+    * A cache of Spark-HBase connections. Key is the reference of Configuration object as Configuration class
+    * does not implement hashCode() function.
     *
     * From the Guava Docs: A Cache is similar to ConcurrentMap, but not quite the same. The most
     * fundamental difference is that a ConcurrentMap persists all elements that are added to it until
@@ -126,6 +128,7 @@ object Utils extends Logging{
 
   val cache = CacheBuilder.newBuilder()
     .maximumSize(SparkHBaseConf.connectCacheMaxSize)
+    .expireAfterAccess(SparkHBaseConf.cachedTime, TimeUnit.MINUTES)
     .removalListener(removalListener)
     .build(
       new CacheLoader[Configuration, Connection]() {

@@ -31,6 +31,7 @@ import org.apache.spark.sql.execution.datasources.hbase.HBaseResources._
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.types.BinaryType
+import org.apache.spark.util.ShutdownHookManager
 
 import scala.collection.mutable
 
@@ -79,6 +80,7 @@ private[hbase] class HBaseTableScanRDD(
       }
     }.toArray
     r.release()
+    ShutdownHookManager.addShutdownHook { () => Utils.cache.invalidateAll() }
     ps.asInstanceOf[Array[Partition]]
   }
 
@@ -297,6 +299,7 @@ private[hbase] class HBaseTableScanRDD(
       x ++ y
     } ++ gIt
 
+    ShutdownHookManager.addShutdownHook { () => Utils.cache.invalidateAll() }
     toRowIterator(rIt)
   }
 

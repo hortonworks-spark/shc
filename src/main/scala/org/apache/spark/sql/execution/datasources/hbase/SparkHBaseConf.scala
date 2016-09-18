@@ -19,7 +19,6 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import org.apache.hadoop.conf.Configuration
 
-
 object SparkHBaseConf {
   val testConf = "spark.hbase.connector.test"
   var conf: Configuration = _
@@ -27,5 +26,9 @@ object SparkHBaseConf {
   var defaultBulkGetSize = 100
   var CachingSize = "spark.hbase.connector.cacheSize"
   var defaultCachingSize = 100
+
+  // Configurations of Spark-HBase connection cache
+  val enableCache = true
   val connectCacheMaxSize = 100
+  val cachedTime = 10
 }

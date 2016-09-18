@@ -21,7 +21,6 @@ import scala.language.implicitConversions
 import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client._
 
-
 // Resource and ReferencedResources are defined for extensibility,
 // e.g., consolidate scan and bulkGet in the future work.
 
@@ -90,15 +89,19 @@ case class RegionResource(relation: HBaseRelation) extends ReferencedResource {
   var rl: RegionLocator = _
 
   override def init(): Unit = {
-    connection = Utils.cache.get(relation.hbaseConf)
+    connection = if (SparkHBaseConf.enableCache) Utils.cache.get(relation.hbaseConf)
+      else ConnectionFactory.createConnection(relation.hbaseConf)
     rl = connection.getRegionLocator(TableName.valueOf(relation.catalog.name))
   }
-
 
   override def destroy(): Unit = {
     if (rl != null) {
       rl.close()
       rl = null
+    }
+    if (!SparkHBaseConf.enableCache && connection != null) {
+      connection.close()
+      connection = null
     }
   }
 
@@ -119,7 +122,8 @@ case class TableResource(relation: HBaseRelation) extends ReferencedResource {
   var table: Table = _
 
   override def init(): Unit = {
-    connection = Utils.cache.get(relation.hbaseConf)
+    connection = if (SparkHBaseConf.enableCache) Utils.cache.get(relation.hbaseConf)
+      else ConnectionFactory.createConnection(relation.hbaseConf)
     table = connection.getTable(TableName.valueOf(relation.catalog.name))
   }
 
@@ -127,6 +131,10 @@ case class TableResource(relation: HBaseRelation) extends ReferencedResource {
     if (table != null) {
       table.close()
       table = null
+    }
+    if (!SparkHBaseConf.enableCache && connection != null) {
+      connection.close()
+      connection = null
     }
   }
 
