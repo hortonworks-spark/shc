@@ -191,7 +191,7 @@ private[hbase] class HBaseTableScanRDD(
         }
         else {
           val end = System.currentTimeMillis()
-          logDebug(s"returned ${rowCount} rows from hbase in ${end - start} ms")
+          logInfo(s"returned ${rowCount} rows from hbase in ${end - start} ms")
           false
         }
       }
