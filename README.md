@@ -53,6 +53,9 @@ Before that, you can use the command below to run your application.
 
     ./bin/spark-submit  --class your.application.class --master yarn-client     --num-executors 2     --driver-memory 512m     --executor-memory 512m     --executor-cores 1   --jars /usr/hdp/current/spark-client/lib/hbase-spark-connector-2.0.0.jar,/usr/hdp/current/hbase-client/lib/htrace-core-3.1.0-incubating.jar,/usr/hdp/current/hbase-client/lib/hbase-client.jar,/usr/hdp/current/hbase-client/lib/hbase-common.jar,/usr/hdp/current/hbase-client/lib/hbase-server.jar,/usr/hdp/current/hbase-client/lib/guava-12.0.1.jar,/usr/hdp/current/hbase-client/lib/hbase-protocol.jar,/usr/hdp/current/hbase-client/lib/htrace-core-3.1.0-incubating.jar --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
 
+Running Spark applications with this connector, HBase jars of version 1.1.2 will be pulled by default. If Phoenix is enabled on HBase cluster, you need to use "--jars" to pass "phoenix-server.jar". For example:
+
+    ./bin/spark-submit  --class your.application.class --master yarn-client     --num-executors 2     --driver-memory 512m     --executor-memory 512m     --executor-cores 1 --packages com.hortonworks:shc:1.0.0-1.6-s_2.11 --jars /usr/hdp/current/phoenix-client/phoenix-server.jar --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
 
 ##Application Usage
 The following illustrates the basic procedure on how to use the connector. For more details and advanced use case, such as Avro and composite key support, please refer to the examples in the repository.
