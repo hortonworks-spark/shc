@@ -19,6 +19,8 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import java.util.ArrayList
 
+import scala.collection.mutable
+
 import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{Filter => HFilter, FilterList => HFilterList}
@@ -32,8 +34,6 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.types.BinaryType
 import org.apache.spark.util.ShutdownHookManager
-
-import scala.collection.mutable
 
 private[hbase] case class HBaseRegion(
     override val index: Int,

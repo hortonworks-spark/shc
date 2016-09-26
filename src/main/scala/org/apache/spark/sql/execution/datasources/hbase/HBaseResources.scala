@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.datasources.hbase
 
 import scala.language.implicitConversions
+
 import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client._
 
@@ -102,10 +103,6 @@ case class RegionResource(relation: HBaseRelation) extends ReferencedResource {
       rl.close()
       rl = null
     }
-    /*if (connection != null) {
-      connection.close()
-      connection = null
-    }*/
   }
 
   val regions = releaseOnException {
@@ -138,10 +135,6 @@ case class TableResource(relation: HBaseRelation) extends ReferencedResource {
       table.close()
       table = null
     }
-    /*if (connection != null) {
-      connection.close()
-      connection = null
-    }*/
   }
 
   def get(list: java.util.List[org.apache.hadoop.hbase.client.Get]) = releaseOnException {

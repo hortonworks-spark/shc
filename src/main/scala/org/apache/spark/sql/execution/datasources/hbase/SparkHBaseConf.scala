@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import org.apache.hadoop.conf.Configuration
 
+
 object SparkHBaseConf {
   val testConf = "spark.hbase.connector.test"
   var conf: Configuration = _

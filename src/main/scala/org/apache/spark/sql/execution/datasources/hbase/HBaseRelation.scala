@@ -19,8 +19,13 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
 
+import scala.util.control.NonFatal
+
+import org.json4s.DefaultFormats
+import org.json4s.jackson.JsonMethods._
+
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.client.{ConnectionFactory, Put}
+import org.apache.hadoop.hbase.client.Put
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat
 import org.apache.hadoop.hbase.util.Bytes
@@ -31,10 +36,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Row, SQLContext, SaveMode}
-import org.json4s.DefaultFormats
-import org.json4s.jackson.JsonMethods._
-
-import scala.util.control.NonFatal
 
 /**
  * val people = sqlContext.read.format("hbase").load("people")

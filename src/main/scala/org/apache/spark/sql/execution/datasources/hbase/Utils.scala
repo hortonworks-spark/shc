@@ -17,6 +17,12 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
+import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
+
+import scala.collection.mutable
+import scala.collection.JavaConversions._
+
 import org.apache.hadoop.hbase.HConstants
 import org.apache.hadoop.hbase.client.{Connection, ConnectionFactory}
 import org.apache.hadoop.conf.Configuration
@@ -27,12 +33,6 @@ import org.apache.spark.Logging
 import org.apache.spark.sql.execution.SparkSqlSerializer
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
-
-import java.io.IOException
-import java.util.concurrent.ConcurrentHashMap
-
-import scala.collection.mutable
-import scala.collection.JavaConversions._
 
 object Utils extends Logging {
 
