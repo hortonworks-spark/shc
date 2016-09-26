@@ -34,7 +34,7 @@ import org.apache.spark.sql.execution.SparkSqlSerializer
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-object Utils extends Logging {
+object Utils {
 
   /**
    * Parses the hbase field to it's corresponding
