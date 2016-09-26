@@ -79,8 +79,12 @@ case class HBaseRelation(
     if (catalog.numReg > 3) {
       val tName = TableName.valueOf(catalog.name)
       val cfs = catalog.getColumnFamilies
-      val connection =
-        if (SparkHBaseConf.enableCache) Utils.cache.get(hbaseConf) else ConnectionFactory.createConnection(hbaseConf)
+
+      import Utils.FuncConverter._
+
+      val connection = Utils.connectionMap.computeIfAbsent(HBaseConnectionKey(hbaseConf),
+        (k: HBaseConnectionKey) => Utils.getConnection(k))
+
       // Initialize hBase table if necessary
       val admin = connection.getAdmin()
 
@@ -110,8 +114,6 @@ case class HBaseRelation(
 
       }
       admin.close()
-      if (!SparkHBaseConf.enableCache)
-        connection.close()
     }
   }
 

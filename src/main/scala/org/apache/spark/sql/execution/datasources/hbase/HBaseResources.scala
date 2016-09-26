@@ -89,8 +89,11 @@ case class RegionResource(relation: HBaseRelation) extends ReferencedResource {
   var rl: RegionLocator = _
 
   override def init(): Unit = {
-    connection = if (SparkHBaseConf.enableCache) Utils.cache.get(relation.hbaseConf)
-      else ConnectionFactory.createConnection(relation.hbaseConf)
+    import Utils.FuncConverter._
+
+    connection = Utils.connectionMap.computeIfAbsent(HBaseConnectionKey(relation.hbaseConf),
+      (k: HBaseConnectionKey) => Utils.getConnection(k))
+
     rl = connection.getRegionLocator(TableName.valueOf(relation.catalog.name))
   }
 
@@ -99,10 +102,10 @@ case class RegionResource(relation: HBaseRelation) extends ReferencedResource {
       rl.close()
       rl = null
     }
-    if (!SparkHBaseConf.enableCache && connection != null) {
+    /*if (connection != null) {
       connection.close()
       connection = null
-    }
+    }*/
   }
 
   val regions = releaseOnException {
@@ -122,8 +125,11 @@ case class TableResource(relation: HBaseRelation) extends ReferencedResource {
   var table: Table = _
 
   override def init(): Unit = {
-    connection = if (SparkHBaseConf.enableCache) Utils.cache.get(relation.hbaseConf)
-      else ConnectionFactory.createConnection(relation.hbaseConf)
+    import Utils.FuncConverter._
+
+    connection = Utils.connectionMap.computeIfAbsent(HBaseConnectionKey(relation.hbaseConf),
+      (k: HBaseConnectionKey) => Utils.getConnection(k))
+
     table = connection.getTable(TableName.valueOf(relation.catalog.name))
   }
 
@@ -132,10 +138,10 @@ case class TableResource(relation: HBaseRelation) extends ReferencedResource {
       table.close()
       table = null
     }
-    if (!SparkHBaseConf.enableCache && connection != null) {
+    /*if (connection != null) {
       connection.close()
       connection = null
-    }
+    }*/
   }
 
   def get(list: java.util.List[org.apache.hadoop.hbase.client.Get]) = releaseOnException {

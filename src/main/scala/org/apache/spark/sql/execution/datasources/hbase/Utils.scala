@@ -17,8 +17,11 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
+import org.apache.hadoop.hbase.HConstants
 import org.apache.hadoop.hbase.client.{Connection, ConnectionFactory}
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.hbase.ipc.RpcControllerFactory
+import org.apache.hadoop.hbase.security.{User, UserProvider}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.Logging
 import org.apache.spark.sql.execution.SparkSqlSerializer
@@ -26,9 +29,10 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 import java.io.IOException
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.ConcurrentHashMap
 
-import com.google.common.cache.{RemovalNotification, RemovalListener, CacheBuilder, CacheLoader}
+import scala.collection.mutable
+import scala.collection.JavaConversions._
 
 object Utils extends Logging {
 
@@ -107,33 +111,135 @@ object Utils extends Logging {
   }
 
   /**
-    * A cache of Spark-HBase connections. Key is the reference of Configuration object as Configuration class
-    * does not implement hashCode() function.
-    *
-    * From the Guava Docs: A Cache is similar to ConcurrentMap, but not quite the same. The most
-    * fundamental difference is that a ConcurrentMap persists all elements that are added to it until
-    * they are explicitly removed. A Cache on the other hand is generally configured to evict entries
-    * automatically, in order to constrain its memory footprint.  Note that this cache does not use
-    * weak keys/values and thus does not respond to memory pressure.
+    * scala doesn't support lambda conversion for functional interfaces as Java does,
+    * so solve this by implementing a java.util.function.Function explicitly
     */
-  val removalListener = new RemovalListener[Configuration, Connection] {
-    override def onRemoval(rm: RemovalNotification[Configuration, Connection]): Unit = {
-      try{
-        rm.getValue.close()
-      } catch {
-        case e: IOException => logWarning("Fail to close HBase connection")
+  object FuncConverter {
+    implicit def scalaFuncToJava[From, To](f: (From) => To): java.util.function.Function[From, To] = {
+      new java.util.function.Function[From, To] {
+        override def apply(input: From): To = f(input)
       }
     }
   }
 
-  val cache = CacheBuilder.newBuilder()
-    .maximumSize(SparkHBaseConf.connectCacheMaxSize)
-    .expireAfterAccess(SparkHBaseConf.cachedTime, TimeUnit.MINUTES)
-    .removalListener(removalListener)
-    .build(
-      new CacheLoader[Configuration, Connection]() {
-        override def load(hbaseConf: Configuration): Connection = {
-          ConnectionFactory.createConnection(hbaseConf)
-        }
-      })
+  /**
+    * A current map of Spark-HBase connections. Key is HBaseConnectionKey.
+    */
+  val connectionMap = new ConcurrentHashMap[HBaseConnectionKey, Connection]()
+
+  def getConnection(key: HBaseConnectionKey): Connection = {
+    ConnectionFactory.createConnection(key.conf)
+  }
+
+  def removeAllConnections() = {
+    connectionMap.foreach{
+       x => x._2.close()
+    }
+  }
 }
+
+/**
+  * Denotes a unique key to an HBase Connection instance.
+  * Please refer to 'org.apache.hadoop.hbase.client.HConnectionKey'.
+  *
+  * In essence, this class captures the properties in Configuration
+  * that may be used in the process of establishing a connection.
+  *
+  */
+case class HBaseConnectionKey(conf: Configuration) extends Logging {
+  val CONNECTION_PROPERTIES: Array[String] = Array[String](
+    HConstants.ZOOKEEPER_QUORUM,
+    HConstants.ZOOKEEPER_ZNODE_PARENT,
+    HConstants.ZOOKEEPER_CLIENT_PORT,
+    HConstants.ZOOKEEPER_RECOVERABLE_WAITTIME,
+    HConstants.HBASE_CLIENT_PAUSE,
+    HConstants.HBASE_CLIENT_RETRIES_NUMBER,
+    HConstants.HBASE_RPC_TIMEOUT_KEY,
+    HConstants.HBASE_META_SCANNER_CACHING,
+    HConstants.HBASE_CLIENT_INSTANCE_ID,
+    HConstants.RPC_CODEC_CONF_KEY,
+    HConstants.USE_META_REPLICAS,
+    RpcControllerFactory.CUSTOM_CONTROLLER_CONF_KEY)
+
+  var username: String = _
+  var m_properties = mutable.HashMap.empty[String, String]
+  if (conf != null) {
+    for (property <- CONNECTION_PROPERTIES) {
+      val value: String = conf.get(property)
+      if (value != null) {
+        m_properties.+=((property, value))
+      }
+    }
+  }
+  try {
+    val provider: UserProvider = UserProvider.instantiate(conf)
+    val currentUser: User = provider.getCurrent
+    if (currentUser != null) {
+      username = currentUser.getName
+    }
+  }
+  catch {
+    case e: IOException => {
+      logWarning("Error obtaining current user, skipping username in HBaseConnectionKey", e)
+    }
+  }
+
+  // make 'properties' immutable
+  val properties = m_properties.toMap
+
+  override def hashCode: Int = {
+    val prime: Int = 31
+    var result: Int = 1
+    if (username != null) {
+      result = username.hashCode
+    }
+    for (property <- CONNECTION_PROPERTIES) {
+      val value: Option[String] = properties.get(property)
+      if (value.isDefined) {
+        result = prime * result + value.hashCode
+      }
+    }
+    result
+  }
+
+
+  override def equals(obj: Any): Boolean = {
+    if (obj == null) return false
+    if (getClass ne obj.getClass) return false
+    val that: HBaseConnectionKey = obj.asInstanceOf[HBaseConnectionKey]
+    if (this.username != null && !(this.username == that.username)) {
+      return false
+    }
+    else if (this.username == null && that.username != null) {
+      return false
+    }
+    if (this.properties == null) {
+      if (that.properties != null) {
+        return false
+      }
+    }
+    else {
+      if (that.properties == null) {
+        return false
+      }
+      var flag: Boolean = true
+      for (property <- CONNECTION_PROPERTIES) {
+        val thisValue: Option[String] = this.properties.get(property)
+        val thatValue: Option[String] = that.properties.get(property)
+        flag = true
+        if (thisValue eq thatValue) {
+          flag = false //continue, so make flag false
+        }
+        if (flag && (thisValue == null || !(thisValue == thatValue))) {
+          return false
+        }
+      }
+    }
+    true
+  }
+
+  override def toString: String = {
+    "HBaseConnectionKey{" + "properties=" + properties + ", username='" + username + '\'' + '}'
+  }
+}
+

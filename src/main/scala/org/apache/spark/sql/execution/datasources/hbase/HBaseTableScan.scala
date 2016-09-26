@@ -80,7 +80,7 @@ private[hbase] class HBaseTableScanRDD(
       }
     }.toArray
     r.release()
-    ShutdownHookManager.addShutdownHook { () => Utils.cache.invalidateAll() }
+    ShutdownHookManager.addShutdownHook { () => Utils.removeAllConnections() }
     ps.asInstanceOf[Array[Partition]]
   }
 
@@ -299,7 +299,7 @@ private[hbase] class HBaseTableScanRDD(
       x ++ y
     } ++ gIt
 
-    ShutdownHookManager.addShutdownHook { () => Utils.cache.invalidateAll() }
+    ShutdownHookManager.addShutdownHook { () => Utils.removeAllConnections() }
     toRowIterator(rIt)
   }
 
