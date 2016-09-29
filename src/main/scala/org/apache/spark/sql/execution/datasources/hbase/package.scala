@@ -17,10 +17,9 @@
 
 package org.apache.spark.sql.execution.datasources
 
-import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.sql.types.BinaryType
-
 import scala.math.Ordering
+
+import org.apache.hadoop.hbase.util.Bytes
 
 package object hbase {
   type HBaseType = Array[Byte]
