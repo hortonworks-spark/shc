@@ -17,17 +17,15 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import java.util
+import scala.collection.JavaConversions._
+import scala.math.Ordering
 
 import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp
-import org.apache.hadoop.hbase.filter.{Filter => HFilter, FilterList => HFilterList, _}
+import org.apache.hadoop.hbase.filter.{Filter => HFilter, FilterList => HFilterList,_}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.FilterType.FilterType
 import org.apache.spark.sql.sources._
-import scala.collection.JavaConversions._
-import scala.collection.mutable.ArrayBuffer
-import scala.math.Ordering
 
 object FilterType extends Enumeration {
   type FilterType = Value

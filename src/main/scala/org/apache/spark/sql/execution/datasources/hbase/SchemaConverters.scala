@@ -23,22 +23,19 @@ import java.sql.Timestamp
 import java.util
 import java.util.HashMap
 
-import org.apache.avro.io._
-import org.apache.commons.io.output.ByteArrayOutputStream
-import org.apache.hadoop.hbase.util.Bytes
-
+import scala.collection.immutable.Map
 import scala.collection.JavaConversions._
 
+import org.apache.avro.io._
 import org.apache.avro.{SchemaBuilder, Schema}
 import org.apache.avro.Schema.Type._
 import org.apache.avro.SchemaBuilder._
 import org.apache.avro.generic.GenericData.{Record, Fixed}
 import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericData, GenericRecord}
+import org.apache.commons.io.output.ByteArrayOutputStream
+import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
-
-import scala.collection.immutable.Map
-
 
 abstract class AvroException(msg: String) extends Exception(msg)
 case class SchemaConversionException(msg: String) extends AvroException(msg)
