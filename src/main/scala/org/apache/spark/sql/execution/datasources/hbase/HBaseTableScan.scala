@@ -19,6 +19,8 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import java.util.ArrayList
 
+import scala.collection.mutable
+
 import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{Filter => HFilter, FilterList => HFilterList}
@@ -31,8 +33,7 @@ import org.apache.spark.sql.execution.datasources.hbase.HBaseResources._
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.types.BinaryType
-
-import scala.collection.mutable
+import org.apache.spark.util.ShutdownHookManager
 
 private[hbase] case class HBaseRegion(
     override val index: Int,
@@ -79,6 +80,7 @@ private[hbase] class HBaseTableScanRDD(
       }
     }.toArray
     r.release()
+    ShutdownHookManager.addShutdownHook { () => Utils.removeAllConnections() }
     ps.asInstanceOf[Array[Partition]]
   }
 
@@ -298,6 +300,7 @@ private[hbase] class HBaseTableScanRDD(
       x ++ y
     } ++ gIt
 
+    ShutdownHookManager.addShutdownHook { () => Utils.removeAllConnections() }
     toRowIterator(rIt)
   }
 
