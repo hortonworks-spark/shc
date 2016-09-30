@@ -74,6 +74,7 @@ private[spark] object HBaseConnectionManager extends Logging {
     }
   }
 
+  // For testing purpose only
   def getConnection(key: HBaseConnectionKey, f: HBaseConnectionKey => Connection): SmartConnection =
     connectionMap.synchronized {
       val sc = connectionMap.getOrElseUpdate(key, new SmartConnection(f(key)))
@@ -81,24 +82,13 @@ private[spark] object HBaseConnectionManager extends Logging {
       sc
   }
 
-
   def getConnection(key: HBaseConnectionKey): SmartConnection =
     getConnection(key, k => ConnectionFactory.createConnection(k.conf))
 
+  // For testing purpose only
   def setTimeout(to: Long) = {
     timeout = to
     housekeepingThread.interrupt()
-  }
-
-
-  def dumpMap() = {
-    val tsNow: Long = System.currentTimeMillis()
-    connectionMap.synchronized {
-      connectionMap.foreach {
-        x => logInfo(s""" ${x._1.toString} : rc ${x._2.rc}, " +
-          "ts ${tsNow - x._2.timestamp}, ${ if (x._2.isClosed) "closed" else "not closed"}""")
-      }
-    }
   }
 }
 
@@ -119,7 +109,6 @@ private[hbase] case class SmartConnection (
     }
   }
 }
-
 
 /**
   * Denotes a unique key to an HBase Connection instance.
@@ -185,7 +174,6 @@ class HBaseConnectionKey(c: Configuration) extends Logging {
     }
     result
   }
-
 
   override def equals(obj: Any): Boolean = {
     if (obj == null) return false

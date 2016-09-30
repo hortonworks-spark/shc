@@ -62,9 +62,7 @@ class ConnectionMocker extends Connection {
   def abort(why: String, e: Throwable) = {}
 }
 
-
 class HBaseConnectionManagerSuit extends FunSuite with Logging {
-
   /*
    * These tests must be performed sequentially as they operate with an
    * unique running thread and resource.
@@ -113,7 +111,7 @@ class HBaseConnectionManagerSuit extends FunSuite with Logging {
       assert(HBaseConnectionManager.connectionMap.size === 2)
     }
 
-    Thread.sleep(2 * 1000) // Leave housekeeping thread enough time
+    Thread.sleep(3 * 1000) // Leave housekeeping thread enough time
     HBaseConnectionManager.connectionMap.synchronized {
       assert(HBaseConnectionManager.connectionMap.size === 1)
       assert(HBaseConnectionManager.connectionMap.iterator.next()._1
