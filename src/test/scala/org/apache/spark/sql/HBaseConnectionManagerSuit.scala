@@ -89,7 +89,6 @@ class HBaseConnectionManagerSuit extends FunSuite with Logging {
     val c1a = HBaseConnectionManager
       .getConnection(connKeyMocker1a, k => new ConnectionMocker)
 
-
     HBaseConnectionManager.connectionMap.synchronized {
       assert(HBaseConnectionManager.connectionMap.size === 1)
     }

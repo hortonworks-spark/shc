@@ -29,7 +29,7 @@ import org.apache.spark.Logging
 
 private[spark] object HBaseConnectionManager extends Logging {
 
-  // A current map of Spark-HBase connections. Key is HBaseConnectionKey.
+  // A hashmap of Spark-HBase connections. Key is HBaseConnectionKey.
   val connectionMap = new mutable.HashMap[HBaseConnectionKey, SmartConnection]()
 
   // in milliseconds
