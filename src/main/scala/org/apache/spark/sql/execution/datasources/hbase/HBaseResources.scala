@@ -86,15 +86,11 @@ trait ReferencedResource {
 }
 
 case class RegionResource(relation: HBaseRelation) extends ReferencedResource {
-  var connection: Connection = _
+  var connection: SmartConnection = _
   var rl: RegionLocator = _
 
   override def init(): Unit = {
-    import Utils.FuncConverter._
-
-    connection = Utils.connectionMap.computeIfAbsent(HBaseConnectionKey(relation.hbaseConf),
-      (k: HBaseConnectionKey) => Utils.getConnection(k))
-
+    connection = HBaseConnectionManager.getConnection(new HBaseConnectionKey(relation.hbaseConf))
     rl = connection.getRegionLocator(TableName.valueOf(relation.catalog.name))
   }
 
@@ -102,6 +98,10 @@ case class RegionResource(relation: HBaseRelation) extends ReferencedResource {
     if (rl != null) {
       rl.close()
       rl = null
+    }
+    if (connection != null) {
+      connection.close()
+      connection = null
     }
   }
 
@@ -118,15 +118,11 @@ case class RegionResource(relation: HBaseRelation) extends ReferencedResource {
 }
 
 case class TableResource(relation: HBaseRelation) extends ReferencedResource {
-  var connection: Connection = _
+  var connection: SmartConnection = _
   var table: Table = _
 
   override def init(): Unit = {
-    import Utils.FuncConverter._
-
-    connection = Utils.connectionMap.computeIfAbsent(HBaseConnectionKey(relation.hbaseConf),
-      (k: HBaseConnectionKey) => Utils.getConnection(k))
-
+    connection = HBaseConnectionManager.getConnection(new HBaseConnectionKey(relation.hbaseConf))
     table = connection.getTable(TableName.valueOf(relation.catalog.name))
   }
 
@@ -134,6 +130,10 @@ case class TableResource(relation: HBaseRelation) extends ReferencedResource {
     if (table != null) {
       table.close()
       table = null
+    }
+    if (connection != null) {
+      connection.close()
+      connection = null
     }
   }
 

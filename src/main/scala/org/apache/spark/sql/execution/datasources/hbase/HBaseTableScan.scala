@@ -23,7 +23,7 @@ import scala.collection.mutable
 
 import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.client._
-import org.apache.hadoop.hbase.filter.{Filter => HFilter, FilterList => HFilterList}
+import org.apache.hadoop.hbase.filter.{Filter => HFilter}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
@@ -80,7 +80,7 @@ private[hbase] class HBaseTableScanRDD(
       }
     }.toArray
     r.release()
-    ShutdownHookManager.addShutdownHook { () => Utils.removeAllConnections() }
+    ShutdownHookManager.addShutdownHook { () => HBaseConnectionManager.finalHouseKeeping() }
     ps.asInstanceOf[Array[Partition]]
   }
 
@@ -299,7 +299,7 @@ private[hbase] class HBaseTableScanRDD(
       x ++ y
     } ++ gIt
 
-    ShutdownHookManager.addShutdownHook { () => Utils.removeAllConnections() }
+    ShutdownHookManager.addShutdownHook { () => HBaseConnectionManager.finalHouseKeeping() }
     toRowIterator(rIt)
   }
 
