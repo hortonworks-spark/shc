@@ -28,5 +28,5 @@ object SparkHBaseConf {
   var CachingSize = "spark.hbase.connector.cacheSize"
   var defaultCachingSize = 100
   // in milliseconds
-  val connectionCloseDelay = 3 * 1000
+  val connectionCloseDelay = 10 * 60 * 1000
 }
