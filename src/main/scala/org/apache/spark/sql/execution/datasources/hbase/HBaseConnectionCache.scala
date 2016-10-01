@@ -43,7 +43,7 @@ private[spark] object HBaseConnectionCache extends Logging {
           Thread.sleep(timeout)
         } catch {
           case e: InterruptedException =>
-            logWarning(s"Someone tried to interrupt Housekeeping thread: ${e.getMessage}")
+            logWarning(s"Housekeeping interrupted: ${e.getMessage}")
         }
         performHousekeeping(false)
       }
