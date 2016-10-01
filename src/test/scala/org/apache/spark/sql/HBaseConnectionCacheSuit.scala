@@ -62,7 +62,7 @@ class ConnectionMocker extends Connection {
   def abort(why: String, e: Throwable) = {}
 }
 
-class HBaseConnectionManagerSuit extends FunSuite with Logging {
+class HBaseConnectionCacheSuit extends FunSuite with Logging {
   /*
    * These tests must be performed sequentially as they operate with an
    * unique running thread and resource.
@@ -78,42 +78,42 @@ class HBaseConnectionManagerSuit extends FunSuite with Logging {
   }
 
   def testBasic() {
-    HBaseConnectionManager.setTimeout(1 * 1000)
+    HBaseConnectionCache.setTimeout(1 * 1000)
 
     val connKeyMocker1 = new HBaseConnectionKeyMocker(1)
     val connKeyMocker1a = new HBaseConnectionKeyMocker(1)
     val connKeyMocker2 = new HBaseConnectionKeyMocker(2)
 
-    val c1 = HBaseConnectionManager
+    val c1 = HBaseConnectionCache
       .getConnection(connKeyMocker1, k => new ConnectionMocker)
-    val c1a = HBaseConnectionManager
+    val c1a = HBaseConnectionCache
       .getConnection(connKeyMocker1a, k => new ConnectionMocker)
 
-    HBaseConnectionManager.connectionMap.synchronized {
-      assert(HBaseConnectionManager.connectionMap.size === 1)
+    HBaseConnectionCache.connectionMap.synchronized {
+      assert(HBaseConnectionCache.connectionMap.size === 1)
     }
 
-    val c2 = HBaseConnectionManager
+    val c2 = HBaseConnectionCache
       .getConnection(connKeyMocker2, k => new ConnectionMocker)
 
-    HBaseConnectionManager.connectionMap.synchronized {
-      assert(HBaseConnectionManager.connectionMap.size === 2)
+    HBaseConnectionCache.connectionMap.synchronized {
+      assert(HBaseConnectionCache.connectionMap.size === 2)
     }
 
     c1.close()
-    HBaseConnectionManager.connectionMap.synchronized {
-      assert(HBaseConnectionManager.connectionMap.size === 2)
+    HBaseConnectionCache.connectionMap.synchronized {
+      assert(HBaseConnectionCache.connectionMap.size === 2)
     }
 
     c1a.close()
-    HBaseConnectionManager.connectionMap.synchronized {
-      assert(HBaseConnectionManager.connectionMap.size === 2)
+    HBaseConnectionCache.connectionMap.synchronized {
+      assert(HBaseConnectionCache.connectionMap.size === 2)
     }
 
     Thread.sleep(3 * 1000) // Leave housekeeping thread enough time
-    HBaseConnectionManager.connectionMap.synchronized {
-      assert(HBaseConnectionManager.connectionMap.size === 1)
-      assert(HBaseConnectionManager.connectionMap.iterator.next()._1
+    HBaseConnectionCache.connectionMap.synchronized {
+      assert(HBaseConnectionCache.connectionMap.size === 1)
+      assert(HBaseConnectionCache.connectionMap.iterator.next()._1
         .asInstanceOf[HBaseConnectionKeyMocker].confId === 2)
     }
 
@@ -124,13 +124,13 @@ class HBaseConnectionManagerSuit extends FunSuite with Logging {
     class TestThread extends Runnable {
       override def run() {
         for (i <- 0 to 999) {
-          val c = HBaseConnectionManager.getConnection(
+          val c = HBaseConnectionCache.getConnection(
             new HBaseConnectionKeyMocker(Random.nextInt(10)), k => new ConnectionMocker)
         }
       }
     }
 
-    HBaseConnectionManager.setTimeout(500)
+    HBaseConnectionCache.setTimeout(500)
     val threads: Array[Thread] = new Array[Thread](100)
     for (i <- 0 to 99) {
       threads.update(i, new Thread(new TestThread()))
@@ -143,30 +143,29 @@ class HBaseConnectionManagerSuit extends FunSuite with Logging {
     }
 
     Thread.sleep(1000)
-    HBaseConnectionManager.connectionMap.synchronized {
-      assert(HBaseConnectionManager.connectionMap.size === 10)
+    HBaseConnectionCache.connectionMap.synchronized {
+      assert(HBaseConnectionCache.connectionMap.size === 10)
       var totalRc : Int = 0
-      HBaseConnectionManager.connectionMap.foreach {
-        x => totalRc += x._2.rc
+      HBaseConnectionCache.connectionMap.foreach {
+        x => totalRc += x._2.refCount
       }
       assert(totalRc === 100 * 1000)
-      HBaseConnectionManager.connectionMap.foreach {
+      HBaseConnectionCache.connectionMap.foreach {
         x => {
-          x._2.rc = 0
+          x._2.refCount = 0
           x._2.timestamp = System.currentTimeMillis() - 1000
         }
       }
     }
-
     Thread.sleep(1000)
-    assert(HBaseConnectionManager.connectionMap.size === 0)
+    assert(HBaseConnectionCache.connectionMap.size === 0)
   }
 
   def testWithPressureWithClose() {
     class TestThread extends Runnable {
       override def run() {
         for (i <- 0 to 999) {
-          val c = HBaseConnectionManager.getConnection(
+          val c = HBaseConnectionCache.getConnection(
             new HBaseConnectionKeyMocker(Random.nextInt(10)), k => new ConnectionMocker)
           Thread.`yield`()
           c.close()
@@ -174,7 +173,7 @@ class HBaseConnectionManagerSuit extends FunSuite with Logging {
       }
     }
 
-    HBaseConnectionManager.setTimeout(3 * 1000)
+    HBaseConnectionCache.setTimeout(3 * 1000)
     val threads: Array[Thread] = new Array[Thread](100)
     for (i <- threads.indices) {
       threads.update(i, new Thread(new TestThread()))
@@ -186,13 +185,13 @@ class HBaseConnectionManagerSuit extends FunSuite with Logging {
       case e: InterruptedException => println(e.getMessage)
     }
 
-    HBaseConnectionManager.connectionMap.synchronized {
-      assert(HBaseConnectionManager.connectionMap.size === 10)
+    HBaseConnectionCache.connectionMap.synchronized {
+      assert(HBaseConnectionCache.connectionMap.size === 10)
     }
 
     Thread.sleep(6 * 1000)
-    HBaseConnectionManager.connectionMap.synchronized {
-      assert(HBaseConnectionManager.connectionMap.size === 0)
+    HBaseConnectionCache.connectionMap.synchronized {
+      assert(HBaseConnectionCache.connectionMap.size === 0)
     }
   }
 }

@@ -27,7 +27,7 @@ import org.apache.hadoop.hbase.ipc.RpcControllerFactory
 import org.apache.hadoop.hbase.security.{User, UserProvider}
 import org.apache.spark.Logging
 
-private[spark] object HBaseConnectionManager extends Logging {
+private[spark] object HBaseConnectionCache extends Logging {
 
   // A hashmap of Spark-HBase connections. Key is HBaseConnectionKey.
   val connectionMap = new mutable.HashMap[HBaseConnectionKey, SmartConnection]()
@@ -43,6 +43,7 @@ private[spark] object HBaseConnectionManager extends Logging {
           Thread.sleep(timeout)
         } catch {
           case e: InterruptedException =>
+            logWarning(s"Someone tried to interrupt Housekeeping thread: ${e.getMessage}")
         }
         performHousekeeping(false)
       }
@@ -53,10 +54,9 @@ private[spark] object HBaseConnectionManager extends Logging {
 
   def finalHouseKeeping() = {
     try {
-      HBaseConnectionManager.performHousekeeping(true)
+      HBaseConnectionCache.performHousekeeping(true)
     } catch {
-      case e: Exception => logWarning("Housekeeping thread may leave the HBase connection map corrupted, " +
-        "if it is aborted by JVM while it's performing its task.")
+      case e: Exception => logWarning("Error in finalHouseKeeping", e)
     }
   }
 
@@ -65,8 +65,16 @@ private[spark] object HBaseConnectionManager extends Logging {
     connectionMap.synchronized {
       connectionMap.foreach {
         x => {
-          if(forceClean || ((x._2.rc <= 0) && (tsNow - x._2.timestamp > timeout))) {
-            x._2.c.close()
+          if(x._2.refCount < 0) {
+            logError("Bug to be fixed: negative refCount")
+          }
+
+          if(forceClean || ((x._2.refCount <= 0) && (tsNow - x._2.timestamp > timeout))) {
+            try{
+              x._2.connection.close()
+            } catch {
+              case e: IOException => logWarning("Fail to close connection", e)
+            }
             connectionMap.remove(x._1)
           }
         }
@@ -78,7 +86,7 @@ private[spark] object HBaseConnectionManager extends Logging {
   def getConnection(key: HBaseConnectionKey, f: HBaseConnectionKey => Connection): SmartConnection =
     connectionMap.synchronized {
       val sc = connectionMap.getOrElseUpdate(key, new SmartConnection(f(key)))
-      sc.rc += 1
+      sc.refCount += 1
       sc
   }
 
@@ -93,18 +101,15 @@ private[spark] object HBaseConnectionManager extends Logging {
 }
 
 private[hbase] case class SmartConnection (
-  c: Connection,
-  var rc: Int = 0,
-  var timestamp: Long = 0){
-
-  def getTable(tableName: TableName): Table = c.getTable(tableName)
-  def getRegionLocator(tableName: TableName): RegionLocator = c.getRegionLocator(tableName)
-  def isClosed: Boolean = c.isClosed
-  def getAdmin: Admin = c.getAdmin
+    connection: Connection, var refCount: Int = 0, var timestamp: Long = 0) {
+  def getTable(tableName: TableName): Table = connection.getTable(tableName)
+  def getRegionLocator(tableName: TableName): RegionLocator = connection.getRegionLocator(tableName)
+  def isClosed: Boolean = connection.isClosed
+  def getAdmin: Admin = connection.getAdmin
   def close() = {
-    HBaseConnectionManager.connectionMap.synchronized {
-      rc -= 1
-      if(rc <= 0)
+    HBaseConnectionCache.connectionMap.synchronized {
+      refCount -= 1
+      if(refCount <= 0)
         timestamp = System.currentTimeMillis()
     }
   }
