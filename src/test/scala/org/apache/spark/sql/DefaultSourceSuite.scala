@@ -17,11 +17,10 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.sql.sources.In
 import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.sources.PrunedFilteredScan
-import org.apache.spark.{Logging, SparkContext}
+import org.apache.spark.Logging
 
 case class HBaseRecord(
     col0: String,
