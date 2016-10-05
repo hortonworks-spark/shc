@@ -4,6 +4,8 @@ The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apa
 
 With the data frame support, the lib leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc. 
 
+_**Note**: Now branch-2.0 is not supported by Hortonworks._
+
 ## Catalog
 For each table, a catalog has to be provided,  which includes the row key, and the columns with data type with predefined column families, and defines the mapping between hbase column and table schema. The catalog is user defined json format.
 
@@ -48,8 +50,8 @@ The following illustrates how to run your application in real hbase cluster. You
 
     ./bin/spark-submit  --class your.application.class --master yarn-client     --num-executors 2     --driver-memory 512m     --executor-memory 512m     --executor-cores 1   --packages com.hortonworks:shc:1.0.0-2.0-s_2.11  --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
 
-Note: com.hortonworks:shc:1.0.0-2.0-s_2.11 will be upload to [spark-packages.org](https://spark-packages.org/package/hortonworks-spark/shc) soon.
-Before that, you can use the command below to run your application.
+_**Note**: com.hortonworks:shc:1.0.0-2.0-s_2.11 has not been uploaded to [spark-packages.org](https://spark-packages.org/package/hortonworks-spark/shc), but will be there soon.
+Before that, you can use the command below to run your application._
 
     ./bin/spark-submit  --class your.application.class --master yarn-client     --num-executors 2     --driver-memory 512m     --executor-memory 512m     --executor-cores 1   --jars /usr/hdp/current/spark-client/lib/hbase-spark-connector-2.0.0.jar,/usr/hdp/current/hbase-client/lib/htrace-core-3.1.0-incubating.jar,/usr/hdp/current/hbase-client/lib/hbase-client.jar,/usr/hdp/current/hbase-client/lib/hbase-common.jar,/usr/hdp/current/hbase-client/lib/hbase-server.jar,/usr/hdp/current/hbase-client/lib/guava-12.0.1.jar,/usr/hdp/current/hbase-client/lib/hbase-protocol.jar,/usr/hdp/current/hbase-client/lib/htrace-core-3.1.0-incubating.jar --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
 
@@ -122,6 +124,8 @@ Given a data frame with specified schema, above will create an HBase table with 
 
 ## Configuring Spark-package
 Users can use the Spark-on-HBase connector as a standard Spark package. To include the package in your Spark application use:
+
+_**Note**: com.hortonworks:shc:1.0.0-2.0-s_2.11 has not been uploaded to [spark-packages.org](https://spark-packages.org/package/hortonworks-spark/shc), but will be there soon._
 
 spark-shell, pyspark, or spark-submit
 
