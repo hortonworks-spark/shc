@@ -80,7 +80,7 @@ private[hbase] class HBaseTableScanRDD(
       }
     }.toArray
     r.release()
-    ShutdownHookManager.addShutdownHook { () => HBaseConnectionCache.finalHouseKeeping() }
+    ShutdownHookManager.addShutdownHook { () => HBaseConnectionCache.close() }
     ps.asInstanceOf[Array[Partition]]
   }
 
@@ -88,6 +88,7 @@ private[hbase] class HBaseTableScanRDD(
    * Takes a HBase Row object and parses all of the fields from it.
    * This is independent of which fields were requested from the key
    * Because we have all the data it's less complex to parse everything.
+ *
    * @param keyFields all of the fields in the row key, ORDERED by their order in the row key.
    */
   def parseRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {
@@ -299,7 +300,7 @@ private[hbase] class HBaseTableScanRDD(
       x ++ y
     } ++ gIt
 
-    ShutdownHookManager.addShutdownHook { () => HBaseConnectionCache.finalHouseKeeping() }
+    ShutdownHookManager.addShutdownHook { () => HBaseConnectionCache.close() }
     toRowIterator(rIt)
   }
 

@@ -35,15 +35,20 @@ private[spark] object HBaseConnectionCache extends Logging {
   // in milliseconds
   private final val DEFAULT_TIME_OUT: Long = SparkHBaseConf.connectionCloseDelay
   private var timeout = DEFAULT_TIME_OUT
+  private var closed: Boolean = false
 
-  val housekeepingThread = new Thread(new Runnable {
+  var housekeepingThread = new Thread(new Runnable {
     override def run() {
       while (true) {
         try {
           Thread.sleep(timeout)
         } catch {
           case e: InterruptedException =>
-            logWarning(s"Housekeeping interrupted: ${e.getMessage}")
+            // setTimeout() and close() may interrupt the sleep and it's safe
+            // to ignore the exception
+        }
+        if (closed) {
+          return
         }
         performHousekeeping(false)
       }
@@ -52,9 +57,16 @@ private[spark] object HBaseConnectionCache extends Logging {
   housekeepingThread.setDaemon(true)
   housekeepingThread.start()
 
-  def finalHouseKeeping() = {
+  def close(): Unit = {
     try {
-      HBaseConnectionCache.performHousekeeping(true)
+      connectionMap.synchronized {
+        if(closed)
+          return
+        closed = true
+        housekeepingThread.interrupt()
+        housekeepingThread = null
+        HBaseConnectionCache.performHousekeeping(true)
+      }
     } catch {
       case e: Exception => logWarning("Error in finalHouseKeeping", e)
     }
@@ -83,15 +95,18 @@ private[spark] object HBaseConnectionCache extends Logging {
   }
 
   // For testing purpose only
-  def getConnection(key: HBaseConnectionKey, f: HBaseConnectionKey => Connection): SmartConnection =
+  def getConnection(key: HBaseConnectionKey, conn: => Connection): SmartConnection = {
     connectionMap.synchronized {
-      val sc = connectionMap.getOrElseUpdate(key, new SmartConnection(f(key)))
+      if(closed)
+        return null
+      val sc = connectionMap.getOrElseUpdate(key, new SmartConnection(conn))
       sc.refCount += 1
       sc
+    }
   }
 
-  def getConnection(key: HBaseConnectionKey): SmartConnection =
-    getConnection(key, k => ConnectionFactory.createConnection(k.conf))
+  def getConnection(conf: Configuration): SmartConnection =
+    getConnection(new HBaseConnectionKey(conf), ConnectionFactory.createConnection(conf))
 
   // For testing purpose only
   def setTimeout(to: Long) = {

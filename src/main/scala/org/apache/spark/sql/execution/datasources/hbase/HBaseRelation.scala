@@ -81,7 +81,7 @@ case class HBaseRelation(
       val tName = TableName.valueOf(catalog.name)
       val cfs = catalog.getColumnFamilies
 
-      val connection = HBaseConnectionCache.getConnection(new HBaseConnectionKey(hbaseConf))
+      val connection = HBaseConnectionCache.getConnection(hbaseConf)
       // Initialize hBase table if necessary
       val admin = connection.getAdmin
 

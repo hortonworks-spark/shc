@@ -85,16 +85,16 @@ class HBaseConnectionCacheSuit extends FunSuite with Logging {
     val connKeyMocker2 = new HBaseConnectionKeyMocker(2)
 
     val c1 = HBaseConnectionCache
-      .getConnection(connKeyMocker1, k => new ConnectionMocker)
+      .getConnection(connKeyMocker1, new ConnectionMocker)
     val c1a = HBaseConnectionCache
-      .getConnection(connKeyMocker1a, k => new ConnectionMocker)
+      .getConnection(connKeyMocker1a, new ConnectionMocker)
 
     HBaseConnectionCache.connectionMap.synchronized {
       assert(HBaseConnectionCache.connectionMap.size === 1)
     }
 
     val c2 = HBaseConnectionCache
-      .getConnection(connKeyMocker2, k => new ConnectionMocker)
+      .getConnection(connKeyMocker2, new ConnectionMocker)
 
     HBaseConnectionCache.connectionMap.synchronized {
       assert(HBaseConnectionCache.connectionMap.size === 2)
@@ -125,7 +125,7 @@ class HBaseConnectionCacheSuit extends FunSuite with Logging {
       override def run() {
         for (i <- 0 to 999) {
           val c = HBaseConnectionCache.getConnection(
-            new HBaseConnectionKeyMocker(Random.nextInt(10)), k => new ConnectionMocker)
+            new HBaseConnectionKeyMocker(Random.nextInt(10)), new ConnectionMocker)
         }
       }
     }
@@ -166,7 +166,7 @@ class HBaseConnectionCacheSuit extends FunSuite with Logging {
       override def run() {
         for (i <- 0 to 999) {
           val c = HBaseConnectionCache.getConnection(
-            new HBaseConnectionKeyMocker(Random.nextInt(10)), k => new ConnectionMocker)
+            new HBaseConnectionKeyMocker(Random.nextInt(10)), new ConnectionMocker)
           Thread.`yield`()
           c.close()
         }
