@@ -17,8 +17,8 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog, Logging}
-
+import org.apache.spark.sql.execution.datasources.hbase.Logging
+import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.sources.PrunedFilteredScan
 

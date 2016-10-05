@@ -80,13 +80,9 @@ case class HBaseRelation(
       val tName = TableName.valueOf(catalog.name)
       val cfs = catalog.getColumnFamilies
 
-      import Utils.FuncConverter._
-
-      val connection = Utils.connectionMap.computeIfAbsent(HBaseConnectionKey(hbaseConf),
-        (k: HBaseConnectionKey) => Utils.getConnection(k))
-
+      val connection = HBaseConnectionCache.getConnection(hbaseConf)
       // Initialize hBase table if necessary
-      val admin = connection.getAdmin()
+      val admin = connection.getAdmin
 
       // The names of tables which are created by the Examples has prefix "shcExample"
       if (admin.isTableAvailable(tName) && tName.toString.startsWith("shcExample")){
@@ -114,6 +110,7 @@ case class HBaseRelation(
 
       }
       admin.close()
+      connection.close()
     }
   }
 
