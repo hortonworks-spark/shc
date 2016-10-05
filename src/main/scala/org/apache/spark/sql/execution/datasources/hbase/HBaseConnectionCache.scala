@@ -109,9 +109,13 @@ private[spark] object HBaseConnectionCache extends Logging {
     getConnection(new HBaseConnectionKey(conf), ConnectionFactory.createConnection(conf))
 
   // For testing purpose only
-  def setTimeout(to: Long) = {
-    timeout = to
-    housekeepingThread.interrupt()
+  def setTimeout(to: Long) : Unit = {
+    connectionMap.synchronized {
+      if (closed)
+        return
+      timeout = to
+      housekeepingThread.interrupt()
+    }
   }
 }
 
