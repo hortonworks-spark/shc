@@ -28,7 +28,7 @@
   </parent>
   <groupId>com.hortonworks</groupId>
   <artifactId>shc</artifactId>
-  <version>1.0.0-2.0-s_2.11</version>
+  <version>1.0.0-2.0-s_2.11-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>HBase Spark Connector</name>
   <url>https://github.com/hortonworks-spark/shc</url>
