@@ -224,6 +224,11 @@ case class HBaseRelation(
 
   override val schema: StructType = userSpecifiedschema.getOrElse(catalog.toDataType)
 
+  // Check if filters can be handled in HBase side
+  override def unhandledFilters(filters: Array[Filter]): Array[Filter] = {
+    filters.filter(!HBaseFilter.buildFilter(_, this).isHandled)
+  }
+
   def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
     new HBaseTableScanRDD(this, requiredColumns, filters)
   }
