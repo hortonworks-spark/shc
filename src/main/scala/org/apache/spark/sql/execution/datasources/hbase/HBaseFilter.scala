@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.datasources.hbase
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable.ArrayBuffer
 import scala.math.Ordering
 
 import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp
@@ -369,10 +370,14 @@ object HBaseFilter extends Logging{
         HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
       case In(attribute: String, values: Array[Any]) =>
         //converting a "key in (x1, x2, x3..) filter to (key == x1) or (key == x2) or ...
-        values.map{v => buildFilter(EqualTo(attribute, v), relation)}
-          .reduce[HRF[Array[Byte]]]{
-            case (lhs, rhs) => or(lhs,rhs)
-          }
+        val ranges = new ArrayBuffer[ScanRange[Array[Byte]]]()
+        values.foreach{
+          value =>
+            val sparkFilter = EqualTo(attribute, value)
+            val hbaseFilter = buildFilter(sparkFilter, relation)
+            ranges ++= hbaseFilter.ranges
+        }
+        HRF[Array[Byte]](ranges.toArray, TypedFilter.empty)
       case Not(In(attribute: String, values: Array[Any])) =>
         //converting a "not(key in (x1, x2, x3..)) filter to (key != x1) and (key != x2) and ..
         values.map{v => buildFilter(Not(EqualTo(attribute, v)),relation)}
