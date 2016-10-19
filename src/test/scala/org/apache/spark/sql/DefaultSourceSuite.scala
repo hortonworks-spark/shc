@@ -20,6 +20,7 @@ package org.apache.spark.sql
 import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.sources.PrunedFilteredScan
 
 case class HBaseRecord(
     col0: String,
@@ -70,6 +71,10 @@ class DefaultSourceSuite extends SHC with Logging {
       .load()
   }
 
+  private def prunedFilterScan(cat: String): PrunedFilteredScan = {
+    HBaseRelation(Map(HBaseTableCatalog.tableCatalog->cat),None)(sqlContext)
+  }
+
   test("populate table") {
     //createTable(tableName, columnFamilies)
     val sql = sqlContext
@@ -111,8 +116,8 @@ class DefaultSourceSuite extends SHC with Logging {
 
   test("IN filter stack overflow") {
     val df = withCatalog(catalog)
-    val items          = (0 to 2000).map{i => s"xaz${i}"}
-    val filterInItems  = Seq("row001") ++: items
+    val items = (0 to 2000).map{i => s"xaz$i"}
+    val filterInItems = Seq("row001") ++: items
 
     val s = df.filter($"col0" isin(filterInItems:_*)).select("col0")
     s.explain(true)
@@ -121,14 +126,24 @@ class DefaultSourceSuite extends SHC with Logging {
   }
 
   test("NOT IN filter stack overflow") {
-    val df               = withCatalog(catalog)
-    val items            = (0 to 2000).map{i => s"xaz${i}"}
-    var filterNotInItems = items
+    val df = withCatalog(catalog)
+    val items = (0 to 2000).map{i => s"xaz$i"}
+    val filterNotInItems = items
 
     val s = df.filter(not($"col0" isin(filterNotInItems:_*))).select("col0")
     s.explain(true)
     s.show
     assert(s.count() == df.count())
+  }
+
+  test("IN filter, RDD") {
+    val scan = prunedFilterScan(catalog)
+    val columns = Array("col0")
+    val filters =
+      Array[org.apache.spark.sql.sources.Filter](
+        org.apache.spark.sql.sources.In("col0", Array("row001")))
+    val rows = scan.buildScan(columns,filters).collect()
+    assert(rows.length == 1)
   }
 
   test("full query") {
@@ -145,7 +160,6 @@ class DefaultSourceSuite extends SHC with Logging {
     assert(s.count() == 6)
   }
 
-
   test("filtered query1") {
     val df = withCatalog(catalog)
     val s = df.filter($"col0" === "row005" || $"col0" <= "row005")
@@ -153,7 +167,6 @@ class DefaultSourceSuite extends SHC with Logging {
     s.show
     assert(s.count() == 6)
   }
-
 
   test("filtered query2") {
     val df = withCatalog(catalog)
