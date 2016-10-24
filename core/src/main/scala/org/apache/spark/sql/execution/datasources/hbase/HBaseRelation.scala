@@ -224,6 +224,11 @@ case class HBaseRelation(
 
   override val schema: StructType = userSpecifiedschema.getOrElse(catalog.toDataType)
 
+  // Tell Spark about filters that has not handled by HBase as opposed to returning all the filters
+  override def unhandledFilters(filters: Array[Filter]): Array[Filter] = {
+    filters.filter(!HBaseFilter.buildFilter(_, this).isHandled)
+  }
+
   def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
     new HBaseTableScanRDD(this, requiredColumns, filters)
   }

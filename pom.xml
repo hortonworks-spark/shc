@@ -181,8 +181,6 @@
       </plugin>
     </plugins>
   </build>
-<<<<<<< HEAD
-=======
 
   <profiles>
     <profile>
@@ -209,5 +207,4 @@
     </profile>
   </profiles>
 
->>>>>>> 0d0eb69... Split src into `core` and `example` (#52)
 </project>

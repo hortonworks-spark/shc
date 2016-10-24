@@ -27,7 +27,6 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.FilterType.FilterType
-import org.apache.spark.sql.execution.datasources.hbase.TypedFilter
 import org.apache.spark.sql.sources._
 
 object FilterType extends Enumeration {
@@ -113,7 +112,7 @@ object TypedFilter {
 }
 
 // Combination of HBase range and filters
-case class HRF[T](ranges: Array[ScanRange[T]], tf: TypedFilter)
+case class HRF[T](ranges: Array[ScanRange[T]], tf: TypedFilter, var isHandled: Boolean = false)
 
 object HRF {
   def empty[T] = HRF[T](Array(ScanRange.empty[T]), TypedFilter.empty)
@@ -281,7 +280,7 @@ object HBaseFilter extends Logging{
           bound => {
             if (relation.singleKey) {
               HRF(Array(ScanRange(Some(Bound(bound.value, true)),
-                Some(Bound(bound.value, true)))), TypedFilter.empty)
+                Some(Bound(bound.value, true)))), TypedFilter.empty, true)
             } else {
               val s = ScanRange(relation.rows.length,
                 bound.value, true, bound.value, true, relation.getField(attribute).start)
@@ -295,7 +294,7 @@ object HBaseFilter extends Logging{
               Bytes.toBytes(f.col),
               CompareOp.EQUAL,
               bound.value)
-            HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
+            HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), true)
           },
           bound => {
             val s = ScanRange(relation.rows.length,
@@ -334,7 +333,7 @@ object HBaseFilter extends Logging{
             CompareOp.EQUAL,
             new BinaryPrefixComparator(b)
           )
-          HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
+          HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), true)
         } else {
           HRF.empty[Array[Byte]]
         }
@@ -347,7 +346,7 @@ object HBaseFilter extends Logging{
           CompareOp.EQUAL,
           new RegexStringComparator(s".*$value")
         )
-        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
+        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), true)
 
       case StringContains(attribute: String, value: String) if relation.isColumn(attribute) =>
         val f = relation.getField(attribute)
@@ -357,7 +356,7 @@ object HBaseFilter extends Logging{
           CompareOp.EQUAL,
           new SubstringComparator(value)
         )
-        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
+        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), true)
       // We should also add Not(GreatThan, LessThan, ...)
       // because if we miss some filter, it may result in a large scan range.
       case Not(StringContains(attribute: String, value: String)) if relation.isColumn(attribute) =>
@@ -369,8 +368,7 @@ object HBaseFilter extends Logging{
           CompareOp.NOT_EQUAL,
           new SubstringComparator(value)
         )
-        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic))
-
+        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), true)
       case In(attribute: String, values: Array[Any]) =>
         //converting a "key in (x1, x2, x3..) filter to (key == x1) or (key == x2) or ...
         val ranges = new ArrayBuffer[ScanRange[Array[Byte]]]()
@@ -380,14 +378,15 @@ object HBaseFilter extends Logging{
             val hbaseFilter = buildFilter(sparkFilter, relation)
             ranges ++= hbaseFilter.ranges
         }
-        HRF[Array[Byte]](ranges.toArray, TypedFilter.empty)
+        HRF[Array[Byte]](ranges.toArray, TypedFilter.empty, true)
       case Not(In(attribute: String, values: Array[Any])) =>
-        //converting a "key in (x1, x2, x3..) filter to (key == x1) or (key == x2) or ...
-        values.map{v => buildFilter(Not(EqualTo(attribute, v)),relation)}
+        //converting a "not(key in (x1, x2, x3..)) filter to (key != x1) and (key != x2) and ..
+        val hrf = values.map{v => buildFilter(Not(EqualTo(attribute, v)),relation)}
           .reduceOption[HRF[Array[Byte]]]{
             case (lhs, rhs) => and(lhs,rhs)
         }.getOrElse(HRF.empty[Array[Byte]])
-
+        hrf.isHandled = false
+        hrf
       case _ => HRF.empty[Array[Byte]]
     }
     logDebug(s"""start filter $filter:  ${f.ranges.map(_.toString).mkString(" ")}""")
@@ -400,7 +399,7 @@ object HBaseFilter extends Logging{
     // (0, 5), (10, 15) and with (2, 3) (8, 12) = (2, 3), (10, 12)
     val ranges = ScanRange.and(left.ranges, right.ranges)
     val typeFilter = TypedFilter.and(left.tf, right.tf)
-    HRF(ranges, typeFilter)
+    HRF(ranges, typeFilter, left.isHandled && right.isHandled)
   }
 
   def or[T](
@@ -408,6 +407,6 @@ object HBaseFilter extends Logging{
       right: HRF[T])(implicit ordering: Ordering[T]):HRF[T] = {
     val ranges = ScanRange.or(left.ranges, right.ranges)
     val typeFilter = TypedFilter.or(left.tf, right.tf)
-    HRF(ranges, typeFilter)
+    HRF(ranges, typeFilter, left.isHandled && right.isHandled)
   }
 }
