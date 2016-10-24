@@ -31,13 +31,9 @@
   <artifactId>shc-core</artifactId>
   <version>1.1.0-1.6-s_2.10-SNAPSHOT</version>
   <packaging>jar</packaging>
+  <name>HBase Spark Connector Project Core</name>
 
   <dependencies>
-    <dependency>
-      <groupId>org.scala-lang</groupId>
-      <artifactId>scala-library</artifactId>
-      <version>${scala.version}</version>
-    </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_${scala.binary.version}</artifactId>
@@ -126,4 +122,63 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <!-- Scalatest runs all Scala tests -->
+    <plugins>
+      <plugin>
+        <groupId>org.scalatest</groupId>
+        <artifactId>scalatest-maven-plugin</artifactId>
+        <version>1.0</version>
+        <!-- Note config is repeated in surefire config -->
+        <configuration>
+          <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+          <junitxml>.</junitxml>
+          <filereports>SparkTestSuite.txt</filereports>
+          <argLine>-ea -Xmx3g -XX:MaxPermSize=${MaxPermGen} -XX:ReservedCodeCacheSize=${CodeCacheSize}
+          </argLine>
+          <stderr/>
+          <systemProperties>
+            <java.awt.headless>true</java.awt.headless>
+            <!--
+            <spark.test.home>${spark.test.home}</spark.test.home>
+            -->
+            <spark.hbase.test.home>${basedir}</spark.hbase.test.home>
+            <spark.testing>1</spark.testing>
+            <spark.ui.enabled>false</spark.ui.enabled>
+            <spark.ui.showConsoleProgress>false</spark.ui.showConsoleProgress>
+            <spark.driver.allowMultipleContexts>true</spark.driver.allowMultipleContexts>
+          </systemProperties>
+          <parallel>false</parallel>
+        </configuration>
+        <executions>
+          <execution>
+            <id>test</id>
+            <goals>
+              <goal>test</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-clean-plugin</artifactId>
+        <version>2.5</version>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>work</directory>
+            </fileset>
+            <fileset>
+              <directory>checkpoint</directory>
+            </fileset>
+            <fileset>
+              <directory>lib_managed</directory>
+            </fileset>
+          </filesets>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
 </project>
