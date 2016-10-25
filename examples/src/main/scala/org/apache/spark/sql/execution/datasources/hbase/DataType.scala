@@ -154,5 +154,7 @@ object DataType {
     if(c_df != 32){
       throw new Exception("value invalid")
     }
+
+    spark.stop()
   }
 }

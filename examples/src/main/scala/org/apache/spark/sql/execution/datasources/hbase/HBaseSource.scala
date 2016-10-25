@@ -147,5 +147,7 @@ object HBaseSource {
     df1.createOrReplaceTempView("table1")
     val c1 = sqlContext.sql("select count(col1) from table1 where col0 < 'row050'")
     c1.show()
+
+    spark.stop()
   }
 }

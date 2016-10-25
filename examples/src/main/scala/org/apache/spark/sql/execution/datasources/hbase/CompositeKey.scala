@@ -154,5 +154,7 @@ object CompositeKey {
         $"col00" <= "row005")    // row005 not included
         .select("col00", "col01","col1")
         .show
+
+    spark.stop()
   }
 }

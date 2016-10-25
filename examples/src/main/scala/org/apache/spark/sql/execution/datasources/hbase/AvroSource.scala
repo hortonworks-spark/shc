@@ -152,5 +152,7 @@ object AvroSource {
     df.filter($"col1.name" <= "name005" || $"col1.name".contains("name007"))
       .select("col0", "col1.favorite_color", "col1.favorite_number")
       .show
+
+    spark.stop()
   }
 }
