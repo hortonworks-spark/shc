@@ -43,6 +43,9 @@ Run test
 Run indiviudal test
 
     mvn -DwildcardSuites=org.apache.spark.sql.DefaultSourceSuite test
+Run SHC examples
+
+    ./bin/spark-submit --verbose --class org.apache.spark.sql.execution.datasources.hbase.examples.HBaseSource --master yarn-cluster --packages com.hortonworks:shc:1.0.0-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/ --files /usr/hdp/current/hbase-client/conf/hbase-site.xml shc-examples-1.1.0-1.6-s_2.10-SNAPSHOT.jar
 
 The following illustrates how to run your application in real hbase cluster. You need to provide the hbase-site.xml. It may subject to change based on your specific cluster configuration.
 
