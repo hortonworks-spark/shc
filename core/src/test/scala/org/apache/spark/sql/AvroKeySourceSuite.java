@@ -74,7 +74,7 @@ public class AvroKeySourceSuite {
   @After
   public void tearDown() throws Exception {
     hBaseTestingUtility.shutdownMiniCluster();
-    sparkSession.sparkContext().stop();
+    sparkSession.stop();
   }
 
   public static Comparator<Row> rowComparator = new Comparator<Row>() {
