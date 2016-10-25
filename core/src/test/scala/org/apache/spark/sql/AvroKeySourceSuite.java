@@ -31,8 +31,6 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.spark.SparkConf;
-import org.apache.spark.SparkContext;
 import org.apache.spark.sql.execution.datasources.hbase.HBaseTableCatalog;
 import org.apache.spark.sql.execution.datasources.hbase.SparkHBaseConf;
 import org.junit.After;
@@ -60,26 +58,23 @@ public class AvroKeySourceSuite {
   private final HBaseTestingUtility hBaseTestingUtility = new HBaseTestingUtility();
 
   private HBaseCluster hbase;
-  private SparkContext sparkContext;
-  private SQLContext sqlContext;
+  private SparkSession sparkSession;
 
   @Before
   public void setUp() throws Exception {
     hbase = hBaseTestingUtility.startMiniCluster();
-
-    SparkConf conf = new SparkConf();
-    conf.setAppName("TestHBaseAvroKey");
-    conf.setMaster("local[*]");
     SparkHBaseConf.conf_$eq(hbase.getConf());
-    conf.set(SparkHBaseConf.testConf(), "true");
-    sparkContext = new SparkContext(conf);
-    sqlContext = new SQLContext(sparkContext);
+    sparkSession = SparkSession.builder()
+      .master("local[*]")
+      .appName("TestHBaseAvroKey")
+      .config(SparkHBaseConf.testConf(), "true")
+      .getOrCreate();
   }
 
   @After
   public void tearDown() throws Exception {
     hBaseTestingUtility.shutdownMiniCluster();
-    sparkContext.stop();
+    sparkSession.sparkContext().stop();
   }
 
   public static Comparator<Row> rowComparator = new Comparator<Row>() {
@@ -95,7 +90,8 @@ public class AvroKeySourceSuite {
     writeDataToHBase(hbase);
 
     // Assert contents look as expected.
-    Dataset<Row> df = sqlContext.read().format("org.apache.spark.sql.execution.datasources.hbase")
+    Dataset<Row> df = sparkSession.sqlContext().read()
+      .format("org.apache.spark.sql.execution.datasources.hbase")
       .options(getHBaseSourceOptions()).load();
     assertEquals(2, df.count());
     df.show();

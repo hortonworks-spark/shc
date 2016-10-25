@@ -90,9 +90,12 @@ object AvroSource {
                               |}""".stripMargin
 
   def main(args: Array[String]) {
-    val sparkConf = new SparkConf().setAppName("AvroTest")
-    val sc = new SparkContext(sparkConf)
-    val sqlContext = new SQLContext(sc)
+    val spark = SparkSession.builder()
+      .appName("AvroTest")
+      .getOrCreate()
+
+    val sc = spark.sparkContext
+    val sqlContext = spark.sqlContext
 
     import sqlContext.implicits._
 
@@ -116,7 +119,7 @@ object AvroSource {
     val df = withCatalog(catalog)
     df.show
     df.printSchema()
-    df.registerTempTable("shcExampleAvrotable")
+    df.createOrReplaceTempView("shcExampleAvrotable")
     val c = sqlContext.sql("select count(1) from shcExampleAvrotable")
     c.show
 

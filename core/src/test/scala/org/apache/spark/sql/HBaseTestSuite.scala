@@ -50,7 +50,7 @@ class HBaseTestSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAfte
 
       //htu.createTable(TableName.valueOf(tableName), columnFamily, 2, Bytes.toBytes("abc"), Bytes.toBytes("xyz"), 2)
     } catch {
-      case _ =>
+      case _ : Throwable =>
         logInfo(" - no table " + Bytes.toString(tableName) + " found")
     }
     setupTable()
@@ -69,7 +69,7 @@ class HBaseTestSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAfte
       logInfo(" - minicluster shut down")
       htu.cleanupTestDir
     } catch {
-      case _ => logError("teardown error")
+      case _ : Throwable => logError("teardown error")
     }
   }
 

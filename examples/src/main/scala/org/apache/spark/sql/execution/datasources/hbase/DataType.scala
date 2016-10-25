@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution.datasources.hbase.examples
 
-import org.apache.spark.sql.{DataFrame, SQLContext}
+import org.apache.spark.sql.{SparkSession, DataFrame, SQLContext}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.execution.datasources.hbase._
 
@@ -64,9 +64,12 @@ object DataType {
                     |}""".stripMargin
 
   def main(args: Array[String]){
-    val sparkConf = new SparkConf().setAppName("DataTypeTest")
-    val sc = new SparkContext(sparkConf)
-    val sqlContext = new SQLContext(sc)
+    val spark = SparkSession.builder()
+      .appName("DataTypeTest")
+      .getOrCreate()
+
+    val sc = spark.sparkContext
+    val sqlContext = spark.sqlContext
 
     import sqlContext.implicits._
 

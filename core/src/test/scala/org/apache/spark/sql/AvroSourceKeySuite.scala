@@ -101,7 +101,7 @@ class AvroSourceKeySuite extends SHC with Logging{
 
   test("empty column") {
     val df = withCatalog(catalog)
-    df.registerTempTable("avrotable")
+    df.createOrReplaceTempView("avrotable")
     val c = sqlContext.sql("select count(1) from avrotable").rdd.collect()(0)(0).asInstanceOf[Long]
     assert(c == 256)
   }
