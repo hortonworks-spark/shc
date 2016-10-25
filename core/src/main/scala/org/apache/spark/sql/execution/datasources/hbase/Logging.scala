@@ -17,9 +17,9 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import org.apache.log4j.{Level, LogManager, PropertyConfigurator}
-import org.slf4j.{Logger, LoggerFactory}
+import org.apache.log4j.LogManager
 import org.slf4j.impl.StaticLoggerBinder
+import org.slf4j.{Logger, LoggerFactory}
 
 trait Logging {
 
