@@ -36,7 +36,7 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
     }
   }
 
-  var ss: SparkSession = null
+  var spark: SparkSession = null
   var sc: SparkContext = null
   var sqlContext: SQLContext = null
   var df: DataFrame = null
@@ -74,19 +74,19 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
     logInfo(" - minicluster started")
     println(" - minicluster started")
 
-    ss = SparkSession.builder()
+    spark = SparkSession.builder()
       .master("local")
       .appName("HBaseTest")
       .config(conf)
       .getOrCreate()
 
-    sqlContext = ss.sqlContext
-    sc = ss.sparkContext
+    sqlContext = spark.sqlContext
+    sc = spark.sparkContext
   }
 
   override def afterAll() {
     htu.shutdownMiniCluster()
-    ss.stop()
+    spark.stop()
   }
 
   def createTable(name: String, cfs: Array[String]) {
