@@ -104,7 +104,6 @@ object HBaseSource {
         .load()
     }
 
-
     val data = (0 to 255).map { i =>
       HBaseRecord(i)
     }
@@ -144,5 +143,7 @@ object HBaseSource {
     df1.registerTempTable("table1")
     val c1 = sqlContext.sql("select count(col1) from table1 where col0 < 'row050'")
     c1.show()
+
+    sc.stop()
   }
 }
