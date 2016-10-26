@@ -81,9 +81,12 @@ object HBaseSource {
                 |}""".stripMargin
 
   def main(args: Array[String]) {
-    val sparkConf = new SparkConf().setAppName("HBaseTest")
-    val sc = new SparkContext(sparkConf)
-    val sqlContext = new SQLContext(sc)
+    val spark = SparkSession.builder()
+      .appName("HBaseTest")
+      .getOrCreate()
+
+    val sc = spark.sparkContext
+    val sqlContext = spark.sqlContext
 
     import sqlContext.implicits._
 
@@ -128,7 +131,7 @@ object HBaseSource {
       .select($"col0", $"col1").show
     df.filter($"col0" > "row250")
       .select($"col0", $"col1").show
-    df.registerTempTable("table1")
+    df.createOrReplaceTempView("table1")
     val c = sqlContext.sql("select count(col1) from table1 where col0 < 'row050'")
     c.show()
 
@@ -141,8 +144,10 @@ object HBaseSource {
       .select($"col0", $"col1").show
     df1.filter($"col0" > "row250")
       .select($"col0", $"col1").show
-    df1.registerTempTable("table1")
+    df1.createOrReplaceTempView("table1")
     val c1 = sqlContext.sql("select count(col1) from table1 where col0 < 'row050'")
     c1.show()
+
+    spark.stop()
   }
 }

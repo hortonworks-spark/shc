@@ -36,6 +36,7 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
     }
   }
 
+  var spark: SparkSession = null
   var sc: SparkContext = null
   var sqlContext: SQLContext = null
   var df: DataFrame = null
@@ -72,14 +73,20 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
     SparkHBaseConf.conf = htu.getConfiguration
     logInfo(" - minicluster started")
     println(" - minicluster started")
-    sc = new SparkContext("local", "HBaseTest", conf)
-    sqlContext = new SQLContext(sc)
 
+    spark = SparkSession.builder()
+      .master("local")
+      .appName("HBaseTest")
+      .config(conf)
+      .getOrCreate()
+
+    sqlContext = spark.sqlContext
+    sc = spark.sparkContext
   }
 
   override def afterAll() {
     htu.shutdownMiniCluster()
-    sc.stop()
+    spark.stop()
   }
 
   def createTable(name: String, cfs: Array[String]) {
@@ -88,7 +95,7 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
     try {
       htu.deleteTable(TableName.valueOf(tName))
     } catch {
-      case _ =>
+      case _ : Throwable =>
         logInfo(" - no table " + name + " found")
     }
     htu.createMultiRegionTable(TableName.valueOf(tName), bcfs)
@@ -99,7 +106,7 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
     try {
       htu.deleteTable(TableName.valueOf(name))
     } catch {
-      case _ =>
+      case _ : Throwable =>
         logInfo(" - no table " + Bytes.toString(name) + " found")
     }
     htu.createMultiRegionTable(TableName.valueOf(name), cfs)
