@@ -22,7 +22,7 @@ import java.io.File
 import com.google.common.io.Files
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{CellUtil, TableName, HBaseTestingUtility}
+import org.apache.hadoop.hbase.{TableName, HBaseTestingUtility}
 import org.apache.spark.Logging
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
 import scala.collection.JavaConverters._
@@ -49,7 +49,7 @@ class HBaseTestSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAfte
 
       //htu.createTable(TableName.valueOf(tableName), columnFamily, 2, Bytes.toBytes("abc"), Bytes.toBytes("xyz"), 2)
     } catch {
-      case _ =>
+      case _ : Throwable =>
         logInfo(" - no table " + Bytes.toString(tableName) + " found")
     }
     setupTable()
@@ -68,7 +68,7 @@ class HBaseTestSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAfte
       logInfo(" - minicluster shut down")
       htu.cleanupTestDir
     } catch {
-      case _ => logError("teardown error")
+      case _ : Throwable => logError("teardown error")
     }
   }
 

@@ -86,7 +86,7 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
     try {
       htu.deleteTable(TableName.valueOf(tName))
     } catch {
-      case _ =>
+      case _ : Throwable =>
         logInfo(" - no table " + name + " found")
     }
     htu.createMultiRegionTable(TableName.valueOf(tName), bcfs)
@@ -97,7 +97,7 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
     try {
       htu.deleteTable(TableName.valueOf(name))
     } catch {
-      case _ =>
+      case _ : Throwable =>
         logInfo(" - no table " + Bytes.toString(name) + " found")
     }
     htu.createMultiRegionTable(TableName.valueOf(name), cfs)
