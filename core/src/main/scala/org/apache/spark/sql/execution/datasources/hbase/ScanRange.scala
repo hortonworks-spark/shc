@@ -253,9 +253,18 @@ object ScanRange {
   def or[T](
       left:  Array[ScanRange[T]],
       right:  Array[ScanRange[T]])(implicit ordering: Ordering[T]): Array[ScanRange[T]] = {
-    left.foldLeft(right){ case (x, y) =>
-      ScanRange.or(y, x)
+
+    if(left.size <= right.size) {
+      left.foldLeft(right) { case (x, y) =>
+        ScanRange.or(y, x)
+      }
+    } else {
+      or(right, left)
     }
+
+    /*left.foldLeft(right) { case (x, y) =>
+      ScanRange.or(y, x)
+    }*/
   }
 
   // Construct multi-dimensional scan ranges.

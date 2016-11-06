@@ -89,6 +89,28 @@ class DefaultSourceSuite extends SHC with Logging {
       .save()
   }
 
+  test("NOT IN filter stack overflow") {
+    val df = withCatalog(catalog)
+    val items = (0 to 2000).map{i => s"xaz$i"}
+    val filterNotInItems = items
+
+    val s = df.filter(not($"col0" isin(filterNotInItems:_*))).select("col0")
+    s.explain(true)
+    s.show
+    assert(s.count() == df.count())
+  }
+
+  test("IN filter stack overflow") {
+    val df = withCatalog(catalog)
+    val items = (0 to 4).map{i => s"xaz$i"}
+    val filterInItems = Seq("row001") ++: items
+
+    val s = df.filter($"col0" isin(filterInItems:_*)).select("col0")
+    s.explain(true)
+    s.show()
+    assert(s.count() == 1)
+  }
+
   test("empty column") {
     val df = withCatalog(catalog)
     df.registerTempTable("table0")
@@ -114,27 +136,7 @@ class DefaultSourceSuite extends SHC with Logging {
     assert(s.count() == 1)
   }
 
-  test("IN filter stack overflow") {
-    val df = withCatalog(catalog)
-    val items = (0 to 2000).map{i => s"xaz$i"}
-    val filterInItems = Seq("row001") ++: items
 
-    val s = df.filter($"col0" isin(filterInItems:_*)).select("col0")
-    s.explain(true)
-    s.show()
-    assert(s.count() == 1)
-  }
-
-  test("NOT IN filter stack overflow") {
-    val df = withCatalog(catalog)
-    val items = (0 to 2000).map{i => s"xaz$i"}
-    val filterNotInItems = items
-
-    val s = df.filter(not($"col0" isin(filterNotInItems:_*))).select("col0")
-    s.explain(true)
-    s.show
-    assert(s.count() == df.count())
-  }
 
   test("IN filter, RDD") {
     val scan = prunedFilterScan(catalog)

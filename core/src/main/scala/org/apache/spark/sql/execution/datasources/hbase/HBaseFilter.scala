@@ -371,22 +371,34 @@ object HBaseFilter extends Logging{
         HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), true)
       case In(attribute: String, values: Array[Any]) =>
         //converting a "key in (x1, x2, x3..) filter to (key == x1) or (key == x2) or ...
-        val ranges = new ArrayBuffer[ScanRange[Array[Byte]]]()
+        /*val ranges = new ArrayBuffer[ScanRange[Array[Byte]]]()
         values.foreach{
           value =>
             val sparkFilter = EqualTo(attribute, value)
             val hbaseFilter = buildFilter(sparkFilter, relation)
             ranges ++= hbaseFilter.ranges
         }
-        HRF[Array[Byte]](ranges.toArray, TypedFilter.empty, true)
+        HRF[Array[Byte]](ranges.toArray, TypedFilter.empty, true)*/
+
+        val ret1 = values.map{v => buildFilter(EqualTo(attribute, v), relation)}
+
+        val ret = ret1.reduce[HRF[Array[Byte]]]{
+            case (lhs, rhs) => or(lhs,rhs)
+        }
+        ret.isHandled = true
+        ret
+
       case Not(In(attribute: String, values: Array[Any])) =>
         //converting a "not(key in (x1, x2, x3..)) filter to (key != x1) and (key != x2) and ..
-        val hrf = values.map{v => buildFilter(Not(EqualTo(attribute, v)),relation)}
-          .reduceOption[HRF[Array[Byte]]]{
+        val ret1 = values.map{v => buildFilter(Not(EqualTo(attribute, v)),relation)}
+
+        val hrf = ret1.reduceOption[HRF[Array[Byte]]]{
             case (lhs, rhs) => and(lhs,rhs)
         }.getOrElse(HRF.empty[Array[Byte]])
+
         hrf.isHandled = false
         hrf
+
       case _ => HRF.empty[Array[Byte]]
     }
     logDebug(s"""start filter $filter:  ${f.ranges.map(_.toString).mkString(" ")}""")
