@@ -101,6 +101,12 @@ class HBaseConnectionCacheSuite extends FunSuite with Logging {
 
     val c1 = HBaseConnectionCache
       .getConnection(connKeyMocker1, new ConnectionMocker)
+
+    assert(HBaseConnectionCache.connectionMap.size === 1)
+    assert(HBaseConnectionCache.getStat.numTotalRequests === 1)
+    assert(HBaseConnectionCache.getStat.numActualConnectionsCreated === 1)
+    assert(HBaseConnectionCache.getStat.numActiveConnections === 1)
+
     val c1a = HBaseConnectionCache
       .getConnection(connKeyMocker1a, new ConnectionMocker)
 
