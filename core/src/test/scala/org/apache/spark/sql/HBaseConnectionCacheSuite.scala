@@ -24,17 +24,17 @@ import scala.util.Random
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client.{BufferedMutator, Table, RegionLocator,
-  Connection, BufferedMutatorParams, Admin}
+Connection, BufferedMutatorParams, Admin}
 import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase._
 
-case class HBaseConnectionKeyMocker (confId: Int) extends HBaseConnectionKey (null) {
+case class HBaseConnectionKeyMocker(confId: Int) extends HBaseConnectionKey(null) {
   override def hashCode: Int = {
     confId
   }
 
   override def equals(obj: Any): Boolean = {
-    if(!obj.isInstanceOf[HBaseConnectionKeyMocker])
+    if (!obj.isInstanceOf[HBaseConnectionKeyMocker])
       false
     else
       confId == obj.asInstanceOf[HBaseConnectionKeyMocker].confId
@@ -44,12 +44,18 @@ case class HBaseConnectionKeyMocker (confId: Int) extends HBaseConnectionKey (nu
 class ConnectionMocker extends Connection {
   var isClosed: Boolean = false
 
-  def getRegionLocator (tableName: TableName): RegionLocator = null
+  def getRegionLocator(tableName: TableName): RegionLocator = null
+
   def getConfiguration: Configuration = null
-  def getTable (tableName: TableName): Table = null
+
+  def getTable(tableName: TableName): Table = null
+
   def getTable(tableName: TableName, pool: ExecutorService): Table = null
-  def getBufferedMutator (params: BufferedMutatorParams): BufferedMutator = null
-  def getBufferedMutator (tableName: TableName): BufferedMutator = null
+
+  def getBufferedMutator(params: BufferedMutatorParams): BufferedMutator = null
+
+  def getBufferedMutator(tableName: TableName): BufferedMutator = null
+
   def getAdmin: Admin = null
 
   def close(): Unit = {
@@ -59,6 +65,7 @@ class ConnectionMocker extends Connection {
   }
 
   def isAborted: Boolean = true
+
   def abort(why: String, e: Throwable) = {}
 }
 
@@ -77,7 +84,15 @@ class HBaseConnectionCacheSuite extends FunSuite with Logging {
     testWithPressureWithClose()
   }
 
+  def cleanEnv() {
+    HBaseConnectionCache.connectionMap.clear()
+    HBaseConnectionCache.cacheStat.numActiveConnections = 0
+    HBaseConnectionCache.cacheStat.numActualConnectionsCreated = 0
+    HBaseConnectionCache.cacheStat.numTotalRequests = 0
+  }
+
   def testBasic() {
+    cleanEnv()
     HBaseConnectionCache.setTimeout(1 * 1000)
 
     val connKeyMocker1 = new HBaseConnectionKeyMocker(1)
@@ -86,41 +101,48 @@ class HBaseConnectionCacheSuite extends FunSuite with Logging {
 
     val c1 = HBaseConnectionCache
       .getConnection(connKeyMocker1, new ConnectionMocker)
+
+    assert(HBaseConnectionCache.connectionMap.size === 1)
+    assert(HBaseConnectionCache.getStat.numTotalRequests === 1)
+    assert(HBaseConnectionCache.getStat.numActualConnectionsCreated === 1)
+    assert(HBaseConnectionCache.getStat.numActiveConnections === 1)
+
     val c1a = HBaseConnectionCache
       .getConnection(connKeyMocker1a, new ConnectionMocker)
 
-    HBaseConnectionCache.connectionMap.synchronized {
-      assert(HBaseConnectionCache.connectionMap.size === 1)
-    }
+    assert(HBaseConnectionCache.connectionMap.size === 1)
+    assert(HBaseConnectionCache.getStat.numTotalRequests === 2)
+    assert(HBaseConnectionCache.getStat.numActualConnectionsCreated === 1)
+    assert(HBaseConnectionCache.getStat.numActiveConnections === 1)
 
     val c2 = HBaseConnectionCache
       .getConnection(connKeyMocker2, new ConnectionMocker)
 
-    HBaseConnectionCache.connectionMap.synchronized {
-      assert(HBaseConnectionCache.connectionMap.size === 2)
-    }
+    assert(HBaseConnectionCache.connectionMap.size === 2)
+    assert(HBaseConnectionCache.getStat.numTotalRequests === 3)
+    assert(HBaseConnectionCache.getStat.numActualConnectionsCreated === 2)
+    assert(HBaseConnectionCache.getStat.numActiveConnections === 2)
 
     c1.close()
-    HBaseConnectionCache.connectionMap.synchronized {
-      assert(HBaseConnectionCache.connectionMap.size === 2)
-    }
+    assert(HBaseConnectionCache.connectionMap.size === 2)
+    assert(HBaseConnectionCache.getStat.numActiveConnections === 2)
 
     c1a.close()
-    HBaseConnectionCache.connectionMap.synchronized {
-      assert(HBaseConnectionCache.connectionMap.size === 2)
-    }
+    assert(HBaseConnectionCache.connectionMap.size === 2)
+    assert(HBaseConnectionCache.getStat.numActiveConnections === 2)
 
     Thread.sleep(3 * 1000) // Leave housekeeping thread enough time
-    HBaseConnectionCache.connectionMap.synchronized {
-      assert(HBaseConnectionCache.connectionMap.size === 1)
-      assert(HBaseConnectionCache.connectionMap.iterator.next()._1
-        .asInstanceOf[HBaseConnectionKeyMocker].confId === 2)
-    }
+    assert(HBaseConnectionCache.connectionMap.size === 1)
+    assert(HBaseConnectionCache.connectionMap.iterator.next()._1
+      .asInstanceOf[HBaseConnectionKeyMocker].confId === 2)
+    assert(HBaseConnectionCache.getStat.numActiveConnections === 1)
 
     c2.close()
   }
 
   def testWithPressureWithoutClose() {
+    cleanEnv()
+
     class TestThread extends Runnable {
       override def run() {
         for (i <- 0 to 999) {
@@ -143,25 +165,30 @@ class HBaseConnectionCacheSuite extends FunSuite with Logging {
     }
 
     Thread.sleep(1000)
-    HBaseConnectionCache.connectionMap.synchronized {
-      assert(HBaseConnectionCache.connectionMap.size === 10)
-      var totalRc : Int = 0
-      HBaseConnectionCache.connectionMap.foreach {
-        x => totalRc += x._2.refCount
-      }
-      assert(totalRc === 100 * 1000)
-      HBaseConnectionCache.connectionMap.foreach {
-        x => {
-          x._2.refCount = 0
-          x._2.timestamp = System.currentTimeMillis() - 1000
-        }
+    assert(HBaseConnectionCache.connectionMap.size === 10)
+    assert(HBaseConnectionCache.getStat.numTotalRequests === 100 * 1000)
+    assert(HBaseConnectionCache.getStat.numActualConnectionsCreated === 10)
+    assert(HBaseConnectionCache.getStat.numActiveConnections === 10)
+    var totalRc: Int = 0
+    HBaseConnectionCache.connectionMap.foreach {
+      x => totalRc += x._2.refCount
+    }
+    assert(totalRc === 100 * 1000)
+    HBaseConnectionCache.connectionMap.foreach {
+      x => {
+        x._2.refCount = 0
+        x._2.timestamp = System.currentTimeMillis() - 1000
       }
     }
     Thread.sleep(1000)
     assert(HBaseConnectionCache.connectionMap.size === 0)
+    assert(HBaseConnectionCache.getStat.numActualConnectionsCreated === 10)
+    assert(HBaseConnectionCache.getStat.numActiveConnections === 0)
   }
 
   def testWithPressureWithClose() {
+    cleanEnv()
+
     class TestThread extends Runnable {
       override def run() {
         for (i <- 0 to 999) {
@@ -185,13 +212,14 @@ class HBaseConnectionCacheSuite extends FunSuite with Logging {
       case e: InterruptedException => println(e.getMessage)
     }
 
-    HBaseConnectionCache.connectionMap.synchronized {
-      assert(HBaseConnectionCache.connectionMap.size === 10)
-    }
+    assert(HBaseConnectionCache.connectionMap.size === 10)
+    assert(HBaseConnectionCache.getStat.numTotalRequests === 100 * 1000)
+    assert(HBaseConnectionCache.getStat.numActualConnectionsCreated === 10)
+    assert(HBaseConnectionCache.getStat.numActiveConnections === 10)
 
     Thread.sleep(6 * 1000)
-    HBaseConnectionCache.connectionMap.synchronized {
-      assert(HBaseConnectionCache.connectionMap.size === 0)
-    }
+    assert(HBaseConnectionCache.connectionMap.size === 0)
+    assert(HBaseConnectionCache.getStat.numActualConnectionsCreated === 10)
+    assert(HBaseConnectionCache.getStat.numActiveConnections === 0)
   }
 }
