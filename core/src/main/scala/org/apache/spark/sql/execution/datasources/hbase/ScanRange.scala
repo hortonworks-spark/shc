@@ -254,7 +254,7 @@ object ScanRange {
   @tailrec def or[T](
       left:  Array[ScanRange[T]],
       right:  Array[ScanRange[T]])(implicit ordering: Ordering[T]): Array[ScanRange[T]] = {
-    if(left.size <= right.size) {
+    if(left.length <= right.length) {
       left.foldLeft(right){ case (x, y) =>
         ScanRange.or(y, x)
       }
