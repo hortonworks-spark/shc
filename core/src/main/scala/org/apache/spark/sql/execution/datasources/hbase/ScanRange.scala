@@ -19,10 +19,11 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import scala.collection.mutable.ArrayBuffer
 import scala.math.Ordering
-
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.unsafe.types.UTF8String
+
+import scala.annotation.tailrec
 
 case class Bound[T](point: T, inc: Boolean)(implicit ordering: Ordering[T]) {
   override def toString = {
@@ -249,11 +250,15 @@ object ScanRange {
     }
   }
 
-  def or[T](
+  @tailrec def or[T](
       left:  Array[ScanRange[T]],
       right:  Array[ScanRange[T]])(implicit ordering: Ordering[T]): Array[ScanRange[T]] = {
-    left.foldLeft(right){ case (x, y) =>
-      ScanRange.or(y, x)
+    if(left.length <= right.length) {
+      left.foldLeft(right){ case (x, y) =>
+        ScanRange.or(y, x)
+      }
+    } else {
+      or(right, left)
     }
   }
 
