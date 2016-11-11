@@ -2,9 +2,9 @@
 
 The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apache.org/) Connector is a library to support Spark accessing HBase table as external data source or sink. With it, user can operate HBase with Spark-SQL on data frame level. 
 
-With the data frame support, the lib leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc. 
+With the data frame support, the lib leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc.
 
-_**Note**: Now branch-2.0 is not supported by Hortonworks._
+_**Note**: com.hortonworks:shc:1.1.0-2.1-s_2.11 has not been uploaded to [Hortonworks public repo](http://repo.hortonworks.com/content/groups/public/), but will be there after Spark 2.1 is released._
 
 ## Catalog
 For each table, a catalog has to be provided,  which includes the row key, and the columns with data type with predefined column families, and defines the mapping between hbase column and table schema. The catalog is user defined json format.
@@ -24,7 +24,8 @@ When the spark work node co-located with hbase region servers, data locality is 
 The lib use existing standard HBase filter provided by HBase and does not operate on the coprocessor. 
 
 ## Partition Pruning
-By extracting the row key from the predicates, we split the scan/BulkGet into multiple non-overlapping regions, only the region servers that have the requested data will perform scan/BulkGet. Currently, the partition pruning is performed on the first dimension of the row keys. Note that the WHERE conditions need to be defined carefully. Otherwise, the result scanning may includes a region larger than user expectd. For example, following condition will result in a full scan (rowkey1 is the first dimension of the rowkey, and column is a regular hbase column).
+By extracting the row key from the predicates, we split the scan/BulkGet into multiple non-overlapping regions, only the region servers that have the requested data will perform scan/BulkGet. Currently, the partition pruning is performed on the first dimension of the row keys.
+Note that the WHERE conditions need to be defined carefully. Otherwise, the result scanning may includes a region larger than user expectd. For example, following condition will result in a full scan (rowkey1 is the first dimension of the rowkey, and column is a regular hbase column).
          WHERE rowkey1 > "abc" OR column = "xyz"
 
 ## Scanning and BulkGet
@@ -47,15 +48,15 @@ Run indiviudal test
     mvn -DwildcardSuites=org.apache.spark.sql.DefaultSourceSuite test
 Run SHC examples
 
-    ./bin/spark-submit --verbose --class org.apache.spark.sql.execution.datasources.hbase.examples.HBaseSource --master yarn-cluster --packages com.hortonworks:shc:1.0.0-2.0-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --files /usr/hdp/current/hbase-client/conf/hbase-site.xml shc-examples-1.0.1-2.0-s_2.11-SNAPSHOT.jar
+    ./bin/spark-submit --verbose --class org.apache.spark.sql.execution.datasources.hbase.examples.HBaseSource --master yarn-cluster --packages com.hortonworks:shc:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --files /usr/hdp/current/hbase-client/conf/hbase-site.xml shc-examples-1.1.0-2.1-s_2.11-SNAPSHOT.jar
 
 The following illustrates how to run your application in real hbase cluster. You need to provide the hbase-site.xml. It may subject to change based on your specific cluster configuration.
 
-    ./bin/spark-submit  --class your.application.class --master yarn-client --num-executors 2 --driver-memory 512m --executor-memory 512m --executor-cores 1 --packages com.hortonworks:shc:1.0.0-2.0-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
+    ./bin/spark-submit  --class your.application.class --master yarn-client --num-executors 2 --driver-memory 512m --executor-memory 512m --executor-cores 1 --packages com.hortonworks:shc:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
 
 Running Spark applications with this connector, HBase jars of version 1.1.2 will be pulled by default. If Phoenix is enabled on HBase cluster, you need to use "--jars" to pass "phoenix-server.jar". For example:
 
-    ./bin/spark-submit  --class your.application.class --master yarn-client --num-executors 2 --driver-memory 512m --executor-memory 512m --executor-cores 1 --packages com.hortonworks:shc:1.0.0-2.0-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --jars /usr/hdp/current/phoenix-client/phoenix-server.jar --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
+    ./bin/spark-submit  --class your.application.class --master yarn-client --num-executors 2 --driver-memory 512m --executor-memory 512m --executor-cores 1 --packages com.hortonworks:shc:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --jars /usr/hdp/current/phoenix-client/phoenix-server.jar --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
 
 ##Application Usage
 The following illustrates the basic procedure on how to use the connector. For more details and advanced use case, such as Avro and composite key support, please refer to the examples in the repository.
@@ -123,15 +124,15 @@ Given a data frame with specified schema, above will create an HBase table with 
 ## Configuring Spark-package
 Users can use the Spark-on-HBase connector as a standard Spark package. To include the package in your Spark application use:
 
-_**Note**: com.hortonworks:shc:1.0.0-2.0-s_2.11 has not been uploaded to [spark-packages.org](https://spark-packages.org/package/hortonworks-spark/shc), but will be there soon._
+_**Note**: com.hortonworks:shc:1.1.0-2.1-s_2.11 has not been uploaded to [spark-packages.org](https://spark-packages.org/package/hortonworks-spark/shc), but will be there soon._
 
 spark-shell, pyspark, or spark-submit
 
-    $SPARK_HOME/bin/spark-shell --packages com.hortonworks:shc:1.0.0-2.0-s_2.11
+    $SPARK_HOME/bin/spark-shell --packages com.hortonworks:shc:1.1.0-2.1-s_2.11
 
 Users can include the package as the dependency in your SBT file as well. The format is the spark-package-name:version
 
-    spDependencies += “com.hortonworks/shc:1.0.0-2.0-s_2.11”
+    spDependencies += “com.hortonworks/shc:1.1.0-2.1-s_2.11”
 
 ## Running in secure cluster
 
@@ -147,9 +148,9 @@ Suppose hrt_qa is a headless account, user can use following command for kinit:
 
     kinit -k -t /tmp/hrt_qa.headless.keytab hrt_qa
 
-    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-client --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc:1.0.0-2.0-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
+    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-client --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
 
-    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-cluster --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc:1.0.0-2.0-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
+    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-cluster --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
 
 #### TODO:
 
