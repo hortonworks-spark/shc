@@ -73,8 +73,31 @@ case class HBaseRelation(
   val maxStamp = parameters.get(HBaseRelation.MAX_STAMP).map(_.toLong)
   val maxVersions = parameters.get(HBaseRelation.MAX_VERSIONS).map(_.toInt)
 
-  @transient implicit val formats = DefaultFormats
-  val hBaseConfiguration = parameters.get(HBaseRelation.HBASE_CONFIGURATION).map(parse(_).extract[Map[String, String]])
+  val catalog = HBaseTableCatalog(parameters)
+
+  private val wrappedConf = {
+    implicit val formats = DefaultFormats
+    val hConf = {
+      val testConf = sqlContext.sparkContext.conf.getBoolean(SparkHBaseConf.testConf, false)
+      if (testConf) {
+        SparkHBaseConf.conf
+      } else {
+        val hBaseConfiguration = parameters.get(HBaseRelation.HBASE_CONFIGURATION).map(
+          parse(_).extract[Map[String, String]])
+
+        val conf = HBaseConfiguration.create
+        hBaseConfiguration.foreach(_.foreach(e => conf.set(e._1, e._2)))
+        conf
+      }
+    }
+    // task is already broadcast; since hConf is per HBaseRelation (currently), broadcast'ing
+    // it again does not help - it actually hurts. When we add support for
+    // caching hConf across HBaseRelation, we can revisit broadcast'ing it (with a caching
+    // mechanism in place)
+    new SerializableConfiguration(hConf)
+  }
+
+  def hbaseConf = wrappedConf.value
 
   def createTable() {
     if (catalog.numReg > 3) {
@@ -160,23 +183,6 @@ case class HBaseRelation(
     }
     rdd.map(convertToPut).saveAsNewAPIHadoopDataset(job.getConfiguration)
   }
-  val catalog = HBaseTableCatalog(parameters)
-
-  val df: DataFrame = null
-
-  val testConf = sqlContext.sparkContext.conf.getBoolean(SparkHBaseConf.testConf, false)
-
-  @transient val  hConf = {
-    if (testConf) {
-      SparkHBaseConf.conf
-    } else {
-      val conf = HBaseConfiguration.create
-      hBaseConfiguration.foreach(_.foreach(e => conf.set(e._1, e._2)))
-      conf
-    }
-  }
-  val wrappedConf = sqlContext.sparkContext.broadcast(new SerializableConfiguration(hConf))
-  def hbaseConf = wrappedConf.value.value
 
   def rows = catalog.row
 
@@ -226,7 +232,7 @@ case class HBaseRelation(
 
   // Tell Spark about filters that has not handled by HBase as opposed to returning all the filters
   override def unhandledFilters(filters: Array[Filter]): Array[Filter] = {
-    filters.filter(!HBaseFilter.buildFilter(_, this).isHandled)
+    filters.filter(!HBaseFilter.buildFilter(_, this).handled)
   }
 
   def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
