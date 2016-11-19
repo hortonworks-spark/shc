@@ -90,7 +90,8 @@ class HBaseConnectionCacheSuite extends FunSuite with Logging {
   }
 
   def cleanEnv(): Unit = {
-    HBaseConnectionCache.resetCache()
+    // reset stats when testing.
+    HBaseConnectionCache.resetCache(resetStats = true)
   }
 
   def testBasic() {

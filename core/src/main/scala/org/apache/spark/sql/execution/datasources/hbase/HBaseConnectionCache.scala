@@ -80,13 +80,13 @@ private[spark] object HBaseConnectionCache extends Logging {
     }
   }
 
-  // for testing.
-  private[hbase] def resetCache(): Unit = {
+  // resetStats == true for testing, otherwise, it is not modified.
+  private[hbase] def resetCache(resetStats: Boolean = false): Unit = {
     connectionMap.synchronized {
       if (closed.get()) return
       connectionMap.values.foreach(conn => IOUtils.closeQuietly(conn) )
       connectionMap.clear()
-      cacheStat.reset()
+      if (resetStats) cacheStat.reset()
     }
   }
 
