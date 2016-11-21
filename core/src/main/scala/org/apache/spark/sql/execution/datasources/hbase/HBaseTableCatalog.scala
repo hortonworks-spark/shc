@@ -34,8 +34,9 @@ case class Field(
     col: String,
     sType: Option[String] = None,
     avroSchema: Option[String] = None,
-    val sedes: Option[Sedes]= None,
-    private val len: Int = -1) extends Logging{
+    sedes: Option[Sedes] = None,
+    len: Int = -1) extends Logging{
+
   val isRowKey = cf == HBaseTableCatalog.rowKey
   var start: Int = _
   def schema: Option[Schema] = avroSchema.map { x =>

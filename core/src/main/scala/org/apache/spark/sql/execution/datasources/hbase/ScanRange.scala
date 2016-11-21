@@ -38,7 +38,7 @@ case class Bound[T](point: T, inc: Boolean)(implicit ordering: Ordering[T]) {
 }
 
 // if optional is none, it starts/ends with minimum/maximum
-case class ScanRange[T](val start: Option[Bound[T]], var end: Option[Bound[T]]) {
+case class ScanRange[T](start: Option[Bound[T]], end: Option[Bound[T]]) {
   def get(p: Option[Bound[T]]): Option[T] = {
     if (p.isDefined) {
       Some(p.get.point)
