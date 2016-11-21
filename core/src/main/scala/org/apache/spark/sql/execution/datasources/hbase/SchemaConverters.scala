@@ -38,7 +38,7 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 
 abstract class AvroException(msg: String) extends Exception(msg)
-case class SchemaConversionException(msg: String) extends AvroException(msg)
+class SchemaConversionException(msg: String) extends AvroException(msg)
 
 object SchemaConverters {
 
@@ -384,7 +384,7 @@ object AvroSedes {
   def serialize(input: Any, schema: Schema): Array[Byte]= {
     schema.getType match {
       case BOOLEAN => Bytes.toBytes(input.asInstanceOf[Boolean])
-      case BYTES | FIXED=> input.asInstanceOf[Array[Byte]]
+      case BYTES | FIXED => input.asInstanceOf[Array[Byte]]
       case DOUBLE => Bytes.toBytes(input.asInstanceOf[Double])
       case FLOAT => Bytes.toBytes(input.asInstanceOf[Float])
       case INT => Bytes.toBytes(input.asInstanceOf[Int])

@@ -112,7 +112,7 @@ object TypedFilter {
 }
 
 // Combination of HBase range and filters
-case class HRF[T](ranges: Array[ScanRange[T]], tf: TypedFilter, var isHandled: Boolean = false)
+case class HRF[T](ranges: Array[ScanRange[T]], tf: TypedFilter, handled: Boolean = false)
 
 object HRF {
   def empty[T] = HRF[T](Array(ScanRange.empty[T]), TypedFilter.empty)
@@ -333,7 +333,7 @@ object HBaseFilter extends Logging{
             CompareOp.EQUAL,
             new BinaryPrefixComparator(b)
           )
-          HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), true)
+          HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), handled = true)
         } else {
           HRF.empty[Array[Byte]]
         }
@@ -346,7 +346,7 @@ object HBaseFilter extends Logging{
           CompareOp.EQUAL,
           new RegexStringComparator(s".*$value")
         )
-        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), true)
+        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), handled = true)
 
       case StringContains(attribute: String, value: String) if relation.isColumn(attribute) =>
         val f = relation.getField(attribute)
@@ -356,7 +356,7 @@ object HBaseFilter extends Logging{
           CompareOp.EQUAL,
           new SubstringComparator(value)
         )
-        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), true)
+        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), handled = true)
       // We should also add Not(GreatThan, LessThan, ...)
       // because if we miss some filter, it may result in a large scan range.
       case Not(StringContains(attribute: String, value: String)) if relation.isColumn(attribute) =>
@@ -368,7 +368,7 @@ object HBaseFilter extends Logging{
           CompareOp.NOT_EQUAL,
           new SubstringComparator(value)
         )
-        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), true)
+        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), handled = true)
       case In(attribute: String, values: Array[Any]) =>
         //converting a "key in (x1, x2, x3..) filter to (key == x1) or (key == x2) or ...
         val ranges = new ArrayBuffer[ScanRange[Array[Byte]]]()
@@ -378,15 +378,14 @@ object HBaseFilter extends Logging{
             val hbaseFilter = buildFilter(sparkFilter, relation)
             ranges ++= hbaseFilter.ranges
         }
-        HRF[Array[Byte]](ranges.toArray, TypedFilter.empty, true)
+        HRF[Array[Byte]](ranges.toArray, TypedFilter.empty, handled = true)
       case Not(In(attribute: String, values: Array[Any])) =>
         //converting a "not(key in (x1, x2, x3..)) filter to (key != x1) and (key != x2) and ..
         val hrf = values.map{v => buildFilter(Not(EqualTo(attribute, v)),relation)}
               .reduceOption[HRF[Array[Byte]]]{
                   case (lhs, rhs) => and(lhs,rhs)
               }.getOrElse(HRF.empty[Array[Byte]])
-        hrf.isHandled = false
-        hrf
+        HRF(hrf.ranges, hrf.tf, handled = false)
       case _ => HRF.empty[Array[Byte]]
     }
     logDebug(s"""start filter $filter:  ${f.ranges.map(_.toString).mkString(" ")}""")
@@ -399,7 +398,7 @@ object HBaseFilter extends Logging{
     // (0, 5), (10, 15) and with (2, 3) (8, 12) = (2, 3), (10, 12)
     val ranges = ScanRange.and(left.ranges, right.ranges)
     val typeFilter = TypedFilter.and(left.tf, right.tf)
-    HRF(ranges, typeFilter, left.isHandled && right.isHandled)
+    HRF(ranges, typeFilter, left.handled && right.handled)
   }
 
   def or[T](
@@ -407,6 +406,6 @@ object HBaseFilter extends Logging{
       right: HRF[T])(implicit ordering: Ordering[T]):HRF[T] = {
     val ranges = ScanRange.or(left.ranges, right.ranges)
     val typeFilter = TypedFilter.or(left.tf, right.tf)
-    HRF(ranges, typeFilter, left.isHandled && right.isHandled)
+    HRF(ranges, typeFilter, left.handled && right.handled)
   }
 }
