@@ -37,15 +37,15 @@ import org.apache.spark.util.ShutdownHookManager
 
 private[hbase] case class HBaseRegion(
     override val index: Int,
-    val start: Option[HBaseType] = None,
-    val end: Option[HBaseType] = None,
-    val server: Option[String] = None) extends Partition
+    start: Option[HBaseType] = None,
+    end: Option[HBaseType] = None,
+    server: Option[String] = None) extends Partition
 
 private[hbase] case class HBaseScanPartition(
     override val index: Int,
-    val regions: HBaseRegion,
-    val scanRanges: Array[ScanRange[Array[Byte]]],
-    val tf: SerializedTypedFilter) extends Partition
+    regions: HBaseRegion,
+    scanRanges: Array[ScanRange[Array[Byte]]],
+    tf: SerializedTypedFilter) extends Partition
 
 
 private[hbase] class HBaseTableScanRDD(
