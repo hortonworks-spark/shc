@@ -401,11 +401,11 @@ object AvroSedes {
     }
   }
 
-  def deserialize(input: Array[Byte], schema: Schema): GenericRecord = {
-    val reader2: DatumReader[GenericRecord] = new GenericDatumReader[GenericRecord](schema)
+  def deserialize(input: Array[Byte], schema: Schema): Any = {
+    val reader2: DatumReader[Any] = new GenericDatumReader[Any](schema)
     val bai2 = new ByteArrayInputStream(input)
     val decoder2: BinaryDecoder = DecoderFactory.get().directBinaryDecoder(bai2, null)
-    val gr2: GenericRecord = reader2.read(null, decoder2)
-    gr2
+    val res: Any = reader2.read(null, decoder2)
+    res
   }
 }
