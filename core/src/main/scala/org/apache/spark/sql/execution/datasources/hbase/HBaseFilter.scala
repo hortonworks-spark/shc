@@ -135,7 +135,7 @@ object HBaseFilter extends Logging{
   }
 
   private def toBytes[T](value: T, att: String, relation: HBaseRelation): Array[Byte] = {
-    Utils.toBytes(value, relation.getField(att))
+    TypeManager(relation.getField(att)).toBytes(value)
   }
 
 

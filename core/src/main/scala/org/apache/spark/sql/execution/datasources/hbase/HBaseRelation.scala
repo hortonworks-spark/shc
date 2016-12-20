@@ -161,7 +161,7 @@ case class HBaseRelation(
     def convertToPut(row: Row) = {
       // construct bytes for row key
       val rowBytes = rkIdxedFields.map { case (x, y) =>
-        Utils.toBytes(row(x), y)
+        TypeManager(y).toBytes(row(x))
       }
       val rLen = rowBytes.foldLeft(0) { case (x, y) =>
         x + y.length
@@ -175,7 +175,7 @@ case class HBaseRelation(
       val put = timestamp.fold(new Put(rBytes))(new Put(rBytes, _))
 
       colsIdxedFields.foreach { case (x, y) =>
-        val b = Utils.toBytes(row(x), y)
+        val b = TypeManager(y).toBytes(row(x))
         put.addColumn(Bytes.toBytes(y.cf), Bytes.toBytes(y.col), b)
       }
       count += 1

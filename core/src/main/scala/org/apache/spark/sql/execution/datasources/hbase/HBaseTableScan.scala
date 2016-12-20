@@ -96,12 +96,12 @@ private[hbase] class HBaseTableScanRDD(
       val idx = state._1
       val parsed = state._2
       if (field.length != -1) {
-        val value = Utils.hbaseFieldToScalaType(field, row, idx, field.length)
+        val value = TypeManager(field).hbaseFieldToScalaType(row, idx, field.length)
         // Return the new index and appended value
         (idx + field.length, parsed ++ Seq((field, value)))
       } else {
         // This is the last dimension.
-        val value = Utils.hbaseFieldToScalaType(field, row, idx, row.length - idx)
+        val value = TypeManager(field).hbaseFieldToScalaType(row, idx, row.length - idx)
         (row.length + 1, parsed ++ Seq((field, value)))
       }
     })._2.toMap
@@ -120,7 +120,7 @@ private[hbase] class HBaseTableScanRDD(
         (x, x.dt match {
           // Here, to avoid arraycopy, return v directly instead of calling hbaseFieldToScalaType
           case BinaryType => v
-          case _ => Utils.hbaseFieldToScalaType(x, v, 0, v.length)
+          case _ => TypeManager(x).hbaseFieldToScalaType(v, 0, v.length)
         })
       }
     }.toMap
