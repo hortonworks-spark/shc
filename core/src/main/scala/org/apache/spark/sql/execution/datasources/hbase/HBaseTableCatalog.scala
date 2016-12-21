@@ -212,7 +212,9 @@ object HBaseTableCatalog {
 
   /**
    * Retrieve the columns mapping from the JObject parsed from the catalog string,
-   * and preserve the order of the columns specification.
+   * and preserve the order of the columns specification. Note that we have to use
+   * the AST level api of json4s, because if we cast the parsed object to a scala
+   * map directly, it would lose the ordering info during the casting.
    */
   def getColsPreservingOrder(jObj: JObject): Seq[(String, Map[String, String])] = {
     val jCols = jObj.obj.find(_._1 == columns).get._2.asInstanceOf[JObject]
