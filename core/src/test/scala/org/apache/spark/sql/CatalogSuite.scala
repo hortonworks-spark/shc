@@ -47,7 +47,6 @@ class CatalogSuite  extends FunSuite with BeforeAndAfterEach with BeforeAndAfter
 
   test("Catalog should preserve the columns order") {
     val m = HBaseTableCatalog(Map(HBaseTableCatalog.tableCatalog->catalog))
-    m.toDataType.fields.map(_.name).foreach(println)
     assert(m.toDataType.fields.map(_.name).sameElements(
       Array("col00", "col01", "col1", "col2", "col3", "col4", "col5", "col6", "col8", "col7")))
   }
