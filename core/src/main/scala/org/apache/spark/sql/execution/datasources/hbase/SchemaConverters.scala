@@ -382,19 +382,19 @@ object SchemaConverters {
 
 object AvroSedes {
   def serialize(input: Any, schema: Schema): Array[Byte]= {
-	  val bao = new ByteArrayOutputStream()
+    val bao = new ByteArrayOutputStream()
     try {
-	    val writer = new GenericDatumWriter[Any](schema)  
-	    val encoder: BinaryEncoder = EncoderFactory.get().directBinaryEncoder(bao, null)
-	    writer.write(input, encoder)
-	    bao.toByteArray()
-	  } catch {
-	    case e: IOException => throw new Exception(s"Exception while creating byte array for Avro schema ${schema}")
-	  } finally {
-	    if(bao != null) {
-		    bao.close()
-	    }
-	  }
+      val writer = new GenericDatumWriter[Any](schema)  
+      val encoder: BinaryEncoder = EncoderFactory.get().directBinaryEncoder(bao, null)
+      writer.write(input, encoder)
+      bao.toByteArray()
+    } catch {
+      case e: IOException => throw new Exception(s"Exception while creating byte array for Avro schema ${schema}")
+    } finally {
+      if(bao != null) {
+	 bao.close()
+      }
+    }
   }
 
   def deserialize(input: Array[Byte], schema: Schema): Any = {
