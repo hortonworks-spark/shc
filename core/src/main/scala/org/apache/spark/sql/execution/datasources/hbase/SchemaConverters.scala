@@ -22,6 +22,7 @@ import java.nio.ByteBuffer
 import java.sql.Timestamp
 import java.util
 import java.util.HashMap
+import java.io.IOException
 
 import scala.collection.immutable.Map
 import scala.collection.JavaConversions._
@@ -380,25 +381,20 @@ object SchemaConverters {
 
 
 object AvroSedes {
-  // We only handle top level is record or primary type now
   def serialize(input: Any, schema: Schema): Array[Byte]= {
-    schema.getType match {
-      case BOOLEAN => Bytes.toBytes(input.asInstanceOf[Boolean])
-      case BYTES | FIXED => input.asInstanceOf[Array[Byte]]
-      case DOUBLE => Bytes.toBytes(input.asInstanceOf[Double])
-      case FLOAT => Bytes.toBytes(input.asInstanceOf[Float])
-      case INT => Bytes.toBytes(input.asInstanceOf[Int])
-      case LONG => Bytes.toBytes(input.asInstanceOf[Long])
-      case STRING => Bytes.toBytes(input.asInstanceOf[String])
-      case RECORD =>
-        val gr = input.asInstanceOf[GenericRecord]
-        val writer2 = new GenericDatumWriter[GenericRecord](schema)
-        val bao2 = new ByteArrayOutputStream()
-        val encoder2: BinaryEncoder = EncoderFactory.get().directBinaryEncoder(bao2, null)
-        writer2.write(gr, encoder2)
-        bao2.toByteArray()
-      case _ => throw new Exception(s"unsupported data type ${schema.getType}") //TODO
-    }
+	  val bao = new ByteArrayOutputStream()
+    try {
+	    val writer = new GenericDatumWriter[Any](schema)  
+	    val encoder: BinaryEncoder = EncoderFactory.get().directBinaryEncoder(bao, null)
+	    writer.write(input, encoder)
+	    bao.toByteArray()
+	  } catch {
+	    case e: IOException => throw new Exception(s"Exception while creating byte array for Avro schema ${schema}")
+	  } finally {
+	    if(bao != null) {
+		    bao.close()
+	    }
+	  }
   }
 
   def deserialize(input: Array[Byte], schema: Schema): Any = {
