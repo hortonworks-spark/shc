@@ -19,6 +19,8 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
 
+import org.apache.spark.sql.execution.datasources.hbase.types.SHDDataTypeFactory
+
 import scala.util.control.NonFatal
 
 import org.json4s.DefaultFormats
@@ -161,7 +163,7 @@ case class HBaseRelation(
     def convertToPut(row: Row) = {
       // construct bytes for row key
       val rowBytes = rkIdxedFields.map { case (x, y) =>
-        TypeManager.typeCoverter(y).toBytes(row(x), y)
+        SHDDataTypeFactory.create(y).toBytes(row(x))
       }
       val rLen = rowBytes.foldLeft(0) { case (x, y) =>
         x + y.length
@@ -175,7 +177,7 @@ case class HBaseRelation(
       val put = timestamp.fold(new Put(rBytes))(new Put(rBytes, _))
 
       colsIdxedFields.foreach { case (x, y) =>
-        val b = TypeManager.typeCoverter(y).toBytes(row(x), y)
+        val b = SHDDataTypeFactory.create(y).toBytes(row(x))
         put.addColumn(Bytes.toBytes(y.cf), Bytes.toBytes(y.col), b)
       }
       count += 1
@@ -268,7 +270,4 @@ object HBaseRelation {
   val MAX_STAMP = "maxStamp"
   val MAX_VERSIONS = "maxVersions"
   val HBASE_CONFIGURATION = "hbaseConfiguration"
-
-  // Types in SHC: phoenix, avro, atomicType, sedes
-  val DATATYPE = "atomicType"
 }

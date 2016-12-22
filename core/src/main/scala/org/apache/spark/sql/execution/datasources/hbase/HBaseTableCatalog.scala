@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
+import org.json4s.jackson.JsonMethods._
+
 import scala.collection.mutable
 
 import org.apache.avro.Schema
@@ -25,18 +27,19 @@ import org.apache.spark.Logging
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.catalyst.util.DataTypeParser
 import org.apache.spark.sql.types._
-import org.json4s.jackson.JsonMethods._
+import org.apache.spark.sql.execution.datasources.hbase.types._
 
 // The definition of each column cell, which may be composite type
 case class Field(
-    colName: String,
-    cf: String,
-    col: String,
-    dataType: String,
-    sType: Option[String] = None,
-    avroSchema: Option[String] = None,
-    sedes: Option[Sedes] = None,
-    len: Int = -1) extends Logging{
+                  colName: String,
+                  cf: String,
+                  col: String,
+                  sType: Option[String] = None,
+                  avroSchema: Option[String] = None,
+                  // serde: Option[Serde] = None,
+                  serde: Option[String] = None,
+                  phoenix: Option[String] = None,
+                  len: Int = -1) extends Logging{
 
   val isRowKey = cf == HBaseTableCatalog.rowKey
   var start: Int = _
@@ -174,7 +177,8 @@ object HBaseTableCatalog {
   // the name of avro schema json string
   val avro = "avro"
   val delimiter: Byte = 0
-  val sedes = "sedes"
+  val serde = "serde"
+  val phoenix = "phoenix"
   val length = "length"
   /**
    * User provide table schema definition
@@ -192,20 +196,16 @@ object HBaseTableCatalog {
     val tName = tableMeta.get(tableName).get.asInstanceOf[String]
     val cIter = map.get(columns).get.asInstanceOf[Map[String, Map[String, String]]].toIterator
     val schemaMap = mutable.HashMap.empty[String, Field]
-    val dt = parameters.getOrElse(HBaseRelation.DATATYPE, "atomicType")
     cIter.foreach { case (name, column)=>
-      val sd = {
-        column.get(sedes).map( n =>
-          Class.forName(n).newInstance().asInstanceOf[Sedes]
-        )
-      }
+      val sd = column.get(serde)
+                  // .map(n => Class.forName(n).newInstance().asInstanceOf[Serde])
+      val phx = column.get(phoenix)
       val len = column.get(length).map(_.toInt).getOrElse(-1)
       val sAvro = column.get(avro).map(parameters(_))
       val f = Field(name, column.getOrElse(cf, rowKey),
         column.get(col).get,
-        dt,
         column.get(`type`),
-        sAvro, sd, len)
+        sAvro, sd, phx, len)
       schemaMap.+= ((name, f))
     }
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)

@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
+import org.apache.spark.sql.execution.datasources.hbase.types.SHDDataTypeFactory
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 import scala.math.Ordering
@@ -136,7 +138,7 @@ object HBaseFilter extends Logging{
 
   private def toBytes[T](value: T, att: String, relation: HBaseRelation): Array[Byte] = {
     val f = relation.getField(att)
-    TypeManager.typeCoverter(f).toBytes(value, f)
+    SHDDataTypeFactory.create(f).toBytes(value)
   }
 
   def process(value: Any, relation: HBaseRelation, attribute: String,

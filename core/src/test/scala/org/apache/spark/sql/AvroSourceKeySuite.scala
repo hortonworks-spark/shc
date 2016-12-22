@@ -19,8 +19,9 @@ package org.apache.spark.sql
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
-import org.apache.spark.{SparkContext, Logging}
-import org.apache.spark.sql.execution.datasources.hbase.{HBaseTableCatalog, AvroSedes}
+import org.apache.spark.Logging
+import org.apache.spark.sql.execution.datasources.hbase.HBaseTableCatalog
+import org.apache.spark.sql.execution.datasources.hbase.types.AvroSedes
 
 case class AvroHBaseKeyRecord(col0: Array[Byte],
                            col1: Array[Byte])

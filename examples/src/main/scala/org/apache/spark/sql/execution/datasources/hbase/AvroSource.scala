@@ -20,10 +20,9 @@ package org.apache.spark.sql.execution.datasources.hbase.examples
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
 import org.apache.spark.sql._
-import org.apache.spark.sql.execution.datasources.hbase.{AvroSedes, HBaseTableCatalog}
 import org.apache.spark.{SparkConf, SparkContext}
-
-
+import org.apache.spark.sql.execution.datasources.hbase.HBaseTableCatalog
+import org.apache.spark.sql.execution.datasources.hbase.types.AvroSedes
 
 case class AvroHBaseRecord(col0: String,
                            col1: Array[Byte])

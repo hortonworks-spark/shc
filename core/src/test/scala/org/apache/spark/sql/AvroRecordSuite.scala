@@ -22,7 +22,7 @@ import scala.util.Random
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
-import org.apache.spark.sql.execution.datasources.hbase.{AvroSedes, SchemaConverters}
+import org.apache.spark.sql.execution.datasources.hbase.types.{AvroSedes, SchemaConverters}
 import org.apache.spark.Logging
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
 

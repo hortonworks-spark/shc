@@ -19,6 +19,8 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import java.util.ArrayList
 
+import org.apache.spark.sql.execution.datasources.hbase.types.SHDDataTypeFactory
+
 import scala.collection.mutable
 
 import org.apache.hadoop.hbase.CellUtil
@@ -96,14 +98,14 @@ private[hbase] class HBaseTableScanRDD(
       val idx = state._1
       val parsed = state._2
       if (field.length != -1) {
-        val value = TypeManager.typeCoverter(field)
-          .hbaseFieldToScalaType(field, row, idx, field.length)
+        val value =
+          SHDDataTypeFactory.create(field, Some(row), Some(idx), Some(field.length)).toObject
         // Return the new index and appended value
         (idx + field.length, parsed ++ Seq((field, value)))
       } else {
         // This is the last dimension.
-        val value = TypeManager.typeCoverter(field)
-          .hbaseFieldToScalaType(field, row, idx, row.length - idx)
+        val value =
+          SHDDataTypeFactory.create(field, Some(row), Some(idx), Some(row.length - idx)).toObject
         (row.length + 1, parsed ++ Seq((field, value)))
       }
     })._2.toMap
@@ -122,8 +124,7 @@ private[hbase] class HBaseTableScanRDD(
         (x, x.dt match {
           // Here, to avoid arraycopy, return v directly instead of calling hbaseFieldToScalaType
           case BinaryType => v
-          case _ => TypeManager.typeCoverter(x)
-            .hbaseFieldToScalaType(x, v, 0, v.length)
+          case _ => SHDDataTypeFactory.create(x, Some(v), Some(0), Some(v.length)).toObject
         })
       }
     }.toMap
