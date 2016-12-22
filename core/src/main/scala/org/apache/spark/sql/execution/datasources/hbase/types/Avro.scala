@@ -39,11 +39,11 @@ import org.apache.spark.sql.types._
 
 import org.apache.spark.sql.execution.datasources.hbase._
 
-class Avro(f: Field, src: Option[HBaseType] = None) extends SHCDataType {
+class Avro(f: Field) extends SHCDataType {
 
-  def toObject: Any = {
+  def toObject(src: HBaseType): Any = {
     // If we have avro schema defined, use it to get record, and then covert them to catalyst data type
-    val m = AvroSedes.deserialize(src.get, f.exeSchema.get)
+    val m = AvroSedes.deserialize(src, f.exeSchema.get)
     val n = f.avroToCatalyst.map(_(m))
     n.get
   }

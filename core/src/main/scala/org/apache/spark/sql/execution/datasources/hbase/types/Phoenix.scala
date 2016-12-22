@@ -21,11 +21,11 @@ import org.apache.phoenix.schema.types.{PFloat, PInteger}
 import org.apache.spark.sql.execution.datasources.hbase._
 import org.apache.spark.sql.types.{FloatType, IntegerType}
 
-class Phoenix(f: Field, src: Option[HBaseType] = None) extends SHCDataType {
-  def toObject: Any = {
+class Phoenix(f: Field) extends SHCDataType {
+  def toObject(src: HBaseType): Any = {
     f.dt match {
-      case IntegerType => PInteger.INSTANCE.toObject(src.get)
-      case FloatType => PFloat.INSTANCE.toObject(src.get)
+      case IntegerType => PInteger.INSTANCE.toObject(src)
+      case FloatType => PFloat.INSTANCE.toObject(src)
     }
   }
 

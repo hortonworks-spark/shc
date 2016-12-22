@@ -24,26 +24,25 @@ import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.sql.execution.datasources.hbase._
 
 class AtomicType(f: Field,
-                 src: Option[HBaseType] = None,
                  offset: Option[Int] = Some(0),
                  length: Option[Int] = None) extends SHCDataType {
 
-  def toObject: Any = {
+  def toObject(src: HBaseType): Any = {
     val len = length.getOrElse(f.length)
     f.dt match {
-      case BooleanType => toBoolean(src.get, offset.get)
-      case ByteType => src.get(offset.get)
-      case DoubleType => Bytes.toDouble(src.get, offset.get)
-      case FloatType => Bytes.toFloat(src.get, offset.get)
-      case IntegerType => Bytes.toInt(src.get, offset.get)
-      case LongType => Bytes.toLong(src.get, offset.get)
-      case ShortType => Bytes.toShort(src.get, offset.get)
-      case StringType => toUTF8String(src.get, offset.get, len)
+      case BooleanType => toBoolean(src, offset.get)
+      case ByteType => src(offset.get)
+      case DoubleType => Bytes.toDouble(src, offset.get)
+      case FloatType => Bytes.toFloat(src, offset.get)
+      case IntegerType => Bytes.toInt(src, offset.get)
+      case LongType => Bytes.toLong(src, offset.get)
+      case ShortType => Bytes.toShort(src, offset.get)
+      case StringType => toUTF8String(src, offset.get, len)
       case BinaryType =>
         val newArray = new Array[Byte](len)
-        System.arraycopy(src.get, offset.get, newArray, 0, len)
+        System.arraycopy(src, offset.get, newArray, 0, len)
         newArray
-      case _ => SparkSqlSerializer.deserialize[Any](src.get) //TODO
+      case _ => SparkSqlSerializer.deserialize[Any](src) //TODO
     }
   }
 

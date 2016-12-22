@@ -22,7 +22,7 @@ import org.apache.spark.sql.execution.datasources.hbase._
 trait SHCDataType {
   // Parses the hbase field to it's corresponding scala type which can then be put into
   // a Spark GenericRow which is then automatically converted by Spark.
-  def toObject: Any
+  def toObject(src: HBaseType): Any
 
   // Convert input to data type
   def toBytes(input: Any): Array[Byte]
@@ -37,7 +37,6 @@ trait SHCDataType {
   */
 object SHDDataTypeFactory {
   def create(f: Field,
-             src: Option[HBaseType] = None,
              offset: Option[Int] = None,
              length: Option[Int] = None): SHCDataType = {
 
@@ -48,13 +47,13 @@ object SHDDataTypeFactory {
           classOf[Option[HBaseType]],
           classOf[Option[Int]],
           classOf[Option[Int]])
-        .newInstance(f, src, offset, length)
+        .newInstance(f, offset, length)
         .asInstanceOf[SHCDataType]
     else if (f.exeSchema.isDefined)
-      new Avro(f, src)
+      new Avro(f)
     else if (f.phoenix.isDefined)
-      new Phoenix(f, src)
+      new Phoenix(f)
     else
-      new AtomicType(f, src, offset, length)
+      new AtomicType(f, offset, length)
   }
 }

@@ -99,13 +99,13 @@ private[hbase] class HBaseTableScanRDD(
       val parsed = state._2
       if (field.length != -1) {
         val value =
-          SHDDataTypeFactory.create(field, Some(row), Some(idx), Some(field.length)).toObject
+          SHDDataTypeFactory.create(field, Some(idx), Some(field.length)).toObject(row)
         // Return the new index and appended value
         (idx + field.length, parsed ++ Seq((field, value)))
       } else {
         // This is the last dimension.
         val value =
-          SHDDataTypeFactory.create(field, Some(row), Some(idx), Some(row.length - idx)).toObject
+          SHDDataTypeFactory.create(field, Some(idx), Some(row.length - idx)).toObject(row)
         (row.length + 1, parsed ++ Seq((field, value)))
       }
     })._2.toMap
@@ -122,9 +122,10 @@ private[hbase] class HBaseTableScanRDD(
       } else {
         val v = CellUtil.cloneValue(kv)
         (x, x.dt match {
-          // Here, to avoid arraycopy, return v directly instead of calling hbaseFieldToScalaType
+          // Here, to avoid arraycopy, return v directly instead of calling toObject()
+          // to covert hbase field to Scala type
           case BinaryType => v
-          case _ => SHDDataTypeFactory.create(x, Some(v), Some(0), Some(v.length)).toObject
+          case _ => SHDDataTypeFactory.create(x, Some(0), Some(v.length)).toObject(v)
         })
       }
     }.toMap

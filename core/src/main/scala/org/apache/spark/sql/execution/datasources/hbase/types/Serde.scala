@@ -25,20 +25,18 @@ import org.apache.hadoop.hbase.util.Bytes
  * TODO: more serdes for other data types.
  */
 abstract class Serde(f: Field,
-            src: Option[HBaseType] = None,
             offset: Option[Int] = Some(0),
             length: Option[Int] = None) extends SHCDataType {
   // serialize
-  def toObject: Any
+  def toObject(src: HBaseType): Any
   // deserialize
   def toBytes(input: Any): Array[Byte]
 }
 
-case class DoubleSerde (f: Field,
-                        src: Option[HBaseType] = None,
+case class DoubleSerde(f: Field,
                         start: Option[Int] = Some(0),
-                        length: Option[Int] = None) extends Serde(f, src, start, length) {
+                        length: Option[Int] = None) extends Serde(f, start, length) {
 
   override def toBytes(value: Any): Array[Byte] = Bytes.toBytes(value.asInstanceOf[Double])
-  override def toObject: Any = Bytes.toLong(src.get, start.get)
+  override def toObject(src: HBaseType): Any = Bytes.toLong(src, start.get)
 }
