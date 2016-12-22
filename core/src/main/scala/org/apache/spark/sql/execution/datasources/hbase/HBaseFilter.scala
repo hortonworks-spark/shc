@@ -135,9 +135,9 @@ object HBaseFilter extends Logging{
   }
 
   private def toBytes[T](value: T, att: String, relation: HBaseRelation): Array[Byte] = {
-    TypeManager(relation.getField(att)).toBytes(value)
+    val f = relation.getField(att)
+    TypeManager.typeCoverter(f).toBytes(value, f)
   }
-
 
   def process(value: Any, relation: HBaseRelation, attribute: String,
       primary: BoundRanges => HRF[Array[Byte]],

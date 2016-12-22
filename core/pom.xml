@@ -104,6 +104,11 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>org.apache.phoenix</groupId>
+      <artifactId>phoenix-core</artifactId>
+      <version>${phoenix.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-testing-util</artifactId>
       <type>test-jar</type>

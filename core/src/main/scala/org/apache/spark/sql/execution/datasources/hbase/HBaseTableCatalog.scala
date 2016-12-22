@@ -32,6 +32,7 @@ case class Field(
     colName: String,
     cf: String,
     col: String,
+    dataType: String,
     sType: Option[String] = None,
     avroSchema: Option[String] = None,
     sedes: Option[Sedes] = None,
@@ -191,9 +192,10 @@ object HBaseTableCatalog {
     val tName = tableMeta.get(tableName).get.asInstanceOf[String]
     val cIter = map.get(columns).get.asInstanceOf[Map[String, Map[String, String]]].toIterator
     val schemaMap = mutable.HashMap.empty[String, Field]
+    val dt = parameters.getOrElse(HBaseRelation.DATATYPE, "atomicType")
     cIter.foreach { case (name, column)=>
       val sd = {
-        column.get(sedes).asInstanceOf[Option[String]].map( n =>
+        column.get(sedes).map( n =>
           Class.forName(n).newInstance().asInstanceOf[Sedes]
         )
       }
@@ -201,6 +203,7 @@ object HBaseTableCatalog {
       val sAvro = column.get(avro).map(parameters(_))
       val f = Field(name, column.getOrElse(cf, rowKey),
         column.get(col).get,
+        dt,
         column.get(`type`),
         sAvro, sd, len)
       schemaMap.+= ((name, f))

@@ -18,46 +18,42 @@
 package org.apache.spark.sql.execution.datasources.hbase
 
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.phoenix.schema.types.PFloat
+import org.apache.phoenix.schema.types.PInteger
 import org.apache.spark.sql.execution.SparkSqlSerializer
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-case class TypeManager (f: Field) {
-
-  val typeCoverter: String = {
-    // If we already have sedes defined , use it.
-    if (f.sedes.isDefined) "sede"
-    else if (f.exeSchema.isDefined) "avro"
+/**
+ * SHC supports different data formats like Avro, etc. Different data formats use different SHC data types
+ * to do data type conversions. AtomicType is for normal scala data types (Int, Long, etc). AvroType
+ * is for Avro data format. PhoenixType is for Phoenix data types (https://phoenix.apache.org/language/datatypes.html).
+ * SedesType is used to do data type conversions specified by users, and users should implement the trait Sedes.
+ * New SHC data types should implement the trait SHCDataType.
+ */
+object TypeManager {
+  def typeCoverter (f: Field): SHCDataType = f.dataType match {
+    // If we already have sedes defined, use it.
+    case _ if f.sedes.isDefined => SedesType
+    case _ if f.exeSchema.isDefined => AvroType
+    case "phoenix" => PhoenixType
     // Fall back to atomic type
-    else "atomic"
-  }
-
-  /**
-    * Parses the hbase field to it's corresponding
-    * scala type which can then be put into a Spark GenericRow
-    * which is then automatically converted by Spark.
-    */
-  def hbaseFieldToScalaType (src: HBaseType, offset: Int, length: Int): Any = {
-    typeCoverter match {
-      case "sede" => f.sedes.get.deserialize(src, offset, length)
-      case "avro" => AvroType.hbaseFieldToScalaType(f, src)
-      case "atomic" => AtomicType.hbaseFieldToScalaType(f, src, offset, length)
-      case _ => throw new Exception("unsupported type converter.")
-    }
-  }
-
-  // convert input to data type
-  def toBytes(input: Any): Array[Byte] = {
-    typeCoverter match {
-      case "sede" => f.sedes.get.serialize(input)
-      case "avro" => AvroType.toBytes(input, f)
-      case "atomic" => AtomicType.toBytes(input, f)
-      case _ => throw new Exception("unsupported type converter.")
-    }
+    case _ => AtomicType
   }
 }
 
-object AtomicType {
+
+trait SHCDataType{
+  // Parses the hbase field to it's corresponding scala type which can then be put into
+  // a Spark GenericRow which is then automatically converted by Spark.
+  def hbaseFieldToScalaType (f: Field, src: HBaseType, offset: Int, length: Int): Any
+
+  // Convert input to data type
+  def toBytes (input: Any, f: Field): Array[Byte]
+}
+
+
+object AtomicType extends SHCDataType {
   def hbaseFieldToScalaType (f: Field, src: HBaseType, offset: Int, length: Int): Any = {
     f.dt match {
       case BooleanType => toBoolean(src, offset)
@@ -74,7 +70,6 @@ object AtomicType {
         newArray
       case _ => SparkSqlSerializer.deserialize[Any](src) //TODO
     }
-
   }
 
   def toBytes(input: Any, field: Field): Array[Byte] = {
@@ -89,7 +84,6 @@ object AtomicType {
       case data: Short => Bytes.toBytes(data)
       case data: UTF8String => data.getBytes
       case data: String => Bytes.toBytes(data)
-      //Bytes.toBytes(input.asInstanceOf[String])//input.asInstanceOf[UTF8String].getBytes
       case _ => throw new Exception(s"unsupported data type ${field.dt}") //TODO
     }
   }
@@ -103,12 +97,22 @@ object AtomicType {
   }
 }
 
-object AvroType {
-  def hbaseFieldToScalaType(f: Field, src: HBaseType): Any = {
-    // println("avro schema is defined to do deserialization")
+
+object SedesType extends SHCDataType {
+  def hbaseFieldToScalaType (f: Field, src: HBaseType, offset: Int, length: Int): Any = {
+    f.sedes.get.deserialize(src, offset, length)
+  }
+
+  def toBytes(input: Any, f: Field): Array[Byte] = {
+    f.sedes.get.serialize(input)
+  }
+}
+
+
+object AvroType extends SHCDataType {
+  def hbaseFieldToScalaType(f: Field, src: HBaseType, offset: Int, length: Int): Any = {
     // If we have avro schema defined, use it to get record, and then covert them to catalyst data type
     val m = AvroSedes.deserialize(src, f.exeSchema.get)
-    // println(m)
     val n = f.avroToCatalyst.map(_(m))
     n.get
   }
@@ -121,3 +125,18 @@ object AvroType {
 }
 
 
+object PhoenixType extends SHCDataType {
+  def hbaseFieldToScalaType (f: Field, src: HBaseType, offset: Int, length: Int): Any = {
+    f.dt match {
+      case IntegerType => PInteger.INSTANCE.toObject(src)
+      case FloatType => PFloat.INSTANCE.toObject(src)
+    }
+  }
+
+  def toBytes(input: Any, f: Field): Array[Byte] = {
+    input match {
+      case IntegerType => PInteger.INSTANCE.toBytes(input)
+      case FloatType => PFloat.INSTANCE.toBytes(input)
+    }
+  }
+}
