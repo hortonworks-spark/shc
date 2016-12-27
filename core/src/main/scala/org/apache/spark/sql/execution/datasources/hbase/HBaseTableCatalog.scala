@@ -24,6 +24,7 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.catalyst.parser.CatalystSqlParser
 import org.apache.spark.sql.types._
+import org.json4s.JsonAST.{JObject, JValue}
 import org.json4s.jackson.JsonMethods._
 
 // The definition of each column cell, which may be composite type
@@ -108,7 +109,7 @@ case class RowKey(k: String) {
   }
 }
 // The map between the column presented to Spark and the HBase field
-case class SchemaMap(map: mutable.HashMap[String, Field]) {
+case class SchemaMap(map: mutable.LinkedHashMap[String, Field]) {
   def toFields = map.map { case (name, field) =>
     StructField(name, field.dt)
   }.toSeq
@@ -184,13 +185,13 @@ object HBaseTableCatalog {
   def apply(parameters: Map[String, String]): HBaseTableCatalog = {
     //  println(jString)
     val jString = parameters(tableCatalog)
-    val map= parse(jString).values.asInstanceOf[Map[String,_]]
+    val jObj = parse(jString).asInstanceOf[JObject]
+    val map = jObj.values.asInstanceOf[Map[String,_]]
     val tableMeta = map.get(table).get.asInstanceOf[Map[String, _]]
     val nSpace = tableMeta.get(nameSpace).getOrElse("default").asInstanceOf[String]
     val tName = tableMeta.get(tableName).get.asInstanceOf[String]
-    val cIter = map.get(columns).get.asInstanceOf[Map[String, Map[String, String]]].toIterator
-    val schemaMap = mutable.HashMap.empty[String, Field]
-    cIter.foreach { case (name, column)=>
+    val schemaMap = mutable.LinkedHashMap.empty[String, Field]
+    getColsPreservingOrder(jObj).foreach { case (name, column)=>
       val sd = {
         column.get(sedes).asInstanceOf[Option[String]].map( n =>
           Class.forName(n).newInstance().asInstanceOf[Sedes]
@@ -207,6 +208,19 @@ object HBaseTableCatalog {
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)
     val rKey = RowKey(map.get(rowKey).get.asInstanceOf[String])
     HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), numReg)
+  }
+
+  /**
+   * Retrieve the columns mapping from the JObject parsed from the catalog string,
+   * and preserve the order of the columns specification. Note that we have to use
+   * the AST level api of json4s, because if we cast the parsed object to a scala
+   * map directly, it would lose the ordering info during the casting.
+   */
+  def getColsPreservingOrder(jObj: JObject): Seq[(String, Map[String, String])] = {
+    val jCols = jObj.obj.find(_._1 == columns).get._2.asInstanceOf[JObject]
+    jCols.obj.map { case (name, jvalue) =>
+      (name, jvalue.values.asInstanceOf[Map[String, String]])
+    }
   }
 
   def main(args: Array[String]) {
