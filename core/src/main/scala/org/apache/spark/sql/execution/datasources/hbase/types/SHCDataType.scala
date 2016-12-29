@@ -29,11 +29,11 @@ trait SHCDataType {
 }
 
 /**
-  * SHC supports different data formats like Avro, etc. Different data formats use different SHC data types
-  * to do data type conversions. 'Atomic' is for normal scala data types (Int, Long, etc). 'Avro' is for
-  * Avro data format. 'Phoenix' is for Phoenix data types (https://phoenix.apache.org/language/datatypes.html).
-  * New SHC data types should implement the trait SHCDataType.
-  */
+ * SHC supports different data formats like Avro, etc. Different data formats use different SHC data types
+ * to do data type conversions. 'Atomic' is for normal scala data types (Int, Long, etc). 'Avro' is for
+ * Avro data format. 'Phoenix' is for Phoenix data types (https://phoenix.apache.org/language/datatypes.html).
+ * New SHC data types should implement the trait SHCDataType.
+ */
 object SHDDataTypeFactory {
   def create(f: Field,
              offset: Option[Int] = None,
