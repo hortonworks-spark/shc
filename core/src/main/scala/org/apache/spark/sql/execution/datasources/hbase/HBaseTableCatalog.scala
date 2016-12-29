@@ -36,7 +36,6 @@ case class Field(
                   col: String,
                   sType: Option[String] = None,
                   avroSchema: Option[String] = None,
-                  // serde: Option[Serde] = None,
                   serde: Option[String] = None,
                   phoenix: Option[String] = None,
                   len: Int = -1) extends Logging{

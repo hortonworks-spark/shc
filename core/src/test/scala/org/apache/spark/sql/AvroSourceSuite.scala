@@ -43,6 +43,7 @@ object AvroHBaseRecord {
     AvroHBaseRecord(s"name${"%03d".format(i)}", avroByte)
   }
 }
+
 class AvroSourceSuite extends SHC with Logging{
   override def catalog = s"""{
             |"table":{"namespace":"default", "name":"avrotable"},
