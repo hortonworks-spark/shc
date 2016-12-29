@@ -32,7 +32,6 @@ trait SHCDataType {
   * SHC supports different data formats like Avro, etc. Different data formats use different SHC data types
   * to do data type conversions. 'Atomic' is for normal scala data types (Int, Long, etc). 'Avro' is for
   * Avro data format. 'Phoenix' is for Phoenix data types (https://phoenix.apache.org/language/datatypes.html).
-  * 'Serde' is used to do data type conversions specified by users, and users should extend the abstract class 'Serde'.
   * New SHC data types should implement the trait SHCDataType.
   */
 object SHDDataTypeFactory {
@@ -40,16 +39,7 @@ object SHDDataTypeFactory {
              offset: Option[Int] = None,
              length: Option[Int] = None): SHCDataType = {
 
-    // If we already have sedes defined, use it.
-    if (f.serde.isDefined)
-      Class.forName(f.serde.get)
-        .getDeclaredConstructor(Field.getClass,
-          classOf[Option[HBaseType]],
-          classOf[Option[Int]],
-          classOf[Option[Int]])
-        .newInstance(f, offset, length)
-        .asInstanceOf[SHCDataType]
-    else if (f.exeSchema.isDefined)
+    if (f.exeSchema.isDefined)
       new Avro(f)
     else if (f.phoenix.isDefined)
       new Phoenix(f)

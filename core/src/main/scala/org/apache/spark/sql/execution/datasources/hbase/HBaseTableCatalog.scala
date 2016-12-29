@@ -36,7 +36,6 @@ case class Field(
                   col: String,
                   sType: Option[String] = None,
                   avroSchema: Option[String] = None,
-                  serde: Option[String] = None,
                   phoenix: Option[String] = None,
                   len: Int = -1) extends Logging{
 
@@ -176,7 +175,6 @@ object HBaseTableCatalog {
   // the name of avro schema json string
   val avro = "avro"
   val delimiter: Byte = 0
-  val serde = "serde"
   val phoenix = "phoenix"
   val length = "length"
   /**
@@ -196,15 +194,13 @@ object HBaseTableCatalog {
     val cIter = map.get(columns).get.asInstanceOf[Map[String, Map[String, String]]].toIterator
     val schemaMap = mutable.HashMap.empty[String, Field]
     cIter.foreach { case (name, column)=>
-      val sd = column.get(serde)
-                  // .map(n => Class.forName(n).newInstance().asInstanceOf[Serde])
       val phx = column.get(phoenix)
       val len = column.get(length).map(_.toInt).getOrElse(-1)
       val sAvro = column.get(avro).map(parameters(_))
       val f = Field(name, column.getOrElse(cf, rowKey),
         column.get(col).get,
         column.get(`type`),
-        sAvro, sd, phx, len)
+        sAvro, phx, len)
       schemaMap.+= ((name, f))
     }
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)
