@@ -25,24 +25,6 @@ import org.apache.spark.sql.execution.datasources.hbase._
 
 class PrimitiveType(f: Field) extends SHCDataType {
 
-  def fromCompositeKeyToObject(src: HBaseType, offset: Int, length: Int): Any = {
-    f.dt match {
-      case BooleanType => toBoolean(src, offset)
-      case ByteType => src(offset)
-      case DoubleType => Bytes.toDouble(src, offset)
-      case FloatType => Bytes.toFloat(src, offset)
-      case IntegerType => Bytes.toInt(src, offset)
-      case LongType => Bytes.toLong(src, offset)
-      case ShortType => Bytes.toShort(src, offset)
-      case StringType => toUTF8String(src, offset, length)
-      case BinaryType =>
-        val newArray = new Array[Byte](length)
-        System.arraycopy(src, offset, newArray, 0, length)
-        newArray
-      case _ => SparkSqlSerializer.deserialize[Any](src) //TODO
-    }
-  }
-
   def fromBytes(src: HBaseType): Any = {
     f.dt match {
       case BooleanType => toBoolean(src, 0)
@@ -77,11 +59,29 @@ class PrimitiveType(f: Field) extends SHCDataType {
     }
   }
 
-  def toBoolean(input: HBaseType, offset: Int): Boolean = {
+  def fromCompositeKeyToObject(src: HBaseType, offset: Int, length: Int): Any = {
+    f.dt match {
+      case BooleanType => toBoolean(src, offset)
+      case ByteType => src(offset)
+      case DoubleType => Bytes.toDouble(src, offset)
+      case FloatType => Bytes.toFloat(src, offset)
+      case IntegerType => Bytes.toInt(src, offset)
+      case LongType => Bytes.toLong(src, offset)
+      case ShortType => Bytes.toShort(src, offset)
+      case StringType => toUTF8String(src, offset, length)
+      case BinaryType =>
+        val newArray = new Array[Byte](length)
+        System.arraycopy(src, offset, newArray, 0, length)
+        newArray
+      case _ => SparkSqlSerializer.deserialize[Any](src) //TODO
+    }
+  }
+
+  private def toBoolean(input: HBaseType, offset: Int): Boolean = {
     input(offset) != 0
   }
 
-  def toUTF8String(input: HBaseType, offset: Int, length: Int): UTF8String = {
+  private def toUTF8String(input: HBaseType, offset: Int, length: Int): UTF8String = {
     UTF8String.fromBytes(input.slice(offset, offset + length))
   }
 }

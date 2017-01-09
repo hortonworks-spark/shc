@@ -55,7 +55,9 @@ class Avro(f: Field) extends SHCDataType {
   }
 
   def fromCompositeKeyToObject(src: HBaseType, offset: Int, length: Int): Any = {
-    throw new SchemaConversionException("Not Support yet")
+    val newArray = new Array[Byte](length)
+    System.arraycopy(src, offset, newArray, 0, length)
+    fromBytes(newArray)
   }
 }
 

@@ -27,7 +27,7 @@ trait SHCDataType {
   // Convert input to data type
   def toBytes(input: Any): Array[Byte]
 
-  // Parse the hbase composite row key to it's corresponding Scala type
+  // Parse the hbase composite row key from byte array (HBaseType) to it's corresponding data type
   def fromCompositeKeyToObject(src: HBaseType, offset: Int, length: Int): Any
 }
 

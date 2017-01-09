@@ -45,6 +45,8 @@ object AvroHBaseRecord {
 }
 
 class AvroSourceSuite extends SHC with Logging{
+
+  // 'catalog' is used when saving data to HBase
   override def catalog = s"""{
             |"table":{"namespace":"default", "name":"avrotable"},
             |"rowkey":"key",
@@ -72,11 +74,10 @@ class AvroSourceSuite extends SHC with Logging{
             |}
           |}""".stripMargin
 
-
   def withCatalog(cat: String): DataFrame = {
     sqlContext
       .read
-      .options(Map("avroSchema"->AvroHBaseRecord.schemaString, HBaseTableCatalog.tableCatalog->avroCatalog))
+      .options(Map("avroSchema" -> AvroHBaseRecord.schemaString, HBaseTableCatalog.tableCatalog -> cat))
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .load()
   }
@@ -96,14 +97,14 @@ class AvroSourceSuite extends SHC with Logging{
   }
 
   test("empty column") {
-    val df = withCatalog(catalog)
+    val df = withCatalog(avroCatalog)
     df.registerTempTable("avrotable")
     val c = sqlContext.sql("select count(1) from avrotable").rdd.collect()(0)(0).asInstanceOf[Long]
     assert(c == 256)
   }
 
   test("full query") {
-    val df = withCatalog(catalog)
+    val df = withCatalog(avroCatalog)
     df.show
     df.printSchema()
     assert(df.count() == 256)
@@ -133,7 +134,7 @@ class AvroSourceSuite extends SHC with Logging{
   }
 
   test("serialization and deserialization query") {
-    val df = withCatalog(catalog)
+    val df = withCatalog(avroCatalog)
     df.write.options(
       Map("avroSchema"->AvroHBaseRecord.schemaString, HBaseTableCatalog.tableCatalog->avroCatalogInsert,
         HBaseTableCatalog.newTable -> "5"))
@@ -146,14 +147,14 @@ class AvroSourceSuite extends SHC with Logging{
   }
 
   test("filtered query") {
-    val df = withCatalog(catalog)
+    val df = withCatalog(avroCatalog)
     val r = df.filter($"col1.name" === "name005" || $"col1.name" <= "name005").select("col0", "col1.favorite_color", "col1.favorite_number")
     r.show
     assert(r.count() == 6)
   }
 
   test("Or filter") {
-    val df = withCatalog(catalog)
+    val df = withCatalog(avroCatalog)
     val s = df.filter($"col1.name" <= "name005" || $"col1.name".contains("name007"))
       .select("col0", "col1.favorite_color", "col1.favorite_number")
     s.show
@@ -161,7 +162,7 @@ class AvroSourceSuite extends SHC with Logging{
   }
 
   test("IN and Not IN filter") {
-    val df = withCatalog(catalog)
+    val df = withCatalog(avroCatalog)
     val s = df.filter(($"col0" isin ("name000", "name001", "name002", "name003", "name004")) and !($"col0" isin ("name001", "name002", "name003")))
       .select("col0", "col1.favorite_number", "col1.favorite_color")
     s.explain(true)

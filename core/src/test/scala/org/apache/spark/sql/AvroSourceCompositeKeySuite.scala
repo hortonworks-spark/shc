@@ -23,61 +23,53 @@ import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase.HBaseTableCatalog
 import org.apache.spark.sql.execution.datasources.hbase.types.AvroSerde
 
-case class AvroHBaseKeyRecord(col0: Array[Byte], col1: Array[Byte])
+case class AvroCompositeKeyRecord(col0: Int, col1: Array[Byte], col2: Array[Byte])
 
-object AvroHBaseKeyRecord {
+object AvroCompositeKeyRecord {
   val schemaString =
     s"""{"namespace": "example.avro",
-         |   "type": "record",      "name": "User",
-         |    "fields": [      {"name": "name", "type": "string"},
-         |      {"name": "favorite_number",  "type": ["int", "null"]},
-         |        {"name": "favorite_color", "type": ["string", "null"]}      ]    }""".stripMargin
+        |   "type": "record", "name": "User",
+        |    "fields": [ {"name": "name", "type": "string"},
+        |      {"name": "favorite_number",  "type": ["int", "null"]},
+        |        {"name": "favorite_color", "type": ["string", "null"]} ] }""".stripMargin
 
   val avroSchema: Schema = {
     val p = new Schema.Parser
     p.parse(schemaString)
   }
 
-  def apply(i: Int): AvroHBaseKeyRecord = {
+  def apply(i: Int): AvroCompositeKeyRecord = {
     val user = new GenericData.Record(avroSchema);
     user.put("name", s"name${"%03d".format(i)}")
     user.put("favorite_number", i)
     user.put("favorite_color", s"color${"%03d".format(i)}")
     val avroByte = AvroSerde.serialize(user, avroSchema)
-    AvroHBaseKeyRecord(avroByte, avroByte)
+    // AvroCompositeKeyRecord(s"name${"%03d".format(i)}", avroByte, avroByte)
+    AvroCompositeKeyRecord(i, avroByte, avroByte)
   }
 }
 
-class AvroSourceKeySuite extends SHC with Logging{
-
+class AvroSourceCompositeKeySuite extends SHC with Logging {
   // 'catalog' is used when saving data to HBase
   override def catalog = s"""{
-            |"table":{"namespace":"default", "name":"avrotable"},
-            |"rowkey":"key",
-            |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key", "type":"binary"},
-              |"col1":{"cf":"cf1", "col":"col1", "type":"binary"}
-            |}
-          |}""".stripMargin
+                             |"table":{"namespace":"default", "name":"avrotable"},
+                             |"rowkey":"key1:key2",
+                             |"columns":{
+                             |"col0":{"cf":"rowkey", "col":"key1", "type":"int"},
+                             |"col1":{"cf":"rowkey", "col":"key2", "type":"binary"},
+                             |"col2":{"cf":"cf1", "col":"col1", "type":"binary"}
+                             |}
+                             |}""".stripMargin
 
   def avroCatalog = s"""{
-            |"table":{"namespace":"default", "name":"avrotable"},
-            |"rowkey":"key",
-            |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key",  "avro":"avroSchema"},
-              |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
-            |}
-          |}""".stripMargin
-
-  def avroCatalogInsert = s"""{
-            |"table":{"namespace":"default", "name":"avrotableInsert"},
-            |"rowkey":"key",
-            |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key", "avro":"avroSchema"},
-              |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
-            |}
-          |}""".stripMargin
-
+                        |"table":{"namespace":"default", "name":"avrotable"},
+                        |"rowkey":"key1:key2",
+                        |"columns":{
+                        |"col0":{"cf":"rowkey", "col":"key1", "type":"int"},
+                        |"col1":{"cf":"rowkey", "col":"key2", "avro":"avroSchema"},
+                        |"col2":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
+                        |}
+                        |}""".stripMargin
 
   def withCatalog(cat: String): DataFrame = {
     sqlContext
@@ -88,12 +80,11 @@ class AvroSourceKeySuite extends SHC with Logging{
   }
 
   test("populate table") {
-    //createTable(tableName, columnFamilies)
     val sql = sqlContext
     import sql.implicits._
 
     val data = (0 to 255).map { i =>
-      AvroHBaseKeyRecord(i)
+      AvroCompositeKeyRecord(i)
     }
     sc.parallelize(data).toDF.write.options(
       Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5"))
@@ -108,24 +99,11 @@ class AvroSourceKeySuite extends SHC with Logging{
     assert(c == 256)
   }
 
-  test("full query") {
+ test("full query") {
     val df = withCatalog(avroCatalog)
     df.show
     df.printSchema()
     assert(df.count() == 256)
-  }
-
-  test("serialization and deserialization query") {
-    val df = withCatalog(avroCatalog)
-    df.write.options(
-      Map("avroSchema"->AvroHBaseKeyRecord.schemaString, HBaseTableCatalog.tableCatalog->avroCatalogInsert,
-        HBaseTableCatalog.newTable -> "5"))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .save()
-    val newDF = withCatalog(avroCatalogInsert)
-    newDF.show
-    newDF.printSchema()
-    assert(newDF.count() == 256)
   }
 
   test("filtered query") {
