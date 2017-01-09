@@ -22,7 +22,8 @@ import org.apache.spark.sql.execution.datasources.hbase._
 import org.apache.spark.sql.types.{FloatType, IntegerType}
 
 class Phoenix(f: Field) extends SHCDataType {
-  def toObject(src: HBaseType): Any = {
+
+  def fromBytes(src: HBaseType): Any = {
     f.dt match {
       case IntegerType => PInteger.INSTANCE.toObject(src)
       case FloatType => PFloat.INSTANCE.toObject(src)
@@ -34,5 +35,9 @@ class Phoenix(f: Field) extends SHCDataType {
       case IntegerType => PInteger.INSTANCE.toBytes(input)
       case FloatType => PFloat.INSTANCE.toBytes(input)
     }
+  }
+
+  def fromCompositeKeyToObject(src: HBaseType, offset: Int, length: Int): Any = {
+    throw new Exception("Not Support yet")
   }
 }

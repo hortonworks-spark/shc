@@ -93,19 +93,19 @@ private[hbase] class HBaseTableScanRDD(
  *
    * @param keyFields all of the fields in the row key, ORDERED by their order in the row key.
    */
-  def parseRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {
+  def parseCompositeRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {
     keyFields.foldLeft((0, Seq[(Field, Any)]()))((state, field) => {
       val idx = state._1
       val parsed = state._2
       if (field.length != -1) {
         val value =
-          SHDDataTypeFactory.create(field, Some(idx), Some(field.length)).toObject(row)
+          SHDDataTypeFactory.create(field).fromCompositeKeyToObject(row, idx, field.length)
         // Return the new index and appended value
         (idx + field.length, parsed ++ Seq((field, value)))
       } else {
         // This is the last dimension.
         val value =
-          SHDDataTypeFactory.create(field, Some(idx), Some(row.length - idx)).toObject(row)
+          SHDDataTypeFactory.create(field).fromCompositeKeyToObject(row, idx, row.length - idx)
         (row.length + 1, parsed ++ Seq((field, value)))
       }
     })._2.toMap
@@ -114,7 +114,15 @@ private[hbase] class HBaseTableScanRDD(
   // TODO: It is a big performance overhead, as for each row, there is a hashmap lookup.
   def buildRow(fields: Seq[Field], result: Result): Row = {
     val r = result.getRow
-    val keySeq = parseRowKey(r, relation.catalog.getRowKey)
+    val keySeq = {
+      if (relation.isComposite()) {
+        parseCompositeRowKey(r, relation.catalog.getRowKey)
+      } else {
+        val f = relation.catalog.getRowKey.head
+        Seq((f, SHDDataTypeFactory.create(f).fromBytes(r))).toMap
+      }
+    }
+
     val valueSeq = fields.filter(!_.isRowKey).map { x =>
       val kv = result.getColumnLatestCell(Bytes.toBytes(x.cf), Bytes.toBytes(x.col))
       if (kv == null || kv.getValueLength == 0) {
@@ -125,10 +133,11 @@ private[hbase] class HBaseTableScanRDD(
           // Here, to avoid arraycopy, return v directly instead of calling toObject()
           // to covert hbase field to Scala type
           case BinaryType => v
-          case _ => SHDDataTypeFactory.create(x, Some(0), Some(v.length)).toObject(v)
+          case _ => SHDDataTypeFactory.create(x).fromBytes(v)
         })
       }
     }.toMap
+
     val unioned = keySeq ++ valueSeq
     // Return the row ordered by the requested order
     Row.fromSeq(fields.map(unioned.get(_).getOrElse(null)))

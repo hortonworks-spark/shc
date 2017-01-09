@@ -23,24 +23,39 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.sql.execution.datasources.hbase._
 
-class AtomicType(f: Field,
-                 offset: Option[Int] = Some(0),
-                 length: Option[Int] = None) extends SHCDataType {
+class PrimitiveType(f: Field) extends SHCDataType {
 
-  def toObject(src: HBaseType): Any = {
-    val len = length.getOrElse(f.length)
+  def fromCompositeKeyToObject(src: HBaseType, offset: Int, length: Int): Any = {
     f.dt match {
-      case BooleanType => toBoolean(src, offset.get)
-      case ByteType => src(offset.get)
-      case DoubleType => Bytes.toDouble(src, offset.get)
-      case FloatType => Bytes.toFloat(src, offset.get)
-      case IntegerType => Bytes.toInt(src, offset.get)
-      case LongType => Bytes.toLong(src, offset.get)
-      case ShortType => Bytes.toShort(src, offset.get)
-      case StringType => toUTF8String(src, offset.get, len)
+      case BooleanType => toBoolean(src, offset)
+      case ByteType => src(offset)
+      case DoubleType => Bytes.toDouble(src, offset)
+      case FloatType => Bytes.toFloat(src, offset)
+      case IntegerType => Bytes.toInt(src, offset)
+      case LongType => Bytes.toLong(src, offset)
+      case ShortType => Bytes.toShort(src, offset)
+      case StringType => toUTF8String(src, offset, length)
       case BinaryType =>
-        val newArray = new Array[Byte](len)
-        System.arraycopy(src, offset.get, newArray, 0, len)
+        val newArray = new Array[Byte](length)
+        System.arraycopy(src, offset, newArray, 0, length)
+        newArray
+      case _ => SparkSqlSerializer.deserialize[Any](src) //TODO
+    }
+  }
+
+  def fromBytes(src: HBaseType): Any = {
+    f.dt match {
+      case BooleanType => toBoolean(src, 0)
+      case ByteType => src(0)
+      case DoubleType => Bytes.toDouble(src, 0)
+      case FloatType => Bytes.toFloat(src, 0)
+      case IntegerType => Bytes.toInt(src, 0)
+      case LongType => Bytes.toLong(src, 0)
+      case ShortType => Bytes.toShort(src, 0)
+      case StringType => toUTF8String(src, 0, src.length)
+      case BinaryType =>
+        val newArray = new Array[Byte](src.length)
+        System.arraycopy(src, 0, newArray, 0, src.length)
         newArray
       case _ => SparkSqlSerializer.deserialize[Any](src) //TODO
     }
