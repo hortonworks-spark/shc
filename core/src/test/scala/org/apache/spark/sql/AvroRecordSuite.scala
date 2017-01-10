@@ -19,12 +19,12 @@
 package org.apache.spark.sql
 
 import scala.util.Random
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
 import org.apache.spark.sql.execution.datasources.hbase.types.{AvroSerde, SchemaConverters}
 import org.apache.spark.Logging
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
 
 class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with Logging {
 

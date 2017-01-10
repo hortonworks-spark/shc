@@ -30,13 +30,14 @@ import org.apache.spark.sql.types._
 import org.apache.spark.sql.execution.datasources.hbase.types._
 
 // The definition of each column cell, which may be composite type
-case class Field(colName: String,
-                 cf: String,
-                 col: String,
-                 sType: Option[String] = None,
-                 avroSchema: Option[String] = None,
-                 phoenix: Option[String] = None,
-                 len: Int = -1) extends Logging {
+case class Field(
+    colName: String,
+    cf: String,
+    col: String,
+    sType: Option[String] = None,
+    avroSchema: Option[String] = None,
+    phoenix: Option[String] = None,
+    len: Int = -1) extends Logging {
 
   val isRowKey = cf == HBaseTableCatalog.rowKey
   var start: Int = _
@@ -82,7 +83,6 @@ case class Field(colName: String,
     } else {
       len
     }
-
   }
 
   override def equals(other: Any): Boolean = other match {
@@ -136,22 +136,15 @@ case class HBaseTableCatalog(
     sMap.fields.map(_.cf).filter(_ != HBaseTableCatalog.rowKey)
   }
 
-  def initRowKey = {
+  val initRowKey = {
     val fields = sMap.fields.filter(_.cf == HBaseTableCatalog.rowKey)
     row.fields = row.keys.flatMap(n => fields.find(_.col == n))
-    // We only allowed there is one key at the end that is determined at runtime.
-    if (row.fields.reverse.tail.filter(_.length == -1).isEmpty) {
-      var start = 0
-      row.fields.foreach { f =>
-        f.start = start
-        start += f.length
-      }
-    } else {
-      // throw new Exception("Only the last dimension of " +
-      //  "RowKey is allowed to have varied length")
+    var start = 0
+    row.fields.foreach { f =>
+      f.start = start
+      start += f.length
     }
   }
-  initRowKey
 }
 
 object HBaseTableCatalog {

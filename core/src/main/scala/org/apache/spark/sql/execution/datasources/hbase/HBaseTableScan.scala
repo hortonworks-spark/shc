@@ -19,8 +19,6 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import java.util.ArrayList
 
-import org.apache.spark.sql.execution.datasources.hbase.types.SHDDataTypeFactory
-
 import scala.collection.mutable
 
 import org.apache.hadoop.hbase.CellUtil
@@ -36,6 +34,7 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.types.BinaryType
 import org.apache.spark.util.ShutdownHookManager
+import org.apache.spark.sql.execution.datasources.hbase.types.SHDDataTypeFactory
 
 private[hbase] case class HBaseRegion(
     override val index: Int,
@@ -102,8 +101,8 @@ private[hbase] class HBaseTableScanRDD(
         // return the new index and appended value
         (offset + field.length, parsed ++ Seq((field, value)))
       } else {
-        // the lengths of the values in this field are different/variable, so here,
-        // we use 2 bytes to record the length of each value, and both the length
+        // the lengths of the values in this field are variable, so here,
+        // we use two bytes to record the length of each value. Both the length
         // and the value are stored together in HBase
         (offset + Bytes.toShort(row, offset) + Bytes.SIZEOF_SHORT, parsed ++ Seq((field, value)))
       }

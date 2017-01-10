@@ -130,7 +130,8 @@ class AvroSourceKeySuite extends SHC with Logging{
 
   test("filtered query") {
     val df = withCatalog(avroCatalog)
-    val r = df.filter($"col1.name" === "name005" || $"col1.name" <= "name005").select("col0", "col1.favorite_color", "col1.favorite_number")
+    val r = df.filter($"col1.name" === "name005" || $"col1.name" <= "name005")
+      .select("col0", "col1.favorite_color", "col1.favorite_number")
     r.show
     assert(r.count() == 6)
   }

@@ -19,8 +19,6 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
 
-import org.apache.spark.sql.execution.datasources.hbase.types.SHDDataTypeFactory
-
 import scala.util.control.NonFatal
 
 import org.json4s.DefaultFormats
@@ -38,6 +36,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Row, SQLContext, SaveMode}
+import org.apache.spark.sql.execution.datasources.hbase.types.SHDDataTypeFactory
 
 /**
  * val people = sqlContext.read.format("hbase").load("people")
@@ -164,11 +163,9 @@ case class HBaseRelation(
       // construct bytes for row key
       val rowBytes = rkIdxedFields.map { case (x, y) =>
         var ret = SHDDataTypeFactory.create(y).toBytes(row(x))
-
         // deal with the composite key in which the length of individual keys are variable
         if (isComposite() && y.length == -1)
           ret = Bytes.toBytes(ret.length.toShort) ++ ret
-
         ret
       }
       val rLen = rowBytes.foldLeft(0) { case (x, y) =>

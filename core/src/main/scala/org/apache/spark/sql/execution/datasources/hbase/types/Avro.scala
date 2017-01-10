@@ -36,7 +36,6 @@ import org.apache.commons.io.output.ByteArrayOutputStream
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
-
 import org.apache.spark.sql.execution.datasources.hbase._
 
 class Avro(f: Field) extends SHCDataType {
@@ -144,10 +143,11 @@ object SchemaConverters {
   // This function is used to convert some sparkSQL type to avro type. Note that this function won't
   // be used to construct fields of avro record (convertFieldTypeToAvro is used for that).
   private def convertSparkSQLTypeToAvro[T](
-                                    dataType: DataType,
-                                    schemaBuilder: BaseTypeBuilder[T],
-                                    structName: String,
-                                    recordNamespace: String): T = {
+      dataType: DataType,
+      schemaBuilder: BaseTypeBuilder[T],
+      structName: String,
+      recordNamespace: String): T = {
+
     dataType match {
       case ByteType => schemaBuilder.intType()
       case ShortType => schemaBuilder.intType()
@@ -185,10 +185,11 @@ object SchemaConverters {
   // specified by avro representation of dataType. Since builders for record fields are different
   // from those for everything else, we have to use a separate method.
   private def convertFieldTypeToAvro[T](
-                                         dataType: DataType,
-                                         newFieldBuilder: BaseFieldTypeBuilder[T],
-                                         structName: String,
-                                         recordNamespace: String): FieldDefault[T, _] = {
+      dataType: DataType,
+      newFieldBuilder: BaseFieldTypeBuilder[T],
+      structName: String,
+      recordNamespace: String): FieldDefault[T, _] = {
+
     dataType match {
       case ByteType => newFieldBuilder.intType()
       case ShortType => newFieldBuilder.intType()
@@ -225,9 +226,10 @@ object SchemaConverters {
   // This function converts sparkSQL StructType into avro schema. This method uses two other
   // converter methods in order to do the conversion.
   private def convertSparkStructTypeToAvro[T](
-                                               structType: StructType,
-                                               schemaBuilder: RecordBuilder[T],
-                                               recordNamespace: String): T = {
+      structType: StructType,
+      schemaBuilder: RecordBuilder[T],
+      recordNamespace: String): T = {
+
     val fieldsAssembler: FieldAssembler[T] = schemaBuilder.fields()
     structType.fields.foreach { field =>
       val newField = fieldsAssembler.name(field.name).`type`()
@@ -246,9 +248,10 @@ object SchemaConverters {
   // This function constructs converter function for a given sparkSQL datatype. This is used in
   // writing Avro records out to disk.
   def createConverterToAvro(
-                             dataType: DataType,
-                             structName: String,
-                             recordNamespace: String): (Any) => Any = {
+      dataType: DataType,
+      structName: String,
+      recordNamespace: String): (Any) => Any = {
+
     dataType match {
       case BinaryType => (item: Any) => item match {
         case null => null
