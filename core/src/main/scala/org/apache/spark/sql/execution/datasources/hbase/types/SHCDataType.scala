@@ -24,10 +24,12 @@ trait SHCDataType {
   // a Spark GenericRow which is then automatically converted by Spark.
   def bytesToColumn(src: HBaseType): Any
 
-  def bytesToCompositeKeyField(src: HBaseType, offset: Int): Any
-
   // Convert input to Byte Array (HBaseType)
   def toBytes(input: Any): Array[Byte]
+
+  // If your data type do not need to support composite keys, you can just leave it empty or
+  // threw an exception to remind users composite key is not supported.
+  def bytesToCompositeKeyField(src: HBaseType, offset: Int): Any
 }
 
 /**

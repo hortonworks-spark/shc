@@ -47,13 +47,10 @@ class Avro(f: Field) extends SHCDataType {
   def bytesToCompositeKeyField(src: HBaseType, offset: Int): Any = {
     var length = f.length
     var moreOffset = 0
-
-    // the following snippet is for composite key
     if (f.length == -1) {
       length = Bytes.toShort(src, offset)
       moreOffset = Bytes.SIZEOF_SHORT
     }
-
     val newArray = new Array[Byte](length)
     System.arraycopy(src, offset + moreOffset, newArray, 0, length)
     covertBytesToObject(newArray)

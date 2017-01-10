@@ -39,7 +39,7 @@ class PrimitiveType(f: Field) extends SHCDataType {
         val newArray = new Array[Byte](src.length)
         System.arraycopy(src, 0, newArray, 0, src.length)
         newArray
-      case _ => SparkSqlSerializer.deserialize[Any](src) //TODO
+      case _ => SparkSqlSerializer.deserialize[Any](src)
     }
   }
 
@@ -55,15 +55,13 @@ class PrimitiveType(f: Field) extends SHCDataType {
       case data: Short => Bytes.toBytes(data)
       case data: UTF8String => data.getBytes
       case data: String => Bytes.toBytes(data)
-      case _ => throw new Exception(s"unsupported data type ${f.dt}") //TODO
+      case _ => throw new Exception(s"unsupported data type ${f.dt}")
     }
   }
 
   def bytesToCompositeKeyField(src: HBaseType, offset: Int): Any = {
     var length = f.length
     var moreOffset = 0
-
-    // the following snippet is for composite key
     if (f.length == -1) {
       length = Bytes.toShort(src, offset)
       moreOffset = Bytes.SIZEOF_SHORT
@@ -82,7 +80,7 @@ class PrimitiveType(f: Field) extends SHCDataType {
         val newArray = new Array[Byte](length)
         System.arraycopy(src, offset + moreOffset, newArray, 0, length)
         newArray
-      case _ => SparkSqlSerializer.deserialize[Any](src) //TODO
+      case _ => SparkSqlSerializer.deserialize[Any](src)
     }
   }
 
