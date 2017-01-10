@@ -163,9 +163,20 @@ case class HBaseRelation(
       // construct bytes for row key
       val rowBytes = rkIdxedFields.map { case (x, y) =>
         var ret = SHDDataTypeFactory.create(y).toBytes(row(x))
-        // deal with the composite key in which the length of individual keys are variable
-        if (isComposite() && y.length == -1)
-          ret = Bytes.toBytes(ret.length.toShort) ++ ret
+
+        // For the composite key: supports variable length types by writing length
+        // before the value as a short. For example, "int String int" will be written as:
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // | 4 bytes int | 2 bytes length of String | String content | 4 bytes int |
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - -
+        if (isComposite() && y.length == -1) {
+          val len = ret.length
+          if (len > Short.MaxValue) {
+            throw new UnsupportedOperationException ("The length should not exceed Short.MaxValue, " +
+              "otherwise, you should specify the field length in your catalog")
+          }
+          ret = Bytes.toBytes(len.toShort) ++ ret
+        }
         ret
       }
       val rLen = rowBytes.foldLeft(0) { case (x, y) =>

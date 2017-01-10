@@ -23,11 +23,15 @@ import org.apache.spark.sql.types.{FloatType, IntegerType}
 
 class Phoenix(f: Field) extends SHCDataType {
 
-  def fromBytes(src: HBaseType): Any = {
+  def bytesToColumn(src: HBaseType): Any = {
     f.dt match {
       case IntegerType => PInteger.INSTANCE.toObject(src)
       case FloatType => PFloat.INSTANCE.toObject(src)
     }
+  }
+
+  def bytesToCompositeKeyField(src: HBaseType, offset: Int): Any = {
+    throw new Exception("Not Support yet")
   }
 
   def toBytes(input: Any): Array[Byte] = {
@@ -35,9 +39,5 @@ class Phoenix(f: Field) extends SHCDataType {
       case IntegerType => PInteger.INSTANCE.toBytes(input)
       case FloatType => PFloat.INSTANCE.toBytes(input)
     }
-  }
-
-  def fromBytes(src: HBaseType, offset: Int): Any = {
-    throw new Exception("Not Support yet")
   }
 }

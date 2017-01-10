@@ -25,7 +25,7 @@ import org.apache.spark.sql.execution.datasources.hbase._
 
 class PrimitiveType(f: Field) extends SHCDataType {
 
-  def fromBytes(src: HBaseType): Any = {
+  def bytesToColumn(src: HBaseType): Any = {
     f.dt match {
       case BooleanType => toBoolean(src, 0)
       case ByteType => src(0)
@@ -59,7 +59,7 @@ class PrimitiveType(f: Field) extends SHCDataType {
     }
   }
 
-  def fromBytes(src: HBaseType, offset: Int): Any = {
+  def bytesToCompositeKeyField(src: HBaseType, offset: Int): Any = {
     var length = f.length
     var moreOffset = 0
 

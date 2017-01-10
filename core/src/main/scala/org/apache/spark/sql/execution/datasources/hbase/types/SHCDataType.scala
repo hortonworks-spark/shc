@@ -22,9 +22,9 @@ import org.apache.spark.sql.execution.datasources.hbase._
 trait SHCDataType {
   // Parse the hbase Field to it's corresponding Scala type which can then be put into
   // a Spark GenericRow which is then automatically converted by Spark.
-  def fromBytes(src: HBaseType): Any
+  def bytesToColumn(src: HBaseType): Any
 
-  def fromBytes(src: HBaseType, offset: Int): Any
+  def bytesToCompositeKeyField(src: HBaseType, offset: Int): Any
 
   // Convert input to Byte Array (HBaseType)
   def toBytes(input: Any): Array[Byte]

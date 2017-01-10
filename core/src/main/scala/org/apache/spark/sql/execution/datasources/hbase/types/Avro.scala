@@ -40,21 +40,11 @@ import org.apache.spark.sql.execution.datasources.hbase._
 
 class Avro(f: Field) extends SHCDataType {
 
-  def fromBytes(src: HBaseType): Any = {
-    // If we have avro schema defined, use it to get record,
-    // and then covert them to catalyst data type
-    val m = AvroSerde.deserialize(src, f.exeSchema.get)
-    val n = f.avroToCatalyst.map(_(m))
-    n.get
+  def bytesToColumn(src: HBaseType): Any = {
+    covertBytesToObject(src)
   }
 
-  def toBytes(input: Any): Array[Byte] = {
-    // Here we assume the top level type is structType
-    val record = f.catalystToAvro(input)
-    AvroSerde.serialize(record, f.schema.get)
-  }
-
-  def fromBytes(src: HBaseType, offset: Int): Any = {
+  def bytesToCompositeKeyField(src: HBaseType, offset: Int): Any = {
     var length = f.length
     var moreOffset = 0
 
@@ -66,7 +56,19 @@ class Avro(f: Field) extends SHCDataType {
 
     val newArray = new Array[Byte](length)
     System.arraycopy(src, offset + moreOffset, newArray, 0, length)
-    fromBytes(newArray)
+    covertBytesToObject(newArray)
+  }
+
+  def toBytes(input: Any): Array[Byte] = {
+    // Here we assume the top level type is structType
+    val record = f.catalystToAvro(input)
+    AvroSerde.serialize(record, f.schema.get)
+  }
+
+  private def covertBytesToObject(src: HBaseType): Any ={
+    val m = AvroSerde.deserialize(src, f.exeSchema.get)
+    val n = f.avroToCatalyst.map(_(m))
+    n.get
   }
 }
 
