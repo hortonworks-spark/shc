@@ -15,19 +15,29 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.execution.datasources.hbase
+package org.apache.spark.sql.execution.datasources.hbase.types
 
-import org.apache.hadoop.hbase.util.Bytes
+import org.apache.phoenix.schema.types.{PFloat, PInteger}
+import org.apache.spark.sql.execution.datasources.hbase._
+import org.apache.spark.sql.types.{FloatType, IntegerType}
 
-trait Sedes {
-  def serialize(value: Any): Array[Byte]
-  def deserialize(bytes: Array[Byte], start: Int, end: Int): Any
-}
+class Phoenix(f: Field) extends SHCDataType {
 
-class DoubleSedes extends Sedes {
-  override def serialize(value: Any): Array[Byte] = Bytes.toBytes(value.asInstanceOf[Double])
-  override def deserialize(bytes: Array[Byte], start: Int, end: Int): Any = {
-    Bytes.toLong(bytes, start)
+  def bytesToColumn(src: HBaseType): Any = {
+    f.dt match {
+      case IntegerType => PInteger.INSTANCE.toObject(src)
+      case FloatType => PFloat.INSTANCE.toObject(src)
+    }
+  }
+
+  def bytesToCompositeKeyField(src: HBaseType, offset: Int): Any = {
+    throw new Exception("Not Support yet")
+  }
+
+  def toBytes(input: Any): Array[Byte] = {
+    input match {
+      case IntegerType => PInteger.INSTANCE.toBytes(input)
+      case FloatType => PFloat.INSTANCE.toBytes(input)
+    }
   }
 }
-

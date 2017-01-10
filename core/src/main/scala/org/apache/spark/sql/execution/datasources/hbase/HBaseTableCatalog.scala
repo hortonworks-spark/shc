@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
+import org.json4s.jackson.JsonMethods._
+
 import scala.collection.mutable
 
 import org.apache.avro.Schema
@@ -25,7 +27,7 @@ import org.apache.spark.Logging
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.catalyst.util.DataTypeParser
 import org.apache.spark.sql.types._
-import org.json4s.jackson.JsonMethods._
+import org.apache.spark.sql.execution.datasources.hbase.types._
 
 // The definition of each column cell, which may be composite type
 case class Field(
@@ -34,8 +36,8 @@ case class Field(
     col: String,
     sType: Option[String] = None,
     avroSchema: Option[String] = None,
-    sedes: Option[Sedes] = None,
-    len: Int = -1) extends Logging{
+    phoenix: Option[String] = None,
+    len: Int = -1) extends Logging {
 
   val isRowKey = cf == HBaseTableCatalog.rowKey
   var start: Int = _
@@ -81,7 +83,6 @@ case class Field(
     } else {
       len
     }
-
   }
 
   override def equals(other: Any): Boolean = other match {
@@ -135,22 +136,15 @@ case class HBaseTableCatalog(
     sMap.fields.map(_.cf).filter(_ != HBaseTableCatalog.rowKey)
   }
 
-  def initRowKey = {
+  val initRowKey = {
     val fields = sMap.fields.filter(_.cf == HBaseTableCatalog.rowKey)
     row.fields = row.keys.flatMap(n => fields.find(_.col == n))
-    // We only allowed there is one key at the end that is determined at runtime.
-    if (row.fields.reverse.tail.filter(_.length == -1).isEmpty) {
-      var start = 0
-      row.fields.foreach { f =>
-        f.start = start
-        start += f.length
-      }
-    } else {
-      throw new Exception("Only the last dimension of " +
-        "RowKey is allowed to have varied length")
+    var start = 0
+    row.fields.foreach { f =>
+      f.start = start
+      start += f.length
     }
   }
-  initRowKey
 }
 
 object HBaseTableCatalog {
@@ -173,7 +167,7 @@ object HBaseTableCatalog {
   // the name of avro schema json string
   val avro = "avro"
   val delimiter: Byte = 0
-  val sedes = "sedes"
+  val phoenix = "phoenix"
   val length = "length"
   /**
    * User provide table schema definition
@@ -192,17 +186,13 @@ object HBaseTableCatalog {
     val cIter = map.get(columns).get.asInstanceOf[Map[String, Map[String, String]]].toIterator
     val schemaMap = mutable.HashMap.empty[String, Field]
     cIter.foreach { case (name, column)=>
-      val sd = {
-        column.get(sedes).asInstanceOf[Option[String]].map( n =>
-          Class.forName(n).newInstance().asInstanceOf[Sedes]
-        )
-      }
+      val phx = column.get(phoenix)
       val len = column.get(length).map(_.toInt).getOrElse(-1)
       val sAvro = column.get(avro).map(parameters(_))
       val f = Field(name, column.getOrElse(cf, rowKey),
         column.get(col).get,
         column.get(`type`),
-        sAvro, sd, len)
+        sAvro, phx, len)
       schemaMap.+= ((name, f))
     }
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)

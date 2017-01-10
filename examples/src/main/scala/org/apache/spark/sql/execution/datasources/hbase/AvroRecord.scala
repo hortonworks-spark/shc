@@ -18,8 +18,8 @@
 package org.apache.spark.sql.execution.datasources.hbase.examples
 
 import org.apache.avro.Schema
-import org.apache.spark.sql.execution.datasources.hbase._
 import org.apache.avro.generic.GenericData
+import org.apache.spark.sql.execution.datasources.hbase.types.{AvroSerde, SchemaConverters}
 
 object AvroRecord {
   def main(args: Array[String]) {
@@ -49,8 +49,8 @@ object AvroRecord {
     val schema = SchemaConverters.toSqlType(avroSchema)
     println(s"\nSqlschema: $schema")
     val avroUser1 = SchemaConverters.createConverterToAvro(schema.dataType, "avro", "example.avro")(sqlUser1)
-    val avroByte = AvroSedes.serialize(avroUser1, avroSchema)
-    val avroUser11 = AvroSedes.deserialize(avroByte, avroSchema)
+    val avroByte = AvroSerde.serialize(avroUser1, avroSchema)
+    val avroUser11 = AvroSerde.deserialize(avroByte, avroSchema)
     println(s"$avroUser1")
   }
 }

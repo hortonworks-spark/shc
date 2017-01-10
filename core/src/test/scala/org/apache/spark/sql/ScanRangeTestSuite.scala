@@ -17,13 +17,13 @@
 
 package org.apache.spark.sql
 
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
+
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.{Bound, ScanRange}
 import org.apache.spark.sql.types.BinaryType
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
-
 
 class ScanRangeTestSuite  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with Logging {
 
