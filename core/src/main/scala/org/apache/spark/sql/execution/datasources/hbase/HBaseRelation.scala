@@ -163,7 +163,13 @@ case class HBaseRelation(
     def convertToPut(row: Row) = {
       // construct bytes for row key
       val rowBytes = rkIdxedFields.map { case (x, y) =>
-        SHDDataTypeFactory.create(y).toBytes(row(x))
+        var ret = SHDDataTypeFactory.create(y).toBytes(row(x))
+
+        // deal with the composite key in which the length of individual keys are variable
+        if (isComposite() && y.length == -1)
+          ret = Bytes.toBytes(ret.length.toShort) ++ ret
+
+        ret
       }
       val rLen = rowBytes.foldLeft(0) { case (x, y) =>
         x + y.length

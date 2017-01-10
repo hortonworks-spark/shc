@@ -23,7 +23,11 @@ import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase.HBaseTableCatalog
 import org.apache.spark.sql.execution.datasources.hbase.types.AvroSerde
 
-case class AvroCompositeKeyRecord(col0: Int, col1: Array[Byte], col2: Array[Byte])
+case class AvroCompositeKeyRecord(col0: String,
+                                  col1: Int,
+                                  col2: Array[Byte],
+                                  col3: Array[Byte],
+                                  col4: Array[Byte])
 
 object AvroCompositeKeyRecord {
   val schemaString =
@@ -44,8 +48,7 @@ object AvroCompositeKeyRecord {
     user.put("favorite_number", i)
     user.put("favorite_color", s"color${"%03d".format(i)}")
     val avroByte = AvroSerde.serialize(user, avroSchema)
-    // AvroCompositeKeyRecord(s"name${"%03d".format(i)}", avroByte, avroByte)
-    AvroCompositeKeyRecord(i, avroByte, avroByte)
+    AvroCompositeKeyRecord(s"name${"%03d".format(i)}", i, avroByte, avroByte, avroByte)
   }
 }
 
@@ -53,21 +56,25 @@ class AvroSourceCompositeKeySuite extends SHC with Logging {
   // 'catalog' is used when saving data to HBase
   override def catalog = s"""{
                              |"table":{"namespace":"default", "name":"avrotable"},
-                             |"rowkey":"key1:key2",
+                             |"rowkey":"key1:key2:key3:key4",
                              |"columns":{
-                             |"col0":{"cf":"rowkey", "col":"key1", "type":"int"},
-                             |"col1":{"cf":"rowkey", "col":"key2", "type":"binary"},
-                             |"col2":{"cf":"cf1", "col":"col1", "type":"binary"}
+                             |"col0":{"cf":"rowkey", "col":"key1", "type":"string"},
+                             |"col1":{"cf":"rowkey", "col":"key2", "type":"int"},
+                             |"col2":{"cf":"rowkey", "col":"key3", "type":"binary"},
+                             |"col3":{"cf":"rowkey", "col":"key4", "type":"binary"},
+                             |"col4":{"cf":"cf1", "col":"col1", "type":"binary"}
                              |}
                              |}""".stripMargin
 
   def avroCatalog = s"""{
                         |"table":{"namespace":"default", "name":"avrotable"},
-                        |"rowkey":"key1:key2",
+                        |"rowkey":"key1:key2:key3:key4",
                         |"columns":{
-                        |"col0":{"cf":"rowkey", "col":"key1", "type":"int"},
-                        |"col1":{"cf":"rowkey", "col":"key2", "avro":"avroSchema"},
-                        |"col2":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
+                        |"col0":{"cf":"rowkey", "col":"key1", "type":"string"},
+                        |"col1":{"cf":"rowkey", "col":"key2", "type":"int"},
+                        |"col2":{"cf":"rowkey", "col":"key3", "avro":"avroSchema"},
+                        |"col3":{"cf":"rowkey", "col":"key4", "avro":"avroSchema"},
+                        |"col4":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
                         |}
                         |}""".stripMargin
 
@@ -108,15 +115,16 @@ class AvroSourceCompositeKeySuite extends SHC with Logging {
 
   test("filtered query") {
     val df = withCatalog(avroCatalog)
-    val r = df.filter($"col1.name" === "name005" || $"col1.name" <= "name005").select("col0", "col1.favorite_color", "col1.favorite_number")
+    val r = df.filter($"col2.name" === "name005" || $"col2.name" <= "name005")
+      .select("col0", "col2.favorite_color", "col2.favorite_number")
     r.show
     assert(r.count() == 6)
   }
 
   test("Or filter") {
     val df = withCatalog(avroCatalog)
-    val s = df.filter($"col1.name" <= "name005" || $"col1.name".contains("name007"))
-      .select("col0", "col1.favorite_color", "col1.favorite_number")
+    val s = df.filter($"col2.name" <= "name005" || $"col3.name".contains("name007"))
+      .select("col0", "col2.favorite_color", "col4.favorite_number")
     s.show
     assert(s.count() == 7)
   }

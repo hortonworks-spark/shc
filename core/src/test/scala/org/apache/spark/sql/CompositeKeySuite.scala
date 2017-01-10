@@ -53,7 +53,6 @@ object HBaseCompositeRecord {
 
 class CompositeKeySuite extends SHC with Logging {
 
-  // Only
   override def catalog = s"""{
             |"table":{"namespace":"default", "name":"table1"},
             |"rowkey":"key1:key2",

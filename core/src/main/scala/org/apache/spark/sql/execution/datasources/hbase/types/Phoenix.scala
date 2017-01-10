@@ -37,7 +37,7 @@ class Phoenix(f: Field) extends SHCDataType {
     }
   }
 
-  def fromCompositeKeyToObject(src: HBaseType, offset: Int, length: Int): Any = {
+  def fromBytes(src: HBaseType, offset: Int): Any = {
     throw new Exception("Not Support yet")
   }
 }

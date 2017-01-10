@@ -42,7 +42,8 @@ import org.apache.spark.sql.execution.datasources.hbase._
 class Avro(f: Field) extends SHCDataType {
 
   def fromBytes(src: HBaseType): Any = {
-    // If we have avro schema defined, use it to get record, and then covert them to catalyst data type
+    // If we have avro schema defined, use it to get record,
+    // and then covert them to catalyst data type
     val m = AvroSerde.deserialize(src, f.exeSchema.get)
     val n = f.avroToCatalyst.map(_(m))
     n.get
@@ -54,9 +55,18 @@ class Avro(f: Field) extends SHCDataType {
     AvroSerde.serialize(record, f.schema.get)
   }
 
-  def fromCompositeKeyToObject(src: HBaseType, offset: Int, length: Int): Any = {
+  def fromBytes(src: HBaseType, offset: Int): Any = {
+    var length = f.length
+    var moreOffset = 0
+
+    // the following snippet is for composite key
+    if (f.length == -1) {
+      length = Bytes.toShort(src, offset)
+      moreOffset = Bytes.SIZEOF_SHORT
+    }
+
     val newArray = new Array[Byte](length)
-    System.arraycopy(src, offset, newArray, 0, length)
+    System.arraycopy(src, offset + moreOffset, newArray, 0, length)
     fromBytes(newArray)
   }
 }

@@ -59,7 +59,16 @@ class PrimitiveType(f: Field) extends SHCDataType {
     }
   }
 
-  def fromCompositeKeyToObject(src: HBaseType, offset: Int, length: Int): Any = {
+  def fromBytes(src: HBaseType, offset: Int): Any = {
+    var length = f.length
+    var moreOffset = 0
+
+    // the following snippet is for composite key
+    if (f.length == -1) {
+      length = Bytes.toShort(src, offset)
+      moreOffset = Bytes.SIZEOF_SHORT
+    }
+
     f.dt match {
       case BooleanType => toBoolean(src, offset)
       case ByteType => src(offset)
@@ -68,10 +77,10 @@ class PrimitiveType(f: Field) extends SHCDataType {
       case IntegerType => Bytes.toInt(src, offset)
       case LongType => Bytes.toLong(src, offset)
       case ShortType => Bytes.toShort(src, offset)
-      case StringType => toUTF8String(src, offset, length)
+      case StringType => toUTF8String(src, offset + moreOffset, length)
       case BinaryType =>
         val newArray = new Array[Byte](length)
-        System.arraycopy(src, offset, newArray, 0, length)
+        System.arraycopy(src, offset + moreOffset, newArray, 0, length)
         newArray
       case _ => SparkSqlSerializer.deserialize[Any](src) //TODO
     }

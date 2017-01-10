@@ -24,11 +24,10 @@ trait SHCDataType {
   // a Spark GenericRow which is then automatically converted by Spark.
   def fromBytes(src: HBaseType): Any
 
-  // Convert input to data type
-  def toBytes(input: Any): Array[Byte]
+  def fromBytes(src: HBaseType, offset: Int): Any
 
-  // Parse the hbase composite row key from byte array (HBaseType) to it's corresponding data type
-  def fromCompositeKeyToObject(src: HBaseType, offset: Int, length: Int): Any
+  // Convert input to Byte Array (HBaseType)
+  def toBytes(input: Any): Array[Byte]
 }
 
 /**
@@ -39,7 +38,6 @@ trait SHCDataType {
  */
 object SHDDataTypeFactory {
   def create(f: Field): SHCDataType = {
-
     if (f.exeSchema.isDefined)
       new Avro(f)
     else if (f.phoenix.isDefined)

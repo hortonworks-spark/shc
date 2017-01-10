@@ -49,7 +49,6 @@ private[hbase] case class HBaseScanPartition(
     scanRanges: Array[ScanRange[Array[Byte]]],
     tf: SerializedTypedFilter) extends Partition
 
-
 private[hbase] class HBaseTableScanRDD(
     relation: HBaseRelation,
     requiredColumns: Array[String],
@@ -90,23 +89,23 @@ private[hbase] class HBaseTableScanRDD(
    * Takes a HBase Row object and parses all of the fields from it.
    * This is independent of which fields were requested from the key
    * Because we have all the data it's less complex to parse everything.
- *
+   *
    * @param keyFields all of the fields in the row key, ORDERED by their order in the row key.
    */
   def parseCompositeRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {
     keyFields.foldLeft((0, Seq[(Field, Any)]()))((state, field) => {
-      val idx = state._1
+      val offset = state._1
       val parsed = state._2
+
+      val value = SHDDataTypeFactory.create(field).fromBytes(row, offset)
       if (field.length != -1) {
-        val value =
-          SHDDataTypeFactory.create(field).fromCompositeKeyToObject(row, idx, field.length)
-        // Return the new index and appended value
-        (idx + field.length, parsed ++ Seq((field, value)))
+        // return the new index and appended value
+        (offset + field.length, parsed ++ Seq((field, value)))
       } else {
-        // This is the last dimension.
-        val value =
-          SHDDataTypeFactory.create(field).fromCompositeKeyToObject(row, idx, row.length - idx)
-        (row.length + 1, parsed ++ Seq((field, value)))
+        // the lengths of the values in this field are different/variable, so here,
+        // we use 2 bytes to record the length of each value, and both the length
+        // and the value are stored together in HBase
+        (offset + Bytes.toShort(row, offset) + Bytes.SIZEOF_SHORT, parsed ++ Seq((field, value)))
       }
     })._2.toMap
   }

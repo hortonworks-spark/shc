@@ -30,14 +30,13 @@ import org.apache.spark.sql.types._
 import org.apache.spark.sql.execution.datasources.hbase.types._
 
 // The definition of each column cell, which may be composite type
-case class Field(
-                  colName: String,
-                  cf: String,
-                  col: String,
-                  sType: Option[String] = None,
-                  avroSchema: Option[String] = None,
-                  phoenix: Option[String] = None,
-                  len: Int = -1) extends Logging{
+case class Field(colName: String,
+                 cf: String,
+                 col: String,
+                 sType: Option[String] = None,
+                 avroSchema: Option[String] = None,
+                 phoenix: Option[String] = None,
+                 len: Int = -1) extends Logging {
 
   val isRowKey = cf == HBaseTableCatalog.rowKey
   var start: Int = _
@@ -148,8 +147,8 @@ case class HBaseTableCatalog(
         start += f.length
       }
     } else {
-      throw new Exception("Only the last dimension of " +
-        "RowKey is allowed to have varied length")
+      // throw new Exception("Only the last dimension of " +
+      //  "RowKey is allowed to have varied length")
     }
   }
   initRowKey
