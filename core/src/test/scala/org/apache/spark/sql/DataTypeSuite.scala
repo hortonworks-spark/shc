@@ -53,17 +53,15 @@ class DataTypeSuite extends SHC with Logging {
             |"columns":{
               |"col0":{"cf":"rowkey", "col":"key", "type":"int"},
               |"col1":{"cf":"cf1", "col":"col1", "type":"boolean"},
-              |"col2":{"cf":"cf2", "col":"col2", "type":"double"},
+              |"col2":{"cf":"cf1", "col":"col2", "type":"double"},
               |"col3":{"cf":"cf3", "col":"col3", "type":"float"},
               |"col4":{"cf":"cf4", "col":"col4", "type":"int"},
               |"col5":{"cf":"cf5", "col":"col5", "type":"bigint"},
               |"col6":{"cf":"cf6", "col":"col6", "type":"smallint"},
               |"col7":{"cf":"cf7", "col":"col7", "type":"string"},
-              |"col8":{"cf":"cf8", "col":"col8", "type":"tinyint"}
+              |"col8":{"cf":"cf7", "col":"col8", "type":"tinyint"}
             |}
           |}""".stripMargin
-
-
 
   def withCatalog(cat: String): DataFrame = {
     sqlContext
