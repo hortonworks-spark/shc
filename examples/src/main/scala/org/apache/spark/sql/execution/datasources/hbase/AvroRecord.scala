@@ -18,8 +18,8 @@
 package org.apache.spark.sql.execution.datasources.hbase.examples
 
 import org.apache.avro.Schema
-import org.apache.spark.sql.execution.datasources.hbase._
 import org.apache.avro.generic.GenericData
+import org.apache.spark.sql.execution.datasources.hbase.types.{AvroSerde, SchemaConverters}
 
 object AvroRecord {
   def main(args: Array[String]) {

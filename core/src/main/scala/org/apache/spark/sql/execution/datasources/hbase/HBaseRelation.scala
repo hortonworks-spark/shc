@@ -36,6 +36,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Row, SQLContext, SaveMode}
+import org.apache.spark.sql.execution.datasources.hbase.types.SHCDataTypeFactory
 
 /**
  * val people = sqlContext.read.format("hbase").load("people")
@@ -161,7 +162,7 @@ case class HBaseRelation(
     def convertToPut(row: Row) = {
       // construct bytes for row key
       val rowBytes = rkIdxedFields.map { case (x, y) =>
-        Utils.toBytes(row(x), y)
+        SHCDataTypeFactory.create(y).toBytes(row(x))
       }
       val rLen = rowBytes.foldLeft(0) { case (x, y) =>
         x + y.length
@@ -175,7 +176,7 @@ case class HBaseRelation(
       val put = timestamp.fold(new Put(rBytes))(new Put(rBytes, _))
 
       colsIdxedFields.foreach { case (x, y) =>
-        val b = Utils.toBytes(row(x), y)
+        val b = SHCDataTypeFactory.create(y).toBytes(row(x))
         put.addColumn(Bytes.toBytes(y.cf), Bytes.toBytes(y.col), b)
       }
       count += 1
@@ -268,5 +269,4 @@ object HBaseRelation {
   val MAX_STAMP = "maxStamp"
   val MAX_VERSIONS = "maxVersions"
   val HBASE_CONFIGURATION = "hbaseConfiguration"
-
 }

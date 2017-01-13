@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
+import org.json4s.jackson.JsonMethods._
+
 import scala.collection.mutable
 
 import org.apache.avro.Schema
@@ -35,8 +37,7 @@ case class Field(
     col: String,
     sType: Option[String] = None,
     avroSchema: Option[String] = None,
-    serde: Option[Serdes] = None,
-    len: Int = -1) extends Logging{
+    len: Int = -1) extends Logging {
 
   val isRowKey = cf == HBaseTableCatalog.rowKey
   var start: Int = _
@@ -59,8 +60,8 @@ case class Field(
   }
 
   val dt = {
-    sType.map(DataTypeParser.parse(_)).getOrElse{
-      schema.map{ x=>
+    sType.map(DataTypeParser.parse(_)).getOrElse {
+      schema.map { x =>
         SchemaConverters.toSqlType(x).dataType
       }.get
     }
@@ -82,7 +83,6 @@ case class Field(
     } else {
       len
     }
-
   }
 
   override def equals(other: Any): Boolean = other match {
@@ -136,7 +136,7 @@ case class HBaseTableCatalog(
     sMap.fields.map(_.cf).filter(_ != HBaseTableCatalog.rowKey).toSeq.distinct
   }
 
-  def initRowKey = {
+  val initRowKey = {
     val fields = sMap.fields.filter(_.cf == HBaseTableCatalog.rowKey)
     row.fields = row.keys.flatMap(n => fields.find(_.col == n))
     // We only allowed there is one key at the end that is determined at runtime.
@@ -151,7 +151,6 @@ case class HBaseTableCatalog(
         "RowKey is allowed to have varied length")
     }
   }
-  initRowKey
 }
 
 object HBaseTableCatalog {
@@ -174,7 +173,6 @@ object HBaseTableCatalog {
   // the name of avro schema json string
   val avro = "avro"
   val delimiter: Byte = 0
-  val sedes = "sedes"
   val length = "length"
   /**
    * User provide table schema definition
@@ -184,26 +182,20 @@ object HBaseTableCatalog {
    *  Note that any col in the rowKey, there has to be one corresponding col defined in columns
    */
   def apply(parameters: Map[String, String]): HBaseTableCatalog = {
-    //  println(jString)
     val jString = parameters(tableCatalog)
     val jObj = parse(jString).asInstanceOf[JObject]
-    val map = jObj.values.asInstanceOf[Map[String,_]]
+    val map = jObj.values
     val tableMeta = map.get(table).get.asInstanceOf[Map[String, _]]
     val nSpace = tableMeta.get(nameSpace).getOrElse("default").asInstanceOf[String]
     val tName = tableMeta.get(tableName).get.asInstanceOf[String]
     val schemaMap = mutable.LinkedHashMap.empty[String, Field]
     getColsPreservingOrder(jObj).foreach { case (name, column)=>
-      val sd = {
-        column.get(sedes).asInstanceOf[Option[String]].map( n =>
-          Class.forName(n).newInstance().asInstanceOf[Serdes]
-        )
-      }
       val len = column.get(length).map(_.toInt).getOrElse(-1)
       val sAvro = column.get(avro).map(parameters(_))
       val f = Field(name, column.getOrElse(cf, rowKey),
         column.get(col).get,
         column.get(`type`),
-        sAvro, sd, len)
+        sAvro, len)
       schemaMap.+= ((name, f))
     }
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)
@@ -228,10 +220,10 @@ object HBaseTableCatalog {
     val complex = s"""MAP<int, struct<varchar:string>>"""
     val schema =
       s"""{"namespace": "example.avro",
-         |   "type": "record",      "name": "User",
-         |    "fields": [      {"name": "name", "type": "string"},
+         |   "type": "record", "name": "User",
+         |    "fields": [ {"name": "name", "type": "string"},
          |      {"name": "favorite_number",  "type": ["int", "null"]},
-         |        {"name": "favorite_color", "type": ["string", "null"]}      ]    }""".stripMargin
+         |        {"name": "favorite_color", "type": ["string", "null"]} ] }""".stripMargin
 
     val catalog = s"""{
             |"table":{"namespace":"default", "name":"htable"},
@@ -241,10 +233,11 @@ object HBaseTableCatalog {
               |"col2":{"cf":"rowkey", "col":"key2", "type":"double"},
               |"col3":{"cf":"cf1", "col":"col1", "avro":"schema1"},
               |"col4":{"cf":"cf1", "col":"col2", "type":"binary"},
-              |"col5":{"cf":"cf1", "col":"col3", "type":"double", "sedes":"org.apache.spark.sql.execution.datasources.hbase.DoubleSedes"},
+              |"col5":{"cf":"cf1", "col":"col3", "type":"double"},
               |"col6":{"cf":"cf1", "col":"col4", "type":"$complex"}
             |}
           |}""".stripMargin
+
     val parameters = Map("schema1"->schema, tableCatalog->catalog)
     val t = HBaseTableCatalog(parameters)
     val d = t.toDataType

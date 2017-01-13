@@ -85,8 +85,6 @@ class DataTypeSuite extends SHC with Logging {
       .save()
   }
 
-
-
   test("less than 0") {
     val df = withCatalog(catalog)
     val s = df.filter($"col0" < 0)

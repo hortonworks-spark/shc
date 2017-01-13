@@ -34,6 +34,7 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.types.BinaryType
 import org.apache.spark.util.ShutdownHookManager
+import org.apache.spark.sql.execution.datasources.hbase.types.SHCDataTypeFactory
 
 private[hbase] case class HBaseRegion(
     override val index: Int,
@@ -46,7 +47,6 @@ private[hbase] case class HBaseScanPartition(
     regions: HBaseRegion,
     scanRanges: Array[ScanRange[Array[Byte]]],
     tf: SerializedTypedFilter) extends Partition
-
 
 private[hbase] class HBaseTableScanRDD(
     relation: HBaseRelation,
@@ -88,20 +88,20 @@ private[hbase] class HBaseTableScanRDD(
    * Takes a HBase Row object and parses all of the fields from it.
    * This is independent of which fields were requested from the key
    * Because we have all the data it's less complex to parse everything.
- *
+   *
    * @param keyFields all of the fields in the row key, ORDERED by their order in the row key.
    */
-  def parseRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {
+  def parseCompositeRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {
     keyFields.foldLeft((0, Seq[(Field, Any)]()))((state, field) => {
       val idx = state._1
       val parsed = state._2
       if (field.length != -1) {
-        val value = Utils.hbaseFieldToScalaType(field, row, idx, field.length)
+        val value = SHCDataTypeFactory.create(field).bytesToCompositeKeyField(row, idx, field.length)
         // Return the new index and appended value
         (idx + field.length, parsed ++ Seq((field, value)))
       } else {
         // This is the last dimension.
-        val value = Utils.hbaseFieldToScalaType(field, row, idx, row.length - idx)
+        val value = SHCDataTypeFactory.create(field).bytesToCompositeKeyField(row, idx, row.length - idx)
         (row.length + 1, parsed ++ Seq((field, value)))
       }
     })._2.toMap
@@ -110,7 +110,15 @@ private[hbase] class HBaseTableScanRDD(
   // TODO: It is a big performance overhead, as for each row, there is a hashmap lookup.
   def buildRow(fields: Seq[Field], result: Result): Row = {
     val r = result.getRow
-    val keySeq = parseRowKey(r, relation.catalog.getRowKey)
+    val keySeq = {
+      if (relation.isComposite()) {
+        parseCompositeRowKey(r, relation.catalog.getRowKey)
+      } else {
+        val f = relation.catalog.getRowKey.head
+        Seq((f, SHCDataTypeFactory.create(f).bytesToColumn(r))).toMap
+      }
+    }
+
     val valueSeq = fields.filter(!_.isRowKey).map { x =>
       val kv = result.getColumnLatestCell(Bytes.toBytes(x.cf), Bytes.toBytes(x.col))
       if (kv == null || kv.getValueLength == 0) {
@@ -118,12 +126,14 @@ private[hbase] class HBaseTableScanRDD(
       } else {
         val v = CellUtil.cloneValue(kv)
         (x, x.dt match {
-          // Here, to avoid arraycopy, return v directly instead of calling hbaseFieldToScalaType
+          // Here, to avoid arraycopy, return v directly instead of calling bytesToColumn()
+          // to covert hbase field to Scala type
           case BinaryType => v
-          case _ => Utils.hbaseFieldToScalaType(x, v, 0, v.length)
+          case _ => SHCDataTypeFactory.create(x).bytesToColumn(v)
         })
       }
     }.toMap
+
     val unioned = keySeq ++ valueSeq
     // Return the row ordered by the requested order
     Row.fromSeq(fields.map(unioned.get(_).getOrElse(null)))

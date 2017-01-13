@@ -28,6 +28,7 @@ import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.sql.execution.datasources.hbase.FilterType.FilterType
 import org.apache.spark.sql.sources._
+import org.apache.spark.sql.execution.datasources.hbase.types.SHCDataTypeFactory
 
 object FilterType extends Enumeration {
   type FilterType = Value
@@ -135,9 +136,8 @@ object HBaseFilter extends Logging{
   }
 
   private def toBytes[T](value: T, att: String, relation: HBaseRelation): Array[Byte] = {
-    Utils.toBytes(value, relation.getField(att))
+    SHCDataTypeFactory.create(relation.getField(att)).toBytes(value)
   }
-
 
   def process(value: Any, relation: HBaseRelation, attribute: String,
       primary: BoundRanges => HRF[Array[Byte]],
@@ -169,9 +169,8 @@ object HBaseFilter extends Logging{
         process(value, relation, attribute,
         bound => {
           if (relation.singleKey) {
-            HRF(bound.greater.map(x =>
-              ScanRange(Some(Bound(x.low, true)),
-                Some(Bound(x.upper, true)))), TypedFilter.empty)
+            HRF(bound.greater.map(x => ScanRange(Some(Bound(x.low, true)),
+              Some(Bound(x.upper, true)))), TypedFilter.empty)
           } else {
             val s = bound.greater.map( x=>
               ScanRange(relation.rows.length,

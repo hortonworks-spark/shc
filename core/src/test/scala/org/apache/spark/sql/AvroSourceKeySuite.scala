@@ -19,11 +19,11 @@ package org.apache.spark.sql
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
-import org.apache.spark.{SparkContext, Logging}
-import org.apache.spark.sql.execution.datasources.hbase.{HBaseTableCatalog, AvroSerde}
+import org.apache.spark.Logging
+import org.apache.spark.sql.execution.datasources.hbase.HBaseTableCatalog
+import org.apache.spark.sql.execution.datasources.hbase.types.AvroSerde
 
-case class AvroHBaseKeyRecord(col0: Array[Byte],
-                           col1: Array[Byte])
+case class AvroHBaseKeyRecord(col0: Array[Byte], col1: Array[Byte])
 
 object AvroHBaseKeyRecord {
   val schemaString =
@@ -47,7 +47,10 @@ object AvroHBaseKeyRecord {
     AvroHBaseKeyRecord(avroByte, avroByte)
   }
 }
+
 class AvroSourceKeySuite extends SHC with Logging{
+
+  // 'catalog' is used when saving data to HBase
   override def catalog = s"""{
             |"table":{"namespace":"default", "name":"avrotable"},
             |"rowkey":"key",
@@ -79,7 +82,7 @@ class AvroSourceKeySuite extends SHC with Logging{
   def withCatalog(cat: String): DataFrame = {
     sqlContext
       .read
-      .options(Map("avroSchema"->AvroHBaseKeyRecord.schemaString, HBaseTableCatalog.tableCatalog->avroCatalog))
+      .options(Map("avroSchema" -> AvroHBaseKeyRecord.schemaString, HBaseTableCatalog.tableCatalog -> cat))
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .load()
   }
@@ -99,21 +102,21 @@ class AvroSourceKeySuite extends SHC with Logging{
   }
 
   test("empty column") {
-    val df = withCatalog(catalog)
+    val df = withCatalog(avroCatalog)
     df.registerTempTable("avrotable")
     val c = sqlContext.sql("select count(1) from avrotable").rdd.collect()(0)(0).asInstanceOf[Long]
     assert(c == 256)
   }
 
   test("full query") {
-    val df = withCatalog(catalog)
+    val df = withCatalog(avroCatalog)
     df.show
     df.printSchema()
     assert(df.count() == 256)
   }
 
   test("serialization and deserialization query") {
-    val df = withCatalog(catalog)
+    val df = withCatalog(avroCatalog)
     df.write.options(
       Map("avroSchema"->AvroHBaseKeyRecord.schemaString, HBaseTableCatalog.tableCatalog->avroCatalogInsert,
         HBaseTableCatalog.newTable -> "5"))
@@ -126,18 +129,18 @@ class AvroSourceKeySuite extends SHC with Logging{
   }
 
   test("filtered query") {
-    val df = withCatalog(catalog)
-    val r = df.filter($"col1.name" === "name005" || $"col1.name" <= "name005").select("col0", "col1.favorite_color", "col1.favorite_number")
+    val df = withCatalog(avroCatalog)
+    val r = df.filter($"col1.name" === "name005" || $"col1.name" <= "name005")
+      .select("col0", "col1.favorite_color", "col1.favorite_number")
     r.show
     assert(r.count() == 6)
   }
 
   test("Or filter") {
-    val df = withCatalog(catalog)
+    val df = withCatalog(avroCatalog)
     val s = df.filter($"col1.name" <= "name005" || $"col1.name".contains("name007"))
       .select("col0", "col1.favorite_color", "col1.favorite_number")
     s.show
     assert(s.count() == 7)
   }
-
 }
