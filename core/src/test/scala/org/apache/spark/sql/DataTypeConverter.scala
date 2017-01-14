@@ -37,13 +37,12 @@ class DataTypeConverter extends SHC with Logging{
             |"table":{"namespace":"default", "name":"htable"},
             |"rowkey":"key1:key2",
             |"columns":{
-              |"col1":{"cf":"rowkey", "col":"key1", "type":"binary"},
-              |"col2":{"cf":"rowkey", "col":"key2", "type":"double"},
-              |"col3":{"cf":"cf1", "col":"col1", "avro":"schema1"},
-              |"col4":{"cf":"cf1", "col":"col2", "type":"string"},
-              |"col5":{"cf":"cf1", "col":"col3", "type":"double",
-              |"sedes":"org.apache.spark.sql.execution.datasources.hbase.DoubleSedes"},
-              |"col6":{"cf":"cf1", "col":"col4", "type":"$complex"}
+              |"col1":{"cf":"rowkey", "col":"key1", "type":"binary", "coder":"primitive"},
+              |"col2":{"cf":"rowkey", "col":"key2", "type":"double", "coder":"primitive"},
+              |"col3":{"cf":"cf1", "col":"col1", "avro":"schema1", "coder":"primitive"},
+              |"col4":{"cf":"cf1", "col":"col2", "type":"string", "coder":"primitive"},
+              |"col5":{"cf":"cf1", "col":"col3", "type":"double", "coder":"primitive"},
+              |"col6":{"cf":"cf1", "col":"col4", "type":"$complex", "coder":"primitive"}
             |}
           |}""".stripMargin
     val df =

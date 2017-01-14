@@ -51,15 +51,15 @@ class DataTypeSuite extends SHC with Logging {
             |"table":{"namespace":"default", "name":"table1"},
             |"rowkey":"key",
             |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key", "type":"int"},
-              |"col1":{"cf":"cf1", "col":"col1", "type":"boolean"},
-              |"col2":{"cf":"cf1", "col":"col2", "type":"double"},
-              |"col3":{"cf":"cf3", "col":"col3", "type":"float"},
-              |"col4":{"cf":"cf4", "col":"col4", "type":"int"},
-              |"col5":{"cf":"cf5", "col":"col5", "type":"bigint"},
-              |"col6":{"cf":"cf6", "col":"col6", "type":"smallint"},
-              |"col7":{"cf":"cf7", "col":"col7", "type":"string"},
-              |"col8":{"cf":"cf7", "col":"col8", "type":"tinyint"}
+              |"col0":{"cf":"rowkey", "col":"key", "type":"int", "coder":"primitive"},
+              |"col1":{"cf":"cf1", "col":"col1", "type":"boolean", "coder":"primitive"},
+              |"col2":{"cf":"cf1", "col":"col2", "type":"double", "coder":"primitive"},
+              |"col3":{"cf":"cf3", "col":"col3", "type":"float", "coder":"primitive"},
+              |"col4":{"cf":"cf4", "col":"col4", "type":"int", "coder":"primitive"},
+              |"col5":{"cf":"cf5", "col":"col5", "type":"bigint", "coder":"primitive"},
+              |"col6":{"cf":"cf6", "col":"col6", "type":"smallint", "coder":"primitive"},
+              |"col7":{"cf":"cf7", "col":"col7", "type":"string", "coder":"primitive"},
+              |"col8":{"cf":"cf7", "col":"col8", "type":"tinyint", "coder":"primitive"}
             |}
           |}""".stripMargin
 

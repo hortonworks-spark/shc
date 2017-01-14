@@ -38,7 +38,7 @@ trait SHCDataType {
  */
 object SHCDataTypeFactory {
   def create(f: Field): SHCDataType = {
-    if (f.exeSchema.isDefined)
+    if (f.coder == "avro")
       new Avro(f)
     else
       new PrimitiveType(f)

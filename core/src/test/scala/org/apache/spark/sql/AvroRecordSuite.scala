@@ -33,7 +33,7 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
     val schemaString  =
       s"""{"namespace": "example.avro",
          |   "type": "record", "name": "User",
-         |    "fields": [      {"name": "name", "type": "string"},
+         |    "fields": [ {"name": "name", "type": "string"},
          |      {"name": "favorite_number",  "type": ["int", "null"]},
          |        {"name": "favorite_color", "type": ["string", "null"]} ] }""".stripMargin
     val avroSchema: Schema = {

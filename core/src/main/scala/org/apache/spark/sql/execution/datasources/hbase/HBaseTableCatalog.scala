@@ -17,8 +17,6 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import org.json4s.jackson.JsonMethods._
-
 import scala.collection.mutable
 
 import org.apache.avro.Schema
@@ -27,7 +25,7 @@ import org.apache.spark.Logging
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.catalyst.util.DataTypeParser
 import org.apache.spark.sql.types._
-import org.json4s.JsonAST.{JObject, JValue}
+import org.json4s.JsonAST.JObject
 import org.json4s.jackson.JsonMethods._
 
 // The definition of each column cell, which may be composite type
@@ -35,6 +33,7 @@ case class Field(
     colName: String,
     cf: String,
     col: String,
+    coder: String,
     sType: Option[String] = None,
     avroSchema: Option[String] = None,
     len: Int = -1) extends Logging {
@@ -59,12 +58,9 @@ case class Field(
     SchemaConverters.createConverterToAvro(dt, colName, "recordNamespace")
   }
 
-  val dt = {
-    sType.map(DataTypeParser.parse(_)).getOrElse {
-      schema.map { x =>
-        SchemaConverters.toSqlType(x).dataType
-      }.get
-    }
+  val dt = coder match {
+    case "avro" => schema.map{ x => SchemaConverters.toSqlType(x).dataType }.get
+    case _ =>  sType.map(DataTypeParser.parse(_)).get
   }
 
   val length: Int = {
@@ -174,6 +170,7 @@ object HBaseTableCatalog {
   val avro = "avro"
   val delimiter: Byte = 0
   val length = "length"
+  val coder = "coder"
   /**
    * User provide table schema definition
    * {"tablename":"name", "rowkey":"key1:key2",
@@ -191,11 +188,11 @@ object HBaseTableCatalog {
     val schemaMap = mutable.LinkedHashMap.empty[String, Field]
     getColsPreservingOrder(jObj).foreach { case (name, column)=>
       val len = column.get(length).map(_.toInt).getOrElse(-1)
-      val sAvro = column.get(avro).map(parameters(_))
-      val f = Field(name, column.getOrElse(cf, rowKey),
-        column.get(col).get,
-        column.get(`type`),
-        sAvro, len)
+      val sCoder = column.getOrElse(coder, "primitive")
+      val sType = column.get(`type`)
+      val sAvro = if (sCoder == avro) sType.map(parameters(_)) else None
+      val f = Field(name, column.getOrElse(cf, rowKey), column.get(col).get,
+        sCoder, sType, sAvro, len)
       schemaMap.+= ((name, f))
     }
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)

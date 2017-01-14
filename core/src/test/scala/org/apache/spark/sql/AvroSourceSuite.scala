@@ -51,8 +51,8 @@ class AvroSourceSuite extends SHC with Logging{
             |"table":{"namespace":"default", "name":"avrotable"},
             |"rowkey":"key",
             |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
-              |"col1":{"cf":"cf1", "col":"col1", "type":"binary"}
+              |"col0":{"cf":"rowkey", "col":"key", "type":"string", "coder":"primitive"},
+              |"col1":{"cf":"cf1", "col":"col1", "type":"binary", "coder":"primitive"}
             |}
           |}""".stripMargin
 
@@ -60,8 +60,8 @@ class AvroSourceSuite extends SHC with Logging{
             |"table":{"namespace":"default", "name":"avrotable"},
             |"rowkey":"key",
             |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
-              |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
+              |"col0":{"cf":"rowkey", "col":"key", "type":"string", "coder":"primitive"},
+              |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"avro"}
             |}
           |}""".stripMargin
 
@@ -69,8 +69,8 @@ class AvroSourceSuite extends SHC with Logging{
             |"table":{"namespace":"default", "name":"avrotableInsert"},
             |"rowkey":"key",
             |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
-              |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
+              |"col0":{"cf":"rowkey", "col":"key", "type":"string", "coder":"primitive"},
+              |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"avro"}
             |}
           |}""".stripMargin
 

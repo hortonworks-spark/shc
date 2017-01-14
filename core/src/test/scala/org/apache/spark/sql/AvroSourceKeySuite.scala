@@ -28,10 +28,10 @@ case class AvroHBaseKeyRecord(col0: Array[Byte], col1: Array[Byte])
 object AvroHBaseKeyRecord {
   val schemaString =
     s"""{"namespace": "example.avro",
-         |   "type": "record",      "name": "User",
-         |    "fields": [      {"name": "name", "type": "string"},
+         |   "type": "record", "name": "User",
+         |    "fields": [ {"name": "name", "type": "string"},
          |      {"name": "favorite_number",  "type": ["int", "null"]},
-         |        {"name": "favorite_color", "type": ["string", "null"]}      ]    }""".stripMargin
+         |        {"name": "favorite_color", "type": ["string", "null"]} ] }""".stripMargin
 
   val avroSchema: Schema = {
     val p = new Schema.Parser
@@ -55,8 +55,8 @@ class AvroSourceKeySuite extends SHC with Logging{
             |"table":{"namespace":"default", "name":"avrotable"},
             |"rowkey":"key",
             |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key", "type":"binary"},
-              |"col1":{"cf":"cf1", "col":"col1", "type":"binary"}
+              |"col0":{"cf":"rowkey", "col":"key", "type":"binary", "coder":"primitive"},
+              |"col1":{"cf":"cf1", "col":"col1", "type":"binary", "coder":"primitive"}
             |}
           |}""".stripMargin
 
@@ -64,8 +64,8 @@ class AvroSourceKeySuite extends SHC with Logging{
             |"table":{"namespace":"default", "name":"avrotable"},
             |"rowkey":"key",
             |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key",  "avro":"avroSchema"},
-              |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
+              |"col0":{"cf":"rowkey", "col":"key", "type":"avroSchema", "coder":"avro"},
+              |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"avro"}
             |}
           |}""".stripMargin
 
@@ -73,8 +73,8 @@ class AvroSourceKeySuite extends SHC with Logging{
             |"table":{"namespace":"default", "name":"avrotableInsert"},
             |"rowkey":"key",
             |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key", "avro":"avroSchema"},
-              |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
+              |"col0":{"cf":"rowkey", "col":"key", "type":"avroSchema", "coder":"avro"},
+              |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"avro"}
             |}
           |}""".stripMargin
 
