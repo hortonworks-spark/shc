@@ -83,22 +83,35 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
     println(s"$desData")
   }
 	
-  test("avro flaot type union schema serialize/deserialize") {
-    val schemaString  =  s"""["float","null"]""".stripMargin
-    val avroSchema: Schema = {
-      val p = new Schema.Parser
-      p.parse(schemaString)
-    }
+  test("avro primitive data types union schemas serialize/deserialize") {
+    val unionNullValue: String = null
+    val byteArray: Array[Byte] = Array(10.toByte)
+    val bytes = ByteBuffer.wrap(byteArray)
 
-    val data = -1234.93f
-    val sqlConv = SchemaConverters.createConverterToSQL(avroSchema)(data)
-    println(sqlConv)
-    val sqlSchema = SchemaConverters.toSqlType(avroSchema)
-    println(s"\nSqlschema: $sqlSchema")
-    val avroData = SchemaConverters.createConverterToAvro(sqlSchema.dataType, "avro", "example.avro")(sqlConv)
-    val avroBytes = AvroSedes.serialize(avroData, avroSchema)
-    val desData = AvroSedes.deserialize(avroBytes, avroSchema)
-    println(s"$desData")
+    val datatypeSchemas = Map("Test string" -> "\"string\"",
+        unionNullValue -> """["string","null"]""",
+        true -> """["boolean","null"]""",
+        9223372036854775807L -> """["long","null"]""",
+        -1234.93f -> """["float","null"]""",
+        123 -> """["int","null"]""",
+        1.7e10d -> """["double","null"]""",
+        bytes -> """["bytes","null"]""")
+	
+     datatypeSchemas.keys.foreach{ data =>
+        val avroSchema: Schema = {
+            val p = new Schema.Parser
+	    p.parse(datatypeSchemas(data))
+	}
+
+	val sqlConv = SchemaConverters.createConverterToSQL(avroSchema)(data)
+	println(sqlConv)
+	val sqlSchema = SchemaConverters.toSqlType(avroSchema)
+	println(s"\nSqlschema: $sqlSchema")
+	val avroData = SchemaConverters.createConverterToAvro(sqlSchema.dataType, "avro", "example.avro")(sqlConv)
+	val avroBytes = AvroSedes.serialize(avroData, avroSchema)
+	val desData = AvroSedes.deserialize(avroBytes, avroSchema)
+	println(s"$desData")
+     }
   }
 
   test("test schema complicated") {
