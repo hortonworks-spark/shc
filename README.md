@@ -150,7 +150,7 @@ Suppose hrt_qa is a headless account, user can use following command for kinit:
     /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-cluster --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc:1.0.0-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/ --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
 
 ## Others
-## Example. Support of Avro schemas:
+### Example. Support of Avro schemas:
 The connector fully supports all the avro schemas. Users can use either a complete record schema or partial field schema as data type in their catalog.
     
     val schema_array = s"""{"type": "array", "items": ["string","null"]}""".stripMargin
