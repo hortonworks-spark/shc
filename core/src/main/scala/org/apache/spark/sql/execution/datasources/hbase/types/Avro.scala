@@ -66,7 +66,7 @@ class Avro(f:Option[Field] = None) extends SHCDataType {
     throw new UnsupportedOperationException ("Avro coder: Composite key is not supported")
   }
 
-  def constructCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Array[Byte] = {
+  def encodeCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Seq[Array[Byte]] = {
     throw new UnsupportedOperationException ("Avro coder: Composite key is not supported")
   }
 }

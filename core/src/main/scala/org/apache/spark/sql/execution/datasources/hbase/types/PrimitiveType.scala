@@ -42,7 +42,8 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
       }
     } else {
       throw new UnsupportedOperationException(
-        "PrimitiveType coder: without field metadata, 'bytesToColumn' conversion can not be supported")
+        "PrimitiveType coder: without field metadata," +
+          " 'bytesToColumn' conversion can not be supported")
     }
   }
 
@@ -81,24 +82,15 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
       }
     } else {
       throw new UnsupportedOperationException(
-        "PrimitiveType coder: without field metadata, 'bytesToCompositeKeyField' conversion can not be supported")
+        "PrimitiveType coder: without field metadata," +
+          " 'bytesToCompositeKeyField' conversion can not be supported")
     }
   }
 
-  def constructCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Array[Byte] = {
-    val rowBytes = rkIdxedFields.map { case (x, y) =>
+  def encodeCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Seq[Array[Byte]] = {
+    rkIdxedFields.map { case (x, y) =>
       SHCDataTypeFactory.create(y).toBytes(row(x))
     }
-    val rLen = rowBytes.foldLeft(0) { case (x, y) =>
-      x + y.length
-    }
-    val rBytes = new Array[Byte](rLen)
-    var offset = 0
-    rowBytes.foreach { x =>
-      System.arraycopy(x, 0, rBytes, offset, x.length)
-      offset += x.length
-    }
-    rBytes
   }
 
   private def toBoolean(input: HBaseType, offset: Int = 0): Boolean = {

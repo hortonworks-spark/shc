@@ -164,8 +164,19 @@ case class HBaseRelation(
       // construct bytes for row key
       val rBytes =
         if (isComposite()) {
-          SHCDataTypeFactory.create(catalog.tCoder)
-            .constructCompositeRowKey(rkIdxedFields, row)
+          val rowBytes = SHCDataTypeFactory.create(catalog.tCoder)
+            .encodeCompositeRowKey(rkIdxedFields, row)
+
+          val rLen = rowBytes.foldLeft(0) { case (x, y) =>
+            x + y.length
+          }
+          val rBytes = new Array[Byte](rLen)
+          var offset = 0
+          rowBytes.foreach { x =>
+            System.arraycopy(x, 0, rBytes, offset, x.length)
+            offset += x.length
+          }
+          rBytes
         } else {
           val rBytes = rkIdxedFields.map { case (x, y) =>
             SHCDataTypeFactory.create(y).toBytes(row(x))

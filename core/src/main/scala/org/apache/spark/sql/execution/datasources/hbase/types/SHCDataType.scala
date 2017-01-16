@@ -31,7 +31,7 @@ trait SHCDataType {
   // If your data type do not need to support composite keys, you can just leave it empty or
   // threw an exception to remind users composite key is not supported.
   def bytesToCompositeKeyField(src: HBaseType, offset: Int, length: Int): Any
-  def constructCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Array[Byte]
+  def encodeCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Seq[Array[Byte]]
 }
 
 /**
