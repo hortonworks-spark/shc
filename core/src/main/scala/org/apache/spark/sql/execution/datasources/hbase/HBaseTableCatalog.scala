@@ -19,21 +19,23 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import scala.collection.mutable
 
+import org.json4s.JsonAST.JObject
+import org.json4s.jackson.JsonMethods._
+
 import org.apache.avro.Schema
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.Logging
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.catalyst.util.DataTypeParser
 import org.apache.spark.sql.types._
-import org.json4s.JsonAST.JObject
-import org.json4s.jackson.JsonMethods._
+import org.apache.spark.sql.execution.datasources.hbase.types._
 
 // The definition of each column cell, which may be composite type
 case class Field(
     colName: String,
     cf: String,
     col: String,
-    coder: String,
+    fCoder: String,
     sType: Option[String] = None,
     avroSchema: Option[String] = None,
     len: Int = -1) extends Logging {
@@ -58,7 +60,7 @@ case class Field(
     SchemaConverters.createConverterToAvro(dt, colName, "recordNamespace")
   }
 
-  val dt = coder match {
+  val dt = fCoder match {
     case "avro" => schema.map{ x => SchemaConverters.toSqlType(x).dataType }.get
     case _ =>  sType.map(DataTypeParser.parse(_)).get
   }
@@ -123,6 +125,7 @@ case class HBaseTableCatalog(
     val name: String,
     row: RowKey,
     sMap: SchemaMap,
+    tCoder: String,
     val numReg: Int) extends Logging {
   def toDataType = StructType(sMap.toFields)
   def getField(name: String) = sMap.getField(name)
@@ -170,7 +173,8 @@ object HBaseTableCatalog {
   val avro = "avro"
   val delimiter: Byte = 0
   val length = "length"
-  val coder = "coder"
+  val fCoder = "coder"
+  val tableCoder = "tableCoder"
   /**
    * User provide table schema definition
    * {"tablename":"name", "rowkey":"key1:key2",
@@ -185,19 +189,20 @@ object HBaseTableCatalog {
     val tableMeta = map.get(table).get.asInstanceOf[Map[String, _]]
     val nSpace = tableMeta.get(nameSpace).getOrElse("default").asInstanceOf[String]
     val tName = tableMeta.get(tableName).get.asInstanceOf[String]
+    val tCoder = tableMeta.get(tableCoder).get.asInstanceOf[String]
     val schemaMap = mutable.LinkedHashMap.empty[String, Field]
     getColsPreservingOrder(jObj).foreach { case (name, column)=>
       val len = column.get(length).map(_.toInt).getOrElse(-1)
-      val sCoder = column.getOrElse(coder, "primitive")
+      val fc = column.getOrElse(fCoder, tCoder)
       val sType = column.get(`type`)
-      val sAvro = if (sCoder == avro) sType.map(parameters(_)) else None
+      val sAvro = if (fc == avro) sType.map(parameters(_)) else None
       val f = Field(name, column.getOrElse(cf, rowKey), column.get(col).get,
-        sCoder, sType, sAvro, len)
+        fc, sType, sAvro, len)
       schemaMap.+= ((name, f))
     }
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)
     val rKey = RowKey(map.get(rowKey).get.asInstanceOf[String])
-    HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), numReg)
+    HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), tCoder, numReg)
   }
 
   /**
@@ -223,12 +228,12 @@ object HBaseTableCatalog {
          |        {"name": "favorite_color", "type": ["string", "null"]} ] }""".stripMargin
 
     val catalog = s"""{
-            |"table":{"namespace":"default", "name":"htable"},
+            |"table":{"namespace":"default", "name":"htable", "tableCoder":"primitive"},
             |"rowkey":"key1:key2",
             |"columns":{
               |"col1":{"cf":"rowkey", "col":"key1", "type":"string"},
               |"col2":{"cf":"rowkey", "col":"key2", "type":"double"},
-              |"col3":{"cf":"cf1", "col":"col1", "avro":"schema1"},
+              |"col3":{"cf":"cf1", "col":"col1", "type":"schema1"},
               |"col4":{"cf":"cf1", "col":"col2", "type":"binary"},
               |"col5":{"cf":"cf1", "col":"col3", "type":"double"},
               |"col6":{"cf":"cf1", "col":"col4", "type":"$complex"}

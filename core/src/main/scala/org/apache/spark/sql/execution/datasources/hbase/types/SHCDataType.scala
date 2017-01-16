@@ -38,9 +38,20 @@ trait SHCDataType {
  */
 object SHCDataTypeFactory {
   def create(f: Field): SHCDataType = {
-    if (f.coder == "avro")
-      new Avro(f)
+    if (f.fCoder == "avro")
+      new Avro(Some(f))
+    else if (f.fCoder == "phoenix")
+      new Phoenix(Some(f))
     else
-      new PrimitiveType(f)
+      new PrimitiveType(Some(f))
+  }
+
+  def create(coder: String): SHCDataType = {
+    if (coder == "avro")
+      new Avro()
+    else if (coder == "phoenix")
+      new Phoenix()
+    else
+      new PrimitiveType()
   }
 }

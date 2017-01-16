@@ -122,8 +122,8 @@ case class HBaseRelation(
           logDebug(s"add family $x to ${catalog.name}")
           tableDesc.addFamily(cf)
         }
-        val startKey = Bytes.toBytes("aaaaaaa")
-        val endKey = Bytes.toBytes("zzzzzzz")
+        val startKey = SHCDataTypeFactory.create(catalog.tCoder).toBytes("aaaaaaa")
+        val endKey = SHCDataTypeFactory.create(catalog.tCoder).toBytes("zzzzzzz")
         val splitKeys = Bytes.split(startKey, endKey, catalog.numReg - 3)
         admin.createTable(tableDesc, splitKeys)
         val r = connection.getRegionLocator(TableName.valueOf(catalog.name)).getAllRegionLocations
@@ -176,8 +176,10 @@ case class HBaseRelation(
       val put = timestamp.fold(new Put(rBytes))(new Put(rBytes, _))
 
       colsIdxedFields.foreach { case (x, y) =>
-        val b = SHCDataTypeFactory.create(y).toBytes(row(x))
-        put.addColumn(Bytes.toBytes(y.cf), Bytes.toBytes(y.col), b)
+        put.addColumn(
+          SHCDataTypeFactory.create(catalog.tCoder).toBytes(y.cf),
+          SHCDataTypeFactory.create(catalog.tCoder).toBytes(y.col),
+          SHCDataTypeFactory.create(y).toBytes(row(x)))
       }
       count += 1
       (new ImmutableBytesWritable, put)

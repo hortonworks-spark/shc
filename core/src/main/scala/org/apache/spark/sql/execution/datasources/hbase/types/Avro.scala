@@ -38,22 +38,32 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.execution.datasources.hbase._
 
-class Avro(f: Field) extends SHCDataType {
+class Avro(f:Option[Field] = None) extends SHCDataType {
 
   def bytesToColumn(src: HBaseType): Any = {
-    val m = AvroSerde.deserialize(src, f.exeSchema.get)
-    val n = f.avroToCatalyst.map(_(m))
-    n.get
+    if (f.isDefined) {
+      val m = AvroSerde.deserialize(src, f.get.exeSchema.get)
+      val n = f.get.avroToCatalyst.map(_ (m))
+      n.get
+    } else {
+      throw new UnsupportedOperationException(
+        "Avro coder: without field metadata, 'bytesToColumn' conversion can not be supported")
+    }
   }
 
   def toBytes(input: Any): Array[Byte] = {
     // Here we assume the top level type is structType
-    val record = f.catalystToAvro(input)
-    AvroSerde.serialize(record, f.schema.get)
+    if (f.isDefined) {
+      val record = f.get.catalystToAvro(input)
+      AvroSerde.serialize(record, f.get.schema.get)
+    } else {
+      throw new UnsupportedOperationException(
+        "Avro coder: Without field metadata, 'toBytes' conversion can not be supported")
+    }
   }
 
   def bytesToCompositeKeyField(src: HBaseType, offset: Int, length: Int): Any = {
-    throw new UnsupportedOperationException ("The Composite key is not supported!")
+    throw new UnsupportedOperationException ("Avro coder: Composite key is not supported")
   }
 }
 

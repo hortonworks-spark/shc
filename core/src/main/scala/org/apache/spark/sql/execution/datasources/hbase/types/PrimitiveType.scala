@@ -23,20 +23,25 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.sql.execution.datasources.hbase._
 
-class PrimitiveType(f: Field) extends SHCDataType {
+class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
 
   def bytesToColumn(src: HBaseType): Any = {
-    f.dt match {
-      case BooleanType => toBoolean(src)
-      case ByteType => src(0)
-      case DoubleType => Bytes.toDouble(src)
-      case FloatType => Bytes.toFloat(src)
-      case IntegerType => Bytes.toInt(src)
-      case LongType => Bytes.toLong(src)
-      case ShortType => Bytes.toShort(src)
-      case StringType => toUTF8String(src, src.length)
-      case BinaryType => src
-      case _ => SparkSqlSerializer.deserialize[Any](src)
+    if (f.isDefined) {
+      f.get.dt match {
+        case BooleanType => toBoolean(src)
+        case ByteType => src(0)
+        case DoubleType => Bytes.toDouble(src)
+        case FloatType => Bytes.toFloat(src)
+        case IntegerType => Bytes.toInt(src)
+        case LongType => Bytes.toLong(src)
+        case ShortType => Bytes.toShort(src)
+        case StringType => toUTF8String(src, src.length)
+        case BinaryType => src
+        case _ => SparkSqlSerializer.deserialize[Any](src)
+      }
+    } else {
+      throw new UnsupportedOperationException(
+        "PrimitiveType coder: without field metadata, 'bytesToColumn' conversion can not be supported")
     }
   }
 
@@ -52,25 +57,30 @@ class PrimitiveType(f: Field) extends SHCDataType {
       case data: Short => Bytes.toBytes(data)
       case data: UTF8String => data.getBytes
       case data: String => Bytes.toBytes(data)
-      case _ => throw new Exception(s"unsupported data type ${f.dt}")
+      case _ => throw new Exception(s"unsupported data type $input")
     }
   }
 
   def bytesToCompositeKeyField(src: HBaseType, offset: Int, length: Int): Any = {
-    f.dt match {
-      case BooleanType => toBoolean(src, offset)
-      case ByteType => src(offset)
-      case DoubleType => Bytes.toDouble(src, offset)
-      case FloatType => Bytes.toFloat(src, offset)
-      case IntegerType => Bytes.toInt(src, offset)
-      case LongType => Bytes.toLong(src, offset)
-      case ShortType => Bytes.toShort(src, offset)
-      case StringType => toUTF8String(src, length, offset)
-      case BinaryType =>
-        val newArray = new Array[Byte](length)
-        System.arraycopy(src, offset, newArray, 0, length)
-        newArray
-      case _ => SparkSqlSerializer.deserialize[Any](src)
+    if (f.isDefined) {
+      f.get.dt match {
+        case BooleanType => toBoolean(src, offset)
+        case ByteType => src(offset)
+        case DoubleType => Bytes.toDouble(src, offset)
+        case FloatType => Bytes.toFloat(src, offset)
+        case IntegerType => Bytes.toInt(src, offset)
+        case LongType => Bytes.toLong(src, offset)
+        case ShortType => Bytes.toShort(src, offset)
+        case StringType => toUTF8String(src, length, offset)
+        case BinaryType =>
+          val newArray = new Array[Byte](length)
+          System.arraycopy(src, offset, newArray, 0, length)
+          newArray
+        case _ => SparkSqlSerializer.deserialize[Any](src)
+      }
+    } else {
+      throw new UnsupportedOperationException(
+        "PrimitiveType coder: without field metadata, 'bytesToCompositeKeyField' conversion can not be supported")
     }
   }
 

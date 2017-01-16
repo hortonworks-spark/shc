@@ -136,7 +136,7 @@ public class AvroKeySourceSuite {
   }
 
   private static Map<String, String> getHBaseSourceOptions() {
-    String hbaseCatalog = "{\"table\": {\"namespace\": \"default\", \"name\": \"TEST_TABLE\"}," +
+    String hbaseCatalog = "{\"table\": {\"namespace\": \"default\", \"name\": \"TEST_TABLE\", \"tableCoder\":\"primitive\"}," +
         "\"rowkey\": \"key\", \"columns\": {"
         + "\"key\": {\"cf\": \"rowkey\", \"col\": \"key\", \"type\": \"keySchema\", \"coder\": \"avro\"},"
         + "\"value\": {\"cf\": \"" + COLUMN_FAMILY + "\", \"col\": \"" + COLUMN_QUALIFIER + "\", \"type\": \"avroSchema\", \"coder\": \"avro\"}"

@@ -48,28 +48,28 @@ class AvroSourceSuite extends SHC with Logging{
 
   // 'catalog' is used when saving data to HBase
   override def catalog = s"""{
-            |"table":{"namespace":"default", "name":"avrotable"},
+            |"table":{"namespace":"default", "name":"avrotable", "tableCoder":"primitive"},
             |"rowkey":"key",
             |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key", "type":"string", "coder":"primitive"},
-              |"col1":{"cf":"cf1", "col":"col1", "type":"binary", "coder":"primitive"}
+              |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
+              |"col1":{"cf":"cf1", "col":"col1", "type":"binary"}
             |}
           |}""".stripMargin
 
   def avroCatalog = s"""{
-            |"table":{"namespace":"default", "name":"avrotable"},
+            |"table":{"namespace":"default", "name":"avrotable", "tableCoder":"primitive"},
             |"rowkey":"key",
             |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key", "type":"string", "coder":"primitive"},
+              |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
               |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"avro"}
             |}
           |}""".stripMargin
 
   def avroCatalogInsert = s"""{
-            |"table":{"namespace":"default", "name":"avrotableInsert"},
+            |"table":{"namespace":"default", "name":"avrotableInsert", "tableCoder":"primitive"},
             |"rowkey":"key",
             |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key", "type":"string", "coder":"primitive"},
+              |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
               |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"avro"}
             |}
           |}""".stripMargin
