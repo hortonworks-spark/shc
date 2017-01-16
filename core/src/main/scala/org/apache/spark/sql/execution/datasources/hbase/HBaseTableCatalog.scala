@@ -233,7 +233,7 @@ object HBaseTableCatalog {
             |"columns":{
               |"col1":{"cf":"rowkey", "col":"key1", "type":"string"},
               |"col2":{"cf":"rowkey", "col":"key2", "type":"double"},
-              |"col3":{"cf":"cf1", "col":"col1", "type":"schema1"},
+              |"col3":{"cf":"cf1", "col":"col1", "type":"schema1", "coder":"avro"},
               |"col4":{"cf":"cf1", "col":"col2", "type":"binary"},
               |"col5":{"cf":"cf1", "col":"col3", "type":"double"},
               |"col6":{"cf":"cf1", "col":"col4", "type":"$complex"}
