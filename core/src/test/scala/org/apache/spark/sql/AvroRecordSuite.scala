@@ -19,6 +19,7 @@
 package org.apache.spark.sql
 
 import scala.util.Random
+import java.nio.ByteBuffer
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
