@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.datasources.hbase.types
 
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.SparkSqlSerializer
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -82,6 +83,22 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
       throw new UnsupportedOperationException(
         "PrimitiveType coder: without field metadata, 'bytesToCompositeKeyField' conversion can not be supported")
     }
+  }
+
+  def constructCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Array[Byte] = {
+    val rowBytes = rkIdxedFields.map { case (x, y) =>
+      SHCDataTypeFactory.create(y).toBytes(row(x))
+    }
+    val rLen = rowBytes.foldLeft(0) { case (x, y) =>
+      x + y.length
+    }
+    val rBytes = new Array[Byte](rLen)
+    var offset = 0
+    rowBytes.foreach { x =>
+      System.arraycopy(x, 0, rBytes, offset, x.length)
+      offset += x.length
+    }
+    rBytes
   }
 
   private def toBoolean(input: HBaseType, offset: Int = 0): Boolean = {

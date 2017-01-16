@@ -65,6 +65,10 @@ class Avro(f:Option[Field] = None) extends SHCDataType {
   def bytesToCompositeKeyField(src: HBaseType, offset: Int, length: Int): Any = {
     throw new UnsupportedOperationException ("Avro coder: Composite key is not supported")
   }
+
+  def constructCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Array[Byte] = {
+    throw new UnsupportedOperationException ("Avro coder: Composite key is not supported")
+  }
 }
 
 abstract class AvroException(msg: String) extends Exception(msg)

@@ -159,22 +159,20 @@ case class HBaseRelation(
       .partition( x => rkFields.map(_.colName).contains(x))
       ._2.map(x => (schema.fieldIndex(x), catalog.getField(x)))
     val rdd = data.rdd //df.queryExecution.toRdd
+
     def convertToPut(row: Row) = {
       // construct bytes for row key
-      val rowBytes = rkIdxedFields.map { case (x, y) =>
-        SHCDataTypeFactory.create(y).toBytes(row(x))
-      }
-      val rLen = rowBytes.foldLeft(0) { case (x, y) =>
-        x + y.length
-      }
-      val rBytes = new Array[Byte](rLen)
-      var offset = 0
-      rowBytes.foreach { x =>
-        System.arraycopy(x, 0, rBytes, offset, x.length)
-        offset += x.length
-      }
+      val rBytes =
+        if (isComposite()) {
+          SHCDataTypeFactory.create(catalog.tCoder)
+            .constructCompositeRowKey(rkIdxedFields, row)
+        } else {
+          val rBytes = rkIdxedFields.map { case (x, y) =>
+            SHCDataTypeFactory.create(y).toBytes(row(x))
+          }
+          rBytes(0)
+        }
       val put = timestamp.fold(new Put(rBytes))(new Put(rBytes, _))
-
       colsIdxedFields.foreach { case (x, y) =>
         put.addColumn(
           SHCDataTypeFactory.create(catalog.tCoder).toBytes(y.cf),

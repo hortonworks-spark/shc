@@ -59,7 +59,7 @@ object PRecord {
   }
 }
 
-class PhoenixTypeSuite extends SHC with Logging {
+class PhoenixSuite extends SHC with Logging {
   override def catalog = s"""{
                     |"table":{"namespace":"default", "name":"table1", "tableCoder":"phoenix"},
                     |"rowkey":"key",

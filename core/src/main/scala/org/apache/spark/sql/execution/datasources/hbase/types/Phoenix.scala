@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.datasources.hbase.types
 
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.phoenix.schema.types._
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.SparkSqlSerializer
 import org.apache.spark.sql.execution.datasources.hbase._
 import org.apache.spark.sql.types._
@@ -61,6 +62,10 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
   }
 
   def bytesToCompositeKeyField(src: HBaseType, offset: Int, length: Int): Any = {
-    throw new Exception("Not Support yet")
+    throw new UnsupportedOperationException ("Phoenix coder: Composite key is not supported")
+  }
+
+  def constructCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Array[Byte] = {
+    throw new UnsupportedOperationException ("Phoenix coder: Composite key is not supported")
   }
 }
