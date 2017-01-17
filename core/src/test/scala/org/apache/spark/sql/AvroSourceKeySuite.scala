@@ -20,7 +20,7 @@ package org.apache.spark.sql
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
 import org.apache.spark.{SparkContext, Logging}
-import org.apache.spark.sql.execution.datasources.hbase.{HBaseTableCatalog, AvroSedes}
+import org.apache.spark.sql.execution.datasources.hbase.{HBaseTableCatalog, AvroSerde}
 
 case class AvroHBaseKeyRecord(col0: Array[Byte],
                            col1: Array[Byte])
@@ -43,7 +43,7 @@ object AvroHBaseKeyRecord {
     user.put("name", s"name${"%03d".format(i)}")
     user.put("favorite_number", i)
     user.put("favorite_color", s"color${"%03d".format(i)}")
-    val avroByte = AvroSedes.serialize(user, avroSchema)
+    val avroByte = AvroSerde.serialize(user, avroSchema)
     AvroHBaseKeyRecord(avroByte, avroByte)
   }
 }
