@@ -49,8 +49,8 @@ object AvroRecord {
     val schema = SchemaConverters.toSqlType(avroSchema)
     println(s"\nSqlschema: $schema")
     val avroUser1 = SchemaConverters.createConverterToAvro(schema.dataType, "avro", "example.avro")(sqlUser1)
-    val avroByte = AvroSedes.serialize(avroUser1, avroSchema)
-    val avroUser11 = AvroSedes.deserialize(avroByte, avroSchema)
+    val avroByte = AvroSerde.serialize(avroUser1, avroSchema)
+    val avroUser11 = AvroSerde.deserialize(avroByte, avroSchema)
     println(s"$avroUser1")
   }
 }

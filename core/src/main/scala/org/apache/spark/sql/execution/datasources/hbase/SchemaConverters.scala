@@ -380,7 +380,7 @@ object SchemaConverters {
 }
 
 
-object AvroSedes {
+object AvroSerde {
   def serialize(input: Any, schema: Schema): Array[Byte]= {
     val bao = new ByteArrayOutputStream()
     try {
