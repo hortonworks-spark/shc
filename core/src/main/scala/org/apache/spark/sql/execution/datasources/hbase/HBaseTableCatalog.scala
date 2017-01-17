@@ -60,10 +60,11 @@ case class Field(
     SchemaConverters.createConverterToAvro(dt, colName, "recordNamespace")
   }
 
-  val dt = fCoder match {
-    case "Avro" => schema.map{ x => SchemaConverters.toSqlType(x).dataType }.get
-    case _ =>  sType.map(DataTypeParser.parse(_)).get
-  }
+  val dt =
+    if (fCoder == classOf[Avro].getSimpleName)
+      schema.map{ x => SchemaConverters.toSqlType(x).dataType }.get
+    else
+      sType.map(DataTypeParser.parse(_)).get
 
   val length: Int = {
     if (len == -1) {
