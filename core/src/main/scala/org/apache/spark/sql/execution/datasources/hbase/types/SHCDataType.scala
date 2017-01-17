@@ -20,6 +20,8 @@ package org.apache.spark.sql.execution.datasources.hbase.types
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.datasources.hbase._
 
+import scala.util.control.NonFatal
+
 trait SHCDataType {
   // Parse the hbase Field to it's corresponding Scala type which can then be put into
   // a Spark GenericRow which is then automatically converted by Spark.
@@ -30,6 +32,7 @@ trait SHCDataType {
 
   // If your data type do not need to support composite keys, you can just leave it empty or
   // threw an exception to remind users composite key is not supported.
+  def isCompositeKeySupported(): Boolean
   def bytesToCompositeKeyField(src: HBaseType, offset: Int, length: Int): Any
   def encodeCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Seq[Array[Byte]]
 }
@@ -40,20 +43,32 @@ trait SHCDataType {
  */
 object SHCDataTypeFactory {
   def create(f: Field): SHCDataType = {
-    if (f.fCoder == "avro")
+    if (f.fCoder == "Avro") {
       new Avro(Some(f))
-    else if (f.fCoder == "phoenix")
+    } else if (f.fCoder == "Phoenix") {
       new Phoenix(Some(f))
-    else
+    } else if (f.fCoder == "PrimitiveType") {
       new PrimitiveType(Some(f))
+    } else {
+      Class.forName(s"org.apache.spark.sql.execution.datasources.hbase.types.${f.fCoder}")
+        .getConstructor(classOf[Option[Field]])
+        .newInstance(f.fCoder)
+        .asInstanceOf[SHCDataType]
+    }
   }
 
   def create(coder: String): SHCDataType = {
-    if (coder == "avro")
+    if (coder == "Avro") {
       new Avro()
-    else if (coder == "phoenix")
+    } else if (coder == "Phoenix") {
       new Phoenix()
-    else
+    } else if (coder == "PrimitiveType") {
       new PrimitiveType()
+    } else {
+      Class.forName(s"org.apache.spark.sql.execution.datasources.hbase.types.$coder")
+        .getConstructor(classOf[Option[Field]])
+        .newInstance(None)
+        .asInstanceOf[SHCDataType]
+    }
   }
 }

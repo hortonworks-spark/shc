@@ -63,6 +63,8 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
     }
   }
 
+  def isCompositeKeySupported(): Boolean = true
+
   def bytesToCompositeKeyField(src: HBaseType, offset: Int, length: Int): Any = {
     if (f.isDefined) {
       f.get.dt match {

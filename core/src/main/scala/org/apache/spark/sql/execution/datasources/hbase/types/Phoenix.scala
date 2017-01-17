@@ -57,6 +57,8 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
     }
   }
 
+  def isCompositeKeySupported(): Boolean = false
+
   def bytesToCompositeKeyField(src: HBaseType, offset: Int, length: Int): Any = {
     throw new UnsupportedOperationException("Phoenix coder: Composite key is not supported")
   }

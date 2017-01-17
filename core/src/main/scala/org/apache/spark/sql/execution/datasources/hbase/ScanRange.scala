@@ -294,11 +294,12 @@ case class BoundRange(
 case class BoundRanges(less: Array[BoundRange], greater: Array[BoundRange], value: Array[Byte])
 
 object BoundRange extends Logging{
+  val pt = "PrimitiveType"
   def apply(in: Any, f: Field): Option[BoundRanges] = in match {
     // For short, integer, and long, the order of number is consistent with byte array order
     // regardless of its sign. But the negative number is larger than positive number in byte array.
     case a: Integer =>
-      if (f.fCoder == "primitive") {
+      if (f.fCoder == pt) {
         val b = Bytes.toBytes(a)
         if (a >= 0) {
           logDebug(s"range is 0 to $a and ${Integer.MIN_VALUE} to -1")
@@ -322,7 +323,7 @@ object BoundRange extends Logging{
       }
 
     case a: Long =>
-      if (f.fCoder == "primitive") {
+      if (f.fCoder == pt) {
         val b =  Bytes.toBytes(a)
         if (a >= 0) {
           Some(BoundRanges(
@@ -344,7 +345,7 @@ object BoundRange extends Logging{
       }
 
     case a: Short =>
-      if (f.fCoder == "primitive") {
+      if (f.fCoder == pt) {
         val b =  Bytes.toBytes(a)
         if (a >= 0) {
           Some(BoundRanges(
@@ -370,7 +371,7 @@ object BoundRange extends Logging{
       // with byte array order. But the order of negative number is the reverse
       // order of byte array. Please refer to IEEE-754 and
       // https://en.wikipedia.org/wiki/Single-precision_floating-point_format
-      if (f.fCoder == "primitive") {
+      if (f.fCoder == pt) {
         val b =  Bytes.toBytes(a)
         if (a >= 0.0f) {
           Some(BoundRanges(
@@ -392,7 +393,7 @@ object BoundRange extends Logging{
       }
 
     case a: Float =>
-      if (f.fCoder == "primitive") {
+      if (f.fCoder == pt) {
         val b =  Bytes.toBytes(a)
         if (a >= 0.0f) {
           Some(BoundRanges(

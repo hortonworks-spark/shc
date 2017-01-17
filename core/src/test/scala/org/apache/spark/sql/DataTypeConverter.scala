@@ -34,7 +34,7 @@ class DataTypeConverter extends SHC with Logging{
          |        {"name": "favorite_color", "type": ["string", "null"]}      ]    }""".stripMargin
 
     val catalog = s"""{
-            |"table":{"namespace":"default", "name":"htable", "tableCoder":"primitive"},
+            |"table":{"namespace":"default", "name":"htable", "tableCoder":"PrimitiveType"},
             |"rowkey":"key1:key2",
             |"columns":{
               |"col1":{"cf":"rowkey", "col":"key1", "type":"binary"},

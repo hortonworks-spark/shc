@@ -61,7 +61,7 @@ case class Field(
   }
 
   val dt = fCoder match {
-    case "avro" => schema.map{ x => SchemaConverters.toSqlType(x).dataType }.get
+    case "Avro" => schema.map{ x => SchemaConverters.toSqlType(x).dataType }.get
     case _ =>  sType.map(DataTypeParser.parse(_)).get
   }
 
@@ -107,6 +107,7 @@ case class RowKey(k: String) {
     }
   }
 }
+
 // The map between the column presented to Spark and the HBase field
 case class SchemaMap(map: mutable.LinkedHashMap[String, Field]) {
   def toFields = map.map { case (name, field) =>
@@ -117,7 +118,6 @@ case class SchemaMap(map: mutable.LinkedHashMap[String, Field]) {
 
   def getField(name: String) = map(name)
 }
-
 
 // The definition of HBase and Relation relation schema
 case class HBaseTableCatalog(
@@ -150,6 +150,18 @@ case class HBaseTableCatalog(
         "RowKey is allowed to have varied length")
     }
   }
+
+  // If the row key of the table is composite, check if the coder supports composite key.
+  if (row.fields.size > 1) {
+    val compositeKeyEnable = Class
+      .forName(s"org.apache.spark.sql.execution.datasources.hbase.types.$tCoder")
+      .getConstructor(classOf[Option[Field]])
+      .newInstance(None)
+      .asInstanceOf[SHCDataType]
+      .isCompositeKeySupported()
+    if (!compositeKeyEnable)
+      throw new UnsupportedOperationException(s"$tCoder: Composite key is not supported")
+  }
 }
 
 object HBaseTableCatalog {
@@ -170,7 +182,7 @@ object HBaseTableCatalog {
   val col = "col"
   val `type` = "type"
   // the name of avro schema json string
-  val avro = "avro"
+  val avro = "Avro"
   val delimiter: Byte = 0
   val length = "length"
   val fCoder = "coder"
@@ -202,6 +214,7 @@ object HBaseTableCatalog {
     }
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)
     val rKey = RowKey(map.get(rowKey).get.asInstanceOf[String])
+
     HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), tCoder, numReg)
   }
 
@@ -228,12 +241,12 @@ object HBaseTableCatalog {
          |        {"name": "favorite_color", "type": ["string", "null"]} ] }""".stripMargin
 
     val catalog = s"""{
-            |"table":{"namespace":"default", "name":"htable", "tableCoder":"primitive"},
+            |"table":{"namespace":"default", "name":"htable", "tableCoder":"PrimitiveType"},
             |"rowkey":"key1:key2",
             |"columns":{
               |"col1":{"cf":"rowkey", "col":"key1", "type":"string"},
               |"col2":{"cf":"rowkey", "col":"key2", "type":"double"},
-              |"col3":{"cf":"cf1", "col":"col1", "type":"schema1", "coder":"avro"},
+              |"col3":{"cf":"cf1", "col":"col1", "type":"schema1", "coder":"Avro"},
               |"col4":{"cf":"cf1", "col":"col2", "type":"binary"},
               |"col5":{"cf":"cf1", "col":"col3", "type":"double"},
               |"col6":{"cf":"cf1", "col":"col4", "type":"$complex"}
