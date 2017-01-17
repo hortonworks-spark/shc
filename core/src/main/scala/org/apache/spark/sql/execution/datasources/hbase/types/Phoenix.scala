@@ -63,29 +63,8 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
     throw new UnsupportedOperationException("Phoenix coder: Composite key is not supported")
   }
 
-  /*def parseCompositeRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {
-    def buildSchema(): RowKeySchema = {
-      val builder: RowKeySchemaBuilder = new RowKeySchemaBuilder(keyFields.length)
-      keyFields.foreach{ x =>
-        builder.addField(new PDatum() {
-          override def isNullable: Boolean = false
-          override def getDataType: PDataType = mapToPhoenixTypeInstance(x.dt)
-          override def getMaxLength: Integer = null
-          override def getScale: Integer = null
-          override def getSortOrder: SortOrder = SortOrder.getDefault
-        }, false, SortOrder.getDefault)
-      }
-      builder.build
-    }
-    val schema: RowKeySchema = buildSchema()
-  }*/
-
   def encodeCompositeRowKey(rkIdxedFields: Seq[(Int, Field)], row: Row): Seq[Array[Byte]] = {
-    rkIdxedFields.map { case (x, y) =>
-      val ret = toBytes(row(x))
-      if (y.length == -1) ret ++ QueryConstants.SEPARATOR_BYTE_ARRAY
-      ret
-    }
+    throw new UnsupportedOperationException("Phoenix coder: Composite key is not supported")
   }
 
   private def mapToPhoenixTypeInstance(input: DataType): PDataType[_] = {
