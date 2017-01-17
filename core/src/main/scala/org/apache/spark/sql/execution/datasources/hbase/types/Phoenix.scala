@@ -53,7 +53,7 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
       case data: Long => PLong.INSTANCE.toBytes(data)
       case data: Short => PSmallint.INSTANCE.toBytes(data)
       case data: String => PVarchar.INSTANCE.toBytes(data)
-      case _ => throw new Exception(s"unsupported data type $input")
+      case _ => throw new UnsupportedOperationException(s"unsupported data type $input")
     }
   }
 
@@ -78,7 +78,7 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
       case ShortType => PSmallint.INSTANCE
       case StringType => PVarchar.INSTANCE
       case BinaryType => PBinary.INSTANCE
-      case _ => throw new Exception(s"unsupported data type $input")
+      case _ => throw new UnsupportedOperationException(s"unsupported data type $input")
     }
   }
 }

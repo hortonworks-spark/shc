@@ -59,7 +59,7 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
       case data: Short => Bytes.toBytes(data)
       case data: UTF8String => data.getBytes
       case data: String => Bytes.toBytes(data)
-      case _ => throw new Exception(s"unsupported data type $input")
+      case _ => throw new UnsupportedOperationException(s"unsupported data type $input")
     }
   }
 

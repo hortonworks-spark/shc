@@ -160,7 +160,7 @@ object HBaseFilter extends Logging{
   }
 
   def buildFilter(filter: Filter, relation: HBaseRelation): HRF[Array[Byte]] = {
-    val tCoder = relation.catalog.tCoder
+    val tCoder = SHCDataTypeFactory.create(relation.catalog.tCoder)
     // We treat greater and greaterOrEqual as the same
     def Greater(attribute: String, value: Any): HRF[Array[Byte]]  = {
         process(value, relation, attribute,
@@ -179,14 +179,14 @@ object HBaseFilter extends Logging{
           val f = relation.getField(attribute)
           val filter = bound.greater.map { x =>
             val lower = new SingleColumnValueFilter(
-              SHCDataTypeFactory.create(tCoder).toBytes(f.cf),
-              SHCDataTypeFactory.create(tCoder).toBytes(f.col),
+              tCoder.toBytes(f.cf),
+              tCoder.toBytes(f.col),
               CompareOp.GREATER_OR_EQUAL,
               x.low)
             val low = TypedFilter(Some(lower), FilterType.Atomic)
             val upper = new SingleColumnValueFilter(
-              SHCDataTypeFactory.create(tCoder).toBytes(f.cf),
-              SHCDataTypeFactory.create(tCoder).toBytes(f.col),
+              tCoder.toBytes(f.cf),
+              tCoder.toBytes(f.col),
               CompareOp.LESS_OR_EQUAL,
               x.upper)
             val up = TypedFilter(Some(upper), FilterType.Atomic)
@@ -222,14 +222,14 @@ object HBaseFilter extends Logging{
           val f = relation.getField(attribute)
           val filter = bound.less.map { x =>
             val lower = new SingleColumnValueFilter(
-              SHCDataTypeFactory.create(tCoder).toBytes(f.cf),
-              SHCDataTypeFactory.create(tCoder).toBytes(f.col),
+              tCoder.toBytes(f.cf),
+              tCoder.toBytes(f.col),
               CompareOp.GREATER_OR_EQUAL,
               x.low)
             val low = TypedFilter(Some(lower), FilterType.Atomic)
             val upper = new SingleColumnValueFilter(
-              SHCDataTypeFactory.create(tCoder).toBytes(f.cf),
-              SHCDataTypeFactory.create(tCoder).toBytes(f.col),
+              tCoder.toBytes(f.cf),
+              tCoder.toBytes(f.col),
               CompareOp.LESS_OR_EQUAL,
               x.upper)
             val up = TypedFilter(Some(upper), FilterType.Atomic)
@@ -286,8 +286,8 @@ object HBaseFilter extends Logging{
           bound => {
             val f = relation.getField(attribute)
             val filter = new SingleColumnValueFilter(
-              SHCDataTypeFactory.create(tCoder).toBytes(f.cf),
-              SHCDataTypeFactory.create(tCoder).toBytes(f.col),
+              tCoder.toBytes(f.cf),
+              tCoder.toBytes(f.col),
               CompareOp.EQUAL,
               bound.value)
             HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), true)
@@ -324,8 +324,8 @@ object HBaseFilter extends Logging{
         } else if (relation.isColumn(attribute)) {
           val f = relation.getField(attribute)
           val filter = new SingleColumnValueFilter(
-            SHCDataTypeFactory.create(tCoder).toBytes(f.cf),
-            SHCDataTypeFactory.create(tCoder).toBytes(f.col),
+            tCoder.toBytes(f.cf),
+            tCoder.toBytes(f.col),
             CompareOp.EQUAL,
             new BinaryPrefixComparator(b)
           )
@@ -337,8 +337,8 @@ object HBaseFilter extends Logging{
       case  StringEndsWith(attribute, value) if (relation.isColumn(attribute)) =>
         val f = relation.getField(attribute)
         val filter = new SingleColumnValueFilter(
-          SHCDataTypeFactory.create(tCoder).toBytes(f.cf),
-          SHCDataTypeFactory.create(tCoder).toBytes(f.col),
+          tCoder.toBytes(f.cf),
+          tCoder.toBytes(f.col),
           CompareOp.EQUAL,
           new RegexStringComparator(s".*$value")
         )
@@ -347,8 +347,8 @@ object HBaseFilter extends Logging{
       case StringContains(attribute: String, value: String) if relation.isColumn(attribute) =>
         val f = relation.getField(attribute)
         val filter = new SingleColumnValueFilter(
-          SHCDataTypeFactory.create(tCoder).toBytes(f.cf),
-          SHCDataTypeFactory.create(tCoder).toBytes(f.col),
+          tCoder.toBytes(f.cf),
+          tCoder.toBytes(f.col),
           CompareOp.EQUAL,
           new SubstringComparator(value)
         )
@@ -359,8 +359,8 @@ object HBaseFilter extends Logging{
         val b = SHCDataTypeFactory.create(relation.getField(attribute).fCoder).toBytes(value)
         val f = relation.getField(attribute)
         val filter = new SingleColumnValueFilter(
-          SHCDataTypeFactory.create(tCoder).toBytes(f.cf),
-          SHCDataTypeFactory.create(tCoder).toBytes(f.col),
+          tCoder.toBytes(f.cf),
+          tCoder.toBytes(f.col),
           CompareOp.NOT_EQUAL,
           new SubstringComparator(value)
         )
