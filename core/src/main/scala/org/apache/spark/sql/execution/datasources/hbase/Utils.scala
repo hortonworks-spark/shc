@@ -34,13 +34,13 @@ object Utils {
       src: HBaseType,
       offset: Int,
       length: Int): Any = {
-    if (f.sedes.isDefined) {
+    if (f.serde.isDefined) {
       // If we already have sedes defined , use it.
-      f.sedes.get.deserialize(src, offset, length)
+      f.serde.get.deserialize(src, offset, length)
     } else if (f.exeSchema.isDefined) {
       // println("avro schema is defined to do deserialization")
       // If we have avro schema defined, use it to get record, and then covert them to catalyst data type
-      val m = AvroSedes.deserialize(src, f.exeSchema.get)
+      val m = AvroSerde.deserialize(src, f.exeSchema.get)
       // println(m)
       val n = f.avroToCatalyst.map(_(m))
       n.get
@@ -66,12 +66,12 @@ object Utils {
 
   // convert input to data type
   def toBytes(input: Any, field: Field): Array[Byte] = {
-    if (field.sedes.isDefined) {
-      field.sedes.get.serialize(input)
+    if (field.serde.isDefined) {
+      field.serde.get.serialize(input)
     } else if (field.schema.isDefined) {
       // Here we assume the top level type is structType
       val record = field.catalystToAvro(input)
-      AvroSedes.serialize(record, field.schema.get)
+      AvroSerde.serialize(record, field.schema.get)
     } else {
       input match {
         case data: Boolean => Bytes.toBytes(data)

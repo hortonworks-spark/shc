@@ -2,7 +2,7 @@ package org.apache.spark.sql
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
-import org.apache.spark.sql.execution.datasources.hbase.{AvroSedes, HBaseTableCatalog}
+import org.apache.spark.sql.execution.datasources.hbase.{AvroSerde, HBaseTableCatalog}
 import org.apache.spark.{Logging, SparkContext}
 
 case class AvroHBaseRecord(col0: String,
@@ -38,7 +38,7 @@ object AvroHBaseRecord {
     import collection.JavaConverters._
     val favoriteMap = Map[String, Int](("key1" -> i), ("key2" -> (i+1))).asJava
     user.put("favorite_map", favoriteMap)
-    val avroByte = AvroSedes.serialize(user, avroSchema)
+    val avroByte = AvroSerde.serialize(user, avroSchema)
     AvroHBaseRecord(s"name${"%03d".format(i)}", avroByte)
   }
 }

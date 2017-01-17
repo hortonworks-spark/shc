@@ -35,7 +35,7 @@ case class Field(
     col: String,
     sType: Option[String] = None,
     avroSchema: Option[String] = None,
-    sedes: Option[Sedes] = None,
+    serde: Option[Serdes] = None,
     len: Int = -1) extends Logging{
 
   val isRowKey = cf == HBaseTableCatalog.rowKey
@@ -195,7 +195,7 @@ object HBaseTableCatalog {
     getColsPreservingOrder(jObj).foreach { case (name, column)=>
       val sd = {
         column.get(sedes).asInstanceOf[Option[String]].map( n =>
-          Class.forName(n).newInstance().asInstanceOf[Sedes]
+          Class.forName(n).newInstance().asInstanceOf[Serdes]
         )
       }
       val len = column.get(length).map(_.toInt).getOrElse(-1)
