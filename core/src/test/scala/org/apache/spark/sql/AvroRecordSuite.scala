@@ -21,11 +21,11 @@ import scala.util.Random
 
 import java.nio.ByteBuffer
 
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
-import org.apache.spark.sql.execution.datasources.hbase.{AvroSedes, SchemaConverters}
+import org.apache.spark.sql.execution.datasources.hbase.{AvroSerde, SchemaConverters}
 import org.apache.spark.sql.execution.datasources.hbase.Logging
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
 
 class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with Logging {
 
@@ -56,8 +56,8 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
     val schema = SchemaConverters.toSqlType(avroSchema)
     println(s"\nSqlschema: $schema")
     val avroUser1 = SchemaConverters.createConverterToAvro(schema.dataType, "avro", "example.avro")(sqlUser1)
-    val avroByte = AvroSedes.serialize(avroUser1, avroSchema)
-    val avroUser11 = AvroSedes.deserialize(avroByte, avroSchema)
+    val avroByte = AvroSerde.serialize(avroUser1, avroSchema)
+    val avroUser11 = AvroSerde.deserialize(avroByte, avroSchema)
     println(s"$avroUser1")
   }
 
@@ -79,8 +79,8 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
     val sqlSchema = SchemaConverters.toSqlType(avroSchema)
     println(s"\nSqlschema: $sqlSchema")
     val avroData = SchemaConverters.createConverterToAvro(sqlSchema.dataType, "avro", "example.avro")(sqlConv)
-    val avroBytes = AvroSedes.serialize(avroData, avroSchema)
-    val desData = AvroSedes.deserialize(avroBytes, avroSchema)
+    val avroBytes = AvroSerde.serialize(avroData, avroSchema)
+    val desData = AvroSerde.deserialize(avroBytes, avroSchema)
     println(s"$desData")
   }
 	
@@ -109,8 +109,8 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
 	val sqlSchema = SchemaConverters.toSqlType(avroSchema)
 	println(s"\nSqlschema: $sqlSchema")
 	val avroData = SchemaConverters.createConverterToAvro(sqlSchema.dataType, "avro", "example.avro")(sqlConv)
-	val avroBytes = AvroSedes.serialize(avroData, avroSchema)
-	val desData = AvroSedes.deserialize(avroBytes, avroSchema)
+	val avroBytes = AvroSerde.serialize(avroData, avroSchema)
+	val desData = AvroSerde.deserialize(avroBytes, avroSchema)
 	println(s"$desData")
      }
   }
@@ -241,9 +241,9 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
 
     val avroRec1 = SchemaConverters.createConverterToAvro(schema.dataType, "test_schema", "example.avro")(sqlRec)
     println(s"\navroRec1: $avroRec1")
-    val avroByte = AvroSedes.serialize(avroRec1, avroComplex)
+    val avroByte = AvroSerde.serialize(avroRec1, avroComplex)
     println("\nserialize")
-    val avroRec11 = AvroSedes.deserialize(avroByte, avroComplex)
+    val avroRec11 = AvroSerde.deserialize(avroByte, avroComplex)
     println(s"\navroRec11: $avroRec11")
     val sqlRec1 = SchemaConverters.createConverterToSQL(avroComplex)(avroRec11)
     println(s"sqlRec1: $sqlRec1")

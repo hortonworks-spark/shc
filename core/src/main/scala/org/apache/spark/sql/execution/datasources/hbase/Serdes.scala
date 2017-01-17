@@ -19,12 +19,12 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import org.apache.hadoop.hbase.util.Bytes
 
-trait Sedes {
+trait Serdes {
   def serialize(value: Any): Array[Byte]
   def deserialize(bytes: Array[Byte], start: Int, end: Int): Any
 }
 
-class DoubleSedes extends Sedes {
+class DoubleSerdes extends Serdes {
   override def serialize(value: Any): Array[Byte] = Bytes.toBytes(value.asInstanceOf[Double])
   override def deserialize(bytes: Array[Byte], start: Int, end: Int): Any = {
     Bytes.toLong(bytes, start)
