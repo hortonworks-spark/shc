@@ -149,6 +149,31 @@ Suppose hrt_qa is a headless account, user can use following command for kinit:
 
     /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-cluster --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc:1.0.0-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/ --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
 
+## Others
+### Example. Support of Avro schemas:
+The connector fully supports all the avro schemas. Users can use either a complete record schema or partial field schema as data type in their catalog.
+    
+    val schema_array = s"""{"type": "array", "items": ["string","null"]}""".stripMargin
+    val schema_record =
+      s"""{"namespace": "example.avro",
+         |   "type": "record",      "name": "User",
+         |    "fields": [      {"name": "name", "type": "string"},
+         |      {"name": "favorite_number",  "type": ["int", "null"]},
+         |        {"name": "favorite_color", "type": ["string", "null"]}      ]    }""".stripMargin
+    val catalog = s"""{
+            |"table":{"namespace":"default", "name":"htable"},
+            |"rowkey":"key1",
+            |"columns":{
+              |"col1":{"cf":"rowkey", "col":"key1", "type":"double"},
+              |"col2":{"cf":"cf1", "col":"col1", "avro":"schema_array"},
+              |"col3":{"cf":"cf1", "col":"col2", "avro":"schema_record"},
+              |"col4":{"cf":"cf1", "col":"col3", "type":"double"},
+              |"col5":{"cf":"cf1", "col":"col4", "type":"string"}
+            |}
+          |}""".stripMargin
+     val df = sqlContext.read.options(Map("schema_array"->schema_array,"schema_record"->schema_record, HBaseTableCatalog.tableCatalog->catalog)).format("org.apache.spark.sql.execution.datasources.hbase").load()
+    df.write.options(Map("schema_array"->schema_array,"schema_record"->schema_record, HBaseTableCatalog.tableCatalog->catalog)).format("org.apache.spark.sql.execution.datasources.hbase").save()
+         
 #### TODO:
 
     val complex = s"""MAP<int, struct<varchar:string>>"""

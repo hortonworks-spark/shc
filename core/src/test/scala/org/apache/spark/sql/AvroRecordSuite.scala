@@ -19,6 +19,7 @@
 package org.apache.spark.sql
 
 import scala.util.Random
+import java.nio.ByteBuffer
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
@@ -58,6 +59,60 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
     val avroByte = AvroSedes.serialize(avroUser1, avroSchema)
     val avroUser11 = AvroSedes.deserialize(avroByte, avroSchema)
     println(s"$avroUser1")
+  }
+
+  test("avro array type schema serialize/deserialize") {
+    val schemaString  =  s"""{"type": "array", "items": ["int","null"]}""".stripMargin
+    val avroSchema: Schema = {
+      val p = new Schema.Parser
+      p.parse(schemaString)
+    }
+
+    val data = new java.util.ArrayList[Any]
+    data.add(1)
+    data.add(2)
+    data.add(null)
+    data.add(-3)
+	  
+    val sqlConv = SchemaConverters.createConverterToSQL(avroSchema)(data)
+    println(sqlConv)
+    val sqlSchema = SchemaConverters.toSqlType(avroSchema)
+    println(s"\nSqlschema: $sqlSchema")
+    val avroData = SchemaConverters.createConverterToAvro(sqlSchema.dataType, "avro", "example.avro")(sqlConv)
+    val avroBytes = AvroSedes.serialize(avroData, avroSchema)
+    val desData = AvroSedes.deserialize(avroBytes, avroSchema)
+    println(s"$desData")
+  }
+	
+  test("avro primitive data types union schemas serialize/deserialize") {
+    val unionNullValue: String = null
+    val byteArray: Array[Byte] = Array(10.toByte)
+    val bytes = ByteBuffer.wrap(byteArray)
+
+    val datatypeSchemas = Map("Test string" -> "\"string\"",
+        unionNullValue -> """["string","null"]""",
+        true -> """["boolean","null"]""",
+        9223372036854775807L -> """["long","null"]""",
+        -1234.93f -> """["float","null"]""",
+        123 -> """["int","null"]""",
+        1.7e10d -> """["double","null"]""",
+        bytes -> """["bytes","null"]""")
+	
+     datatypeSchemas.keys.foreach{ data =>
+        val avroSchema: Schema = {
+            val p = new Schema.Parser
+	    p.parse(datatypeSchemas(data))
+	}
+
+	val sqlConv = SchemaConverters.createConverterToSQL(avroSchema)(data)
+	println(sqlConv)
+	val sqlSchema = SchemaConverters.toSqlType(avroSchema)
+	println(s"\nSqlschema: $sqlSchema")
+	val avroData = SchemaConverters.createConverterToAvro(sqlSchema.dataType, "avro", "example.avro")(sqlConv)
+	val avroBytes = AvroSedes.serialize(avroData, avroSchema)
+	val desData = AvroSedes.deserialize(avroBytes, avroSchema)
+	println(s"$desData")
+     }
   }
 
   test("test schema complicated") {
