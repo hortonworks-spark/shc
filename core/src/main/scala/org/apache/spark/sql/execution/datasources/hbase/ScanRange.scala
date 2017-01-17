@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import org.apache.spark.sql.execution.datasources.hbase.types.SHCDataTypeFactory
+import org.apache.spark.sql.execution.datasources.hbase.types.{PrimitiveType, SHCDataTypeFactory}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.math.Ordering
@@ -294,7 +294,9 @@ case class BoundRange(
 case class BoundRanges(less: Array[BoundRange], greater: Array[BoundRange], value: Array[Byte])
 
 object BoundRange extends Logging{
-  val pt = "PrimitiveType"
+
+  val pt = classOf[PrimitiveType].getSimpleName
+
   def apply(in: Any, f: Field): Option[BoundRanges] = in match {
     // For short, integer, and long, the order of number is consistent with byte array order
     // regardless of its sign. But the negative number is larger than positive number in byte array.

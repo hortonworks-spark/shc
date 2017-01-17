@@ -126,6 +126,7 @@ case class HBaseTableCatalog(
     row: RowKey,
     sMap: SchemaMap,
     tCoder: String,
+    coderSet: Set[String],
     val numReg: Int) extends Logging {
   def toDataType = StructType(sMap.toFields)
   def getField(name: String) = sMap.getField(name)
@@ -135,33 +136,46 @@ case class HBaseTableCatalog(
     sMap.fields.map(_.cf).filter(_ != HBaseTableCatalog.rowKey).toSeq.distinct
   }
 
-  val initRowKey = {
+  def initRowKey() = {
     val fields = sMap.fields.filter(_.cf == HBaseTableCatalog.rowKey)
     row.fields = row.keys.flatMap(n => fields.find(_.col == n))
-    // We only allowed there is one key at the end that is determined at runtime.
-    if (row.fields.reverse.tail.filter(_.length == -1).isEmpty) {
-      var start = 0
-      row.fields.foreach { f =>
-        f.start = start
-        start += f.length
+
+    // If the tCoder is PrimitiveType, We only allowed there is one key at the end
+    // that is determined at runtime.
+    if (tCoder == classOf[PrimitiveType].getSimpleName) {
+      if (row.fields.reverse.tail.filter(_.length == -1).isEmpty) {
+        var start = 0
+        row.fields.foreach { f =>
+          f.start = start
+          start += f.length
+        }
+      } else {
+        throw new Exception("Only the last dimension of RowKey is allowed to have " +
+          "varied length. You may want to add 'length' to the dimensions which have " +
+          "varied length or use dimensions which are scala/java primitive data " +
+          "types of fixed length.")
       }
-    } else {
-      throw new Exception("Only the last dimension of " +
-        "RowKey is allowed to have varied length")
     }
   }
+  initRowKey()
 
-  // If the row key of the table is composite, check if the coder supports composite key.
-  if (row.fields.size > 1) {
-    val compositeKeyEnable = Class
-      .forName(s"org.apache.spark.sql.execution.datasources.hbase.types.$tCoder")
-      .getConstructor(classOf[Option[Field]])
-      .newInstance(None)
-      .asInstanceOf[SHCDataType]
-      .isCompositeKeySupported()
-    if (!compositeKeyEnable)
+  def validateCatalogDef() = {
+    if (tCoder == classOf[Avro].getSimpleName) {
+      throw new UnsupportedOperationException("Avro can only be column's coder")
+    }
+
+    if (coderSet.size > 1){
+      // Only Avro can be used with anther one coder
+      if (!coderSet.contains(classOf[Avro].getSimpleName))
+        throw new UnsupportedOperationException("Two different coders can not be " +
+          "used to encode/decode the same Hbase table")
+    }
+
+    // If the row key of the table is composite, check if the coder supports composite key
+    if (row.fields.size > 1 && !SHCDataTypeFactory.create(tCoder).isCompositeKeySupported)
       throw new UnsupportedOperationException(s"$tCoder: Composite key is not supported")
   }
+  validateCatalogDef()
 }
 
 object HBaseTableCatalog {
@@ -203,9 +217,11 @@ object HBaseTableCatalog {
     val tName = tableMeta.get(tableName).get.asInstanceOf[String]
     val tCoder = tableMeta.get(tableCoder).get.asInstanceOf[String]
     val schemaMap = mutable.LinkedHashMap.empty[String, Field]
+    var coderSet = Set(tCoder)
     getColsPreservingOrder(jObj).foreach { case (name, column)=>
       val len = column.get(length).map(_.toInt).getOrElse(-1)
       val fc = column.getOrElse(fCoder, tCoder)
+      coderSet += fc
       val sType = column.get(`type`)
       val sAvro = if (fc == avro) sType.map(parameters(_)) else None
       val f = Field(name, column.getOrElse(cf, rowKey), column.get(col).get,
@@ -215,7 +231,7 @@ object HBaseTableCatalog {
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)
     val rKey = RowKey(map.get(rowKey).get.asInstanceOf[String])
 
-    HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), tCoder, numReg)
+    HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), tCoder, coderSet, numReg)
   }
 
   /**

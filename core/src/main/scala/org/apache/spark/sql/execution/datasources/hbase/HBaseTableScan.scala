@@ -96,12 +96,12 @@ private[hbase] class HBaseTableScanRDD(
       val idx = state._1
       val parsed = state._2
       if (field.length != -1) {
-        val value = SHCDataTypeFactory.create(field).bytesToCompositeKeyField(row, idx, field.length)
+        val value = SHCDataTypeFactory.create(field).decodeCompositeRowKey(row, idx, field.length)
         // Return the new index and appended value
         (idx + field.length, parsed ++ Seq((field, value)))
       } else {
         // This is the last dimension.
-        val value = SHCDataTypeFactory.create(field).bytesToCompositeKeyField(row, idx, row.length - idx)
+        val value = SHCDataTypeFactory.create(field).decodeCompositeRowKey(row, idx, row.length - idx)
         (row.length + 1, parsed ++ Seq((field, value)))
       }
     })._2.toMap
@@ -115,7 +115,7 @@ private[hbase] class HBaseTableScanRDD(
         parseCompositeRowKey(r, relation.catalog.getRowKey)
       } else {
         val f = relation.catalog.getRowKey.head
-        Seq((f, SHCDataTypeFactory.create(f).bytesToColumn(r))).toMap
+        Seq((f, SHCDataTypeFactory.create(f).fromBytes(r))).toMap
       }
     }
 
@@ -131,7 +131,7 @@ private[hbase] class HBaseTableScanRDD(
           // Here, to avoid arraycopy, return v directly instead of calling bytesToColumn()
           // to covert hbase field to Scala type
           case BinaryType => v
-          case _ => SHCDataTypeFactory.create(x).bytesToColumn(v)
+          case _ => SHCDataTypeFactory.create(x).fromBytes(v)
         })
       }
     }.toMap

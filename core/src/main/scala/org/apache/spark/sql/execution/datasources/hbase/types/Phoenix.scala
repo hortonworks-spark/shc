@@ -29,7 +29,7 @@ import org.apache.spark.sql.types._
 
 class Phoenix(f:Option[Field] = None) extends SHCDataType {
 
-  def bytesToColumn(src: HBaseType): Any = {
+  def fromBytes(src: HBaseType): Any = {
     if (f.isDefined) {
       f.get.dt match {
         case ByteType => src(0)
@@ -59,7 +59,7 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
 
   def isCompositeKeySupported(): Boolean = false
 
-  def bytesToCompositeKeyField(src: HBaseType, offset: Int, length: Int): Any = {
+  def decodeCompositeRowKey(src: HBaseType, offset: Int, length: Int): Any = {
     throw new UnsupportedOperationException("Phoenix coder: Composite key is not supported")
   }
 

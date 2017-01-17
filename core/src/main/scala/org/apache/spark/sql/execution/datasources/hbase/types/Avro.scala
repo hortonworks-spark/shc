@@ -39,7 +39,7 @@ import org.apache.spark.sql.execution.datasources.hbase._
 
 class Avro(f:Option[Field] = None) extends SHCDataType {
 
-  def bytesToColumn(src: HBaseType): Any = {
+  def fromBytes(src: HBaseType): Any = {
     if (f.isDefined) {
       val m = AvroSerde.deserialize(src, f.get.exeSchema.get)
       val n = f.get.avroToCatalyst.map(_ (m))
@@ -63,7 +63,7 @@ class Avro(f:Option[Field] = None) extends SHCDataType {
 
   def isCompositeKeySupported(): Boolean = false
 
-  def bytesToCompositeKeyField(src: HBaseType, offset: Int, length: Int): Any = {
+  def decodeCompositeRowKey(src: HBaseType, offset: Int, length: Int): Any = {
     throw new UnsupportedOperationException ("Avro coder: Composite key is not supported")
   }
 

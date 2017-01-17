@@ -18,7 +18,6 @@
 package org.apache.spark.sql
 
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.phoenix.schema.types.{PVarchar, PFloat, PInteger}
 import org.apache.spark.sql.execution.datasources.hbase.HBaseTableCatalog
 import org.apache.spark.sql.types.BinaryType
 

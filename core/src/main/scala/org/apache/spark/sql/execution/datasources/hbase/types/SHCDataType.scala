@@ -20,12 +20,10 @@ package org.apache.spark.sql.execution.datasources.hbase.types
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.datasources.hbase._
 
-import scala.util.control.NonFatal
-
 trait SHCDataType {
   // Parse the hbase Field to it's corresponding Scala type which can then be put into
   // a Spark GenericRow which is then automatically converted by Spark.
-  def bytesToColumn(src: HBaseType): Any
+  def fromBytes(src: HBaseType): Any
 
   // Convert input to Byte Array (HBaseType)
   def toBytes(input: Any): Array[Byte]
@@ -34,25 +32,27 @@ trait SHCDataType {
   // threw an exception to remind users composite key is not supported.
   def isCompositeKeySupported(): Boolean
 
-  def bytesToCompositeKeyField(src: HBaseType, offset: Int, length: Int): Any
+  def decodeCompositeRowKey(src: HBaseType, offset: Int, length: Int): Any
 
   def encodeCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Seq[Array[Byte]]
 }
 
 /**
- * Currently, SHC supports three serdes: Avro, Phoenix, PrimitiveType.
- * Adding New SHC serde should need to implement the trait 'SHCDataType'.
+ * Currently, SHC supports three data types which can be used as serdes: Avro, Phoenix, PrimitiveType.
+ * Adding New SHC data type should needs to implement the trait 'SHCDataType'.
  */
 object SHCDataTypeFactory {
+
   def create(f: Field): SHCDataType = {
-    if (f.fCoder == "Avro") {
+    if (f.fCoder == classOf[Avro].getSimpleName) {
       new Avro(Some(f))
-    } else if (f.fCoder == "Phoenix") {
+    } else if (f.fCoder == classOf[Phoenix].getSimpleName) {
       new Phoenix(Some(f))
-    } else if (f.fCoder == "PrimitiveType") {
+    } else if (f.fCoder == classOf[PrimitiveType].getSimpleName) {
       new PrimitiveType(Some(f))
     } else {
-      Class.forName(s"org.apache.spark.sql.execution.datasources.hbase.types.${f.fCoder}")
+      // Data type implemented by user
+      Class.forName(f.fCoder)
         .getConstructor(classOf[Option[Field]])
         .newInstance(f.fCoder)
         .asInstanceOf[SHCDataType]
@@ -60,14 +60,15 @@ object SHCDataTypeFactory {
   }
 
   def create(coder: String): SHCDataType = {
-    if (coder == "Avro") {
+    if (coder == classOf[Avro].getSimpleName) {
       new Avro()
-    } else if (coder == "Phoenix") {
+    } else if (coder == classOf[Phoenix].getSimpleName) {
       new Phoenix()
-    } else if (coder == "PrimitiveType") {
+    } else if (coder == classOf[PrimitiveType].getSimpleName) {
       new PrimitiveType()
     } else {
-      Class.forName(s"org.apache.spark.sql.execution.datasources.hbase.types.$coder")
+      // Data type implemented by user
+      Class.forName(coder)
         .getConstructor(classOf[Option[Field]])
         .newInstance(None)
         .asInstanceOf[SHCDataType]
