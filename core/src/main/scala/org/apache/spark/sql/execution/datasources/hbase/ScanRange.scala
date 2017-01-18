@@ -17,8 +17,6 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import org.apache.spark.sql.execution.datasources.hbase.types.{PrimitiveType, SHCDataTypeFactory}
-
 import scala.collection.mutable.ArrayBuffer
 import scala.math.Ordering
 import scala.annotation.tailrec
@@ -27,6 +25,7 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.unsafe.types.UTF8String
+import org.apache.spark.sql.execution.datasources.hbase.types.SHCDataTypeFactory
 
 case class Bound[T](point: T, inc: Boolean)(implicit ordering: Ordering[T]) {
   override def toString = {

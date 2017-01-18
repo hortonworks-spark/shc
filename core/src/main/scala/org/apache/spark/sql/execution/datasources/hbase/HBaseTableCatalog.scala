@@ -137,6 +137,8 @@ case class HBaseTableCatalog(
     sMap.fields.map(_.cf).filter(_ != HBaseTableCatalog.rowKey).toSeq.distinct
   }
 
+  val shcTableCoder = SHCDataTypeFactory.create(tCoder)
+
   def initRowKey() = {
     val fields = sMap.fields.filter(_.cf == HBaseTableCatalog.rowKey)
     row.fields = row.keys.flatMap(n => fields.find(_.col == n))
@@ -173,7 +175,7 @@ case class HBaseTableCatalog(
     }
 
     // If the row key of the table is composite, check if the coder supports composite key
-    if (row.fields.size > 1 && !SHCDataTypeFactory.create(tCoder).isCompositeKeySupported)
+    if (row.fields.size > 1 && !shcTableCoder.isCompositeKeySupported)
       throw new UnsupportedOperationException(s"$tCoder: Composite key is not supported")
   }
   validateCatalogDef()
@@ -216,7 +218,14 @@ object HBaseTableCatalog {
     val tableMeta = map.get(table).get.asInstanceOf[Map[String, _]]
     val nSpace = tableMeta.get(nameSpace).getOrElse("default").asInstanceOf[String]
     val tName = tableMeta.get(tableName).get.asInstanceOf[String]
-    val tCoder = tableMeta.get(tableCoder).get.asInstanceOf[String]
+    val tCoder =
+      if (!tableMeta.get(tableCoder).isDefined) {
+        throw new NullPointerException("Please define 'tableCoder' in your catalog. " +
+          "If there is an Avro records/schema in your catalog, please explicitly define " +
+          "'coder' in its corresponding column.")
+      } else {
+        tableMeta.get(tableCoder).get.asInstanceOf[String]
+      }
     val schemaMap = mutable.LinkedHashMap.empty[String, Field]
     var coderSet = Set(tCoder)
     getColsPreservingOrder(jObj).foreach { case (name, column)=>

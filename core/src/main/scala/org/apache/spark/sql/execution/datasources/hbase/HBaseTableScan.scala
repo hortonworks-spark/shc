@@ -53,7 +53,6 @@ private[hbase] class HBaseTableScanRDD(
     filters: Array[Filter]) extends RDD[Row](relation.sqlContext.sparkContext, Nil) with Logging  {
   val outputs = StructType(requiredColumns.map(relation.schema(_))).toAttributes
   val columnFields = relation.splitRowKeyColumns(requiredColumns)._2
-  val tCoder = relation.catalog.tCoder
   private def sparkConf = SparkEnv.get.conf
 
   override def getPartitions: Array[Partition] = {
@@ -122,8 +121,8 @@ private[hbase] class HBaseTableScanRDD(
 
     val valueSeq = fields.filter(!_.isRowKey).map { x =>
       val kv = result.getColumnLatestCell(
-        SHCDataTypeFactory.create(tCoder).toBytes(x.cf),
-        SHCDataTypeFactory.create(tCoder).toBytes(x.col))
+        relation.catalog.shcTableCoder.toBytes(x.cf),
+        relation.catalog.shcTableCoder.toBytes(x.col))
       if (kv == null || kv.getValueLength == 0) {
         (x, null)
       } else {
@@ -245,8 +244,8 @@ private[hbase] class HBaseTableScanRDD(
     // scan.setCaching(scannerFetchSize)
     columns.foreach{ c =>
       scan.addColumn(
-        SHCDataTypeFactory.create(tCoder).toBytes(c.cf),
-        SHCDataTypeFactory.create(tCoder).toBytes(c.col))
+        relation.catalog.shcTableCoder.toBytes(c.cf),
+        relation.catalog.shcTableCoder.toBytes(c.col))
     }
     val size = sparkConf.getInt(SparkHBaseConf.CachingSize, SparkHBaseConf.defaultCachingSize)
     scan.setCaching(size)
@@ -267,8 +266,8 @@ private[hbase] class HBaseTableScanRDD(
         handleTimeSemantics(g)
         columns.foreach{ c =>
           g.addColumn(
-            SHCDataTypeFactory.create(tCoder).toBytes(c.cf),
-            SHCDataTypeFactory.create(tCoder).toBytes(c.col))
+            relation.catalog.shcTableCoder.toBytes(c.cf),
+            relation.catalog.shcTableCoder.toBytes(c.col))
         }
         filter.foreach(g.setFilter(_))
         gets.add(g)

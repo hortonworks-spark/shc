@@ -20,7 +20,7 @@ package org.apache.spark.sql.execution.datasources.hbase.types
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.datasources.hbase._
 
-trait SHCDataType {
+trait SHCDataType extends Serializable {
   // Parse the hbase Field to it's corresponding Scala type which can then be put into
   // a Spark GenericRow which is then automatically converted by Spark.
   def fromBytes(src: HBaseType): Any
@@ -69,11 +69,9 @@ object SHCDataTypeFactory {
     }
   }
 
-  var avro: Avro = null
-  var phoenix: Phoenix = null
-  var primitiveType: PrimitiveType = null
-  val hashMap = scala.collection.mutable.HashMap.empty[String, SHCDataType]
-
+  // Currently, the function below is only used for creating the table coder.
+  // One catalog/ Hbase table can only use one table coder, so the function is
+  // only called once in 'HBaseTableCatalog' class.
   def create(coder: String): SHCDataType = {
     if (coder == null || coder.isEmpty) {
       throw new NullPointerException(
@@ -82,26 +80,17 @@ object SHCDataTypeFactory {
     }
 
     if (coder == SparkHBaseConf.Avro) {
-      if (avro == null) avro = new Avro()
-      avro
+      new Avro()
     } else if (coder == SparkHBaseConf.Phoenix) {
-      if (phoenix == null) phoenix = new Phoenix()
-      phoenix
+      new Phoenix()
     } else if (coder == SparkHBaseConf.PrimitiveType) {
-      if (primitiveType == null) primitiveType = new PrimitiveType()
-      primitiveType
+      new PrimitiveType()
     } else {
       // Data type implemented by user
-      if (hashMap.contains(coder)) {
-        hashMap(coder)
-      } else {
-        val userDataType = Class.forName(coder)
-          .getConstructor(classOf[Option[Field]])
-          .newInstance(None)
-          .asInstanceOf[SHCDataType]
-        hashMap += ((coder, userDataType))
-        userDataType
-      }
+      Class.forName(coder)
+        .getConstructor(classOf[Option[Field]])
+        .newInstance(None)
+        .asInstanceOf[SHCDataType]
     }
   }
 }

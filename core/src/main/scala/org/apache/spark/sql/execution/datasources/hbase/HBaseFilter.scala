@@ -160,7 +160,7 @@ object HBaseFilter extends Logging{
   }
 
   def buildFilter(filter: Filter, relation: HBaseRelation): HRF[Array[Byte]] = {
-    val tCoder = SHCDataTypeFactory.create(relation.catalog.tCoder)
+    val tCoder = relation.catalog.shcTableCoder
     // We treat greater and greaterOrEqual as the same
     def Greater(attribute: String, value: Any): HRF[Array[Byte]]  = {
         process(value, relation, attribute,
@@ -356,7 +356,6 @@ object HBaseFilter extends Logging{
       // We should also add Not(GreatThan, LessThan, ...)
       // because if we miss some filter, it may result in a large scan range.
       case Not(StringContains(attribute: String, value: String)) if relation.isColumn(attribute) =>
-        val b = SHCDataTypeFactory.create(relation.getField(attribute).fCoder).toBytes(value)
         val f = relation.getField(attribute)
         val filter = new SingleColumnValueFilter(
           tCoder.toBytes(f.cf),

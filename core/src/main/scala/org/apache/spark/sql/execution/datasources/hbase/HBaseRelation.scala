@@ -123,9 +123,8 @@ case class HBaseRelation(
           tableDesc.addFamily(cf)
         }
 
-        val coder = SHCDataTypeFactory.create(catalog.tCoder)
-        val startKey = coder.toBytes("aaaaaaa")
-        val endKey = coder.toBytes("zzzzzzz")
+        val startKey = catalog.shcTableCoder.toBytes("aaaaaaa")
+        val endKey = catalog.shcTableCoder.toBytes("zzzzzzz")
         val splitKeys = Bytes.split(startKey, endKey, catalog.numReg - 3)
         admin.createTable(tableDesc, splitKeys)
         val r = connection.getRegionLocator(TableName.valueOf(catalog.name)).getAllRegionLocations
@@ -163,11 +162,11 @@ case class HBaseRelation(
     val rdd = data.rdd //df.queryExecution.toRdd
 
     def convertToPut(row: Row) = {
+      val coder = catalog.shcTableCoder
       // construct bytes for row key
       val rBytes =
         if (isComposite()) {
-          val rowBytes = SHCDataTypeFactory.create(catalog.tCoder)
-            .encodeCompositeRowKey(rkIdxedFields, row)
+          val rowBytes = coder.encodeCompositeRowKey(rkIdxedFields, row)
 
           val rLen = rowBytes.foldLeft(0) { case (x, y) =>
             x + y.length
@@ -188,8 +187,8 @@ case class HBaseRelation(
       val put = timestamp.fold(new Put(rBytes))(new Put(rBytes, _))
       colsIdxedFields.foreach { case (x, y) =>
         put.addColumn(
-          SHCDataTypeFactory.create(catalog.tCoder).toBytes(y.cf),
-          SHCDataTypeFactory.create(catalog.tCoder).toBytes(y.col),
+          coder.toBytes(y.cf),
+          coder.toBytes(y.col),
           SHCDataTypeFactory.create(y).toBytes(row(x)))
       }
       count += 1
