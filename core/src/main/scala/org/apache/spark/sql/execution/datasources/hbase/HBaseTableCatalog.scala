@@ -61,7 +61,7 @@ case class Field(
   }
 
   val dt =
-    if (fCoder == classOf[Avro].getSimpleName)
+    if (fCoder == SparkHBaseConf.Avro)
       schema.map{ x => SchemaConverters.toSqlType(x).dataType }.get
     else
       sType.map(DataTypeParser.parse(_)).get
@@ -143,7 +143,7 @@ case class HBaseTableCatalog(
 
     // If the tCoder is PrimitiveType, We only allowed there is one key at the end
     // that is determined at runtime.
-    if (tCoder == classOf[PrimitiveType].getSimpleName) {
+    if (tCoder == SparkHBaseConf.PrimitiveType) {
       if (row.fields.reverse.tail.filter(_.length == -1).isEmpty) {
         var start = 0
         row.fields.foreach { f =>
@@ -161,13 +161,13 @@ case class HBaseTableCatalog(
   initRowKey()
 
   def validateCatalogDef() = {
-    if (tCoder == classOf[Avro].getSimpleName) {
+    if (tCoder == SparkHBaseConf.Avro) {
       throw new UnsupportedOperationException("Avro can only be column's coder")
     }
 
     if (coderSet.size > 1){
-      // Only Avro can be used with anther one coder
-      if (!coderSet.contains(classOf[Avro].getSimpleName))
+      // Only Avro can be used with anther coder
+      if (!coderSet.contains(SparkHBaseConf.Avro))
         throw new UnsupportedOperationException("Two different coders can not be " +
           "used to encode/decode the same Hbase table")
     }

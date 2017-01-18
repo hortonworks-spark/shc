@@ -30,11 +30,15 @@ trait SHCDataType {
 
   // If your data type do not need to support composite keys, you can just leave it empty or
   // threw an exception to remind users composite key is not supported.
-  def isCompositeKeySupported(): Boolean
+  def isCompositeKeySupported(): Boolean = false
 
-  def decodeCompositeRowKey(src: HBaseType, offset: Int, length: Int): Any
+  def decodeCompositeRowKey(src: HBaseType, offset: Int, length: Int): Any = {
+    throw new UnsupportedOperationException("Composite key is not supported")
+  }
 
-  def encodeCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Seq[Array[Byte]]
+  def encodeCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Seq[Array[Byte]] = {
+    throw new UnsupportedOperationException("Composite key is not supported")
+  }
 }
 
 /**
@@ -44,11 +48,17 @@ trait SHCDataType {
 object SHCDataTypeFactory {
 
   def create(f: Field): SHCDataType = {
-    if (f.fCoder == classOf[Avro].getSimpleName) {
+    if (f == null) {
+      throw new NullPointerException(
+        "SHCDataTypeFactory: the 'f' parameter used to create SHCDataType " +
+          "can not be null.")
+    }
+
+    if (f.fCoder == SparkHBaseConf.Avro) {
       new Avro(Some(f))
-    } else if (f.fCoder == classOf[Phoenix].getSimpleName) {
+    } else if (f.fCoder == SparkHBaseConf.Phoenix) {
       new Phoenix(Some(f))
-    } else if (f.fCoder == classOf[PrimitiveType].getSimpleName) {
+    } else if (f.fCoder == SparkHBaseConf.PrimitiveType) {
       new PrimitiveType(Some(f))
     } else {
       // Data type implemented by user
@@ -59,19 +69,39 @@ object SHCDataTypeFactory {
     }
   }
 
+  var avro: Avro = null
+  var phoenix: Phoenix = null
+  var primitiveType: PrimitiveType = null
+  val hashMap = scala.collection.mutable.HashMap.empty[String, SHCDataType]
+
   def create(coder: String): SHCDataType = {
-    if (coder == classOf[Avro].getSimpleName) {
-      new Avro()
-    } else if (coder == classOf[Phoenix].getSimpleName) {
-      new Phoenix()
-    } else if (coder == classOf[PrimitiveType].getSimpleName) {
-      new PrimitiveType()
+    if (coder == null || coder.isEmpty) {
+      throw new NullPointerException(
+        "SHCDataTypeFactory: the 'coder' parameter used to create SHCDataType " +
+          "can not be null or empty.")
+    }
+
+    if (coder == SparkHBaseConf.Avro) {
+      if (avro == null) avro = new Avro()
+      avro
+    } else if (coder == SparkHBaseConf.Phoenix) {
+      if (phoenix == null) phoenix = new Phoenix()
+      phoenix
+    } else if (coder == SparkHBaseConf.PrimitiveType) {
+      if (primitiveType == null) primitiveType = new PrimitiveType()
+      primitiveType
     } else {
       // Data type implemented by user
-      Class.forName(coder)
-        .getConstructor(classOf[Option[Field]])
-        .newInstance(None)
-        .asInstanceOf[SHCDataType]
+      if (hashMap.contains(coder)) {
+        hashMap(coder)
+      } else {
+        val userDataType = Class.forName(coder)
+          .getConstructor(classOf[Option[Field]])
+          .newInstance(None)
+          .asInstanceOf[SHCDataType]
+        hashMap += ((coder, userDataType))
+        userDataType
+      }
     }
   }
 }

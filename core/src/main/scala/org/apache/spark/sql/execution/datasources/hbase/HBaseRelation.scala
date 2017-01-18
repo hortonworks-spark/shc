@@ -122,8 +122,10 @@ case class HBaseRelation(
           logDebug(s"add family $x to ${catalog.name}")
           tableDesc.addFamily(cf)
         }
-        val startKey = SHCDataTypeFactory.create(catalog.tCoder).toBytes("aaaaaaa")
-        val endKey = SHCDataTypeFactory.create(catalog.tCoder).toBytes("zzzzzzz")
+
+        val coder = SHCDataTypeFactory.create(catalog.tCoder)
+        val startKey = coder.toBytes("aaaaaaa")
+        val endKey = coder.toBytes("zzzzzzz")
         val splitKeys = Bytes.split(startKey, endKey, catalog.numReg - 3)
         admin.createTable(tableDesc, splitKeys)
         val r = connection.getRegionLocator(TableName.valueOf(catalog.name)).getAllRegionLocations

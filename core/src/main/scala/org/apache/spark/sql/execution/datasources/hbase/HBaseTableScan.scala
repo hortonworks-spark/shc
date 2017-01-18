@@ -95,13 +95,14 @@ private[hbase] class HBaseTableScanRDD(
     keyFields.foldLeft((0, Seq[(Field, Any)]()))((state, field) => {
       val idx = state._1
       val parsed = state._2
+      val coder = SHCDataTypeFactory.create(field)
       if (field.length != -1) {
-        val value = SHCDataTypeFactory.create(field).decodeCompositeRowKey(row, idx, field.length)
+        val value = coder.decodeCompositeRowKey(row, idx, field.length)
         // Return the new index and appended value
         (idx + field.length, parsed ++ Seq((field, value)))
       } else {
         // This is the last dimension.
-        val value = SHCDataTypeFactory.create(field).decodeCompositeRowKey(row, idx, row.length - idx)
+        val value = coder.decodeCompositeRowKey(row, idx, row.length - idx)
         (row.length + 1, parsed ++ Seq((field, value)))
       }
     })._2.toMap

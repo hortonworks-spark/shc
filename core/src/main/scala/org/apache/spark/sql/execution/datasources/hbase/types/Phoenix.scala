@@ -57,16 +57,6 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
     }
   }
 
-  def isCompositeKeySupported(): Boolean = false
-
-  def decodeCompositeRowKey(src: HBaseType, offset: Int, length: Int): Any = {
-    throw new UnsupportedOperationException("Phoenix coder: Composite key is not supported")
-  }
-
-  def encodeCompositeRowKey(rkIdxedFields: Seq[(Int, Field)], row: Row): Seq[Array[Byte]] = {
-    throw new UnsupportedOperationException("Phoenix coder: Composite key is not supported")
-  }
-
   private def mapToPhoenixTypeInstance(input: DataType): PDataType[_] = {
     input match {
       case BooleanType => PBoolean.INSTANCE

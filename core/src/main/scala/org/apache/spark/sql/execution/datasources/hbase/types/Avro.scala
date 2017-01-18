@@ -60,16 +60,6 @@ class Avro(f:Option[Field] = None) extends SHCDataType {
         "Avro coder: Without field metadata, 'toBytes' conversion can not be supported")
     }
   }
-
-  def isCompositeKeySupported(): Boolean = false
-
-  def decodeCompositeRowKey(src: HBaseType, offset: Int, length: Int): Any = {
-    throw new UnsupportedOperationException ("Avro coder: Composite key is not supported")
-  }
-
-  def encodeCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Seq[Array[Byte]] = {
-    throw new UnsupportedOperationException ("Avro coder: Composite key is not supported")
-  }
 }
 
 abstract class AvroException(msg: String) extends Exception(msg)

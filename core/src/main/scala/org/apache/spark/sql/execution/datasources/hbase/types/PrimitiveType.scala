@@ -63,9 +63,9 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
     }
   }
 
-  def isCompositeKeySupported(): Boolean = true
+  override def isCompositeKeySupported(): Boolean = true
 
-  def decodeCompositeRowKey(src: HBaseType, offset: Int, length: Int): Any = {
+  override def decodeCompositeRowKey(src: HBaseType, offset: Int, length: Int): Any = {
     if (f.isDefined) {
       f.get.dt match {
         case BooleanType => toBoolean(src, offset)
@@ -89,7 +89,7 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
     }
   }
 
-  def encodeCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Seq[Array[Byte]] = {
+  override def encodeCompositeRowKey(rkIdxedFields:Seq[(Int, Field)], row: Row): Seq[Array[Byte]] = {
     rkIdxedFields.map { case (x, y) =>
       SHCDataTypeFactory.create(y).toBytes(row(x))
     }
