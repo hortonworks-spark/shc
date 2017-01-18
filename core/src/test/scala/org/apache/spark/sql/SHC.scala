@@ -19,13 +19,14 @@ package org.apache.spark.sql
 
 import java.io.File
 
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
+
 import com.google.common.io.Files
 import org.apache.hadoop.hbase.client.Table
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{HBaseTestingUtility, TableName}
 import org.apache.spark.sql.execution.datasources.hbase.SparkHBaseConf
 import org.apache.spark.{SparkContext, Logging, SparkConf}
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
 
 class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with Logging {
   implicit class StringToColumn(val sc: StringContext) {
@@ -48,7 +49,7 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
   // private[spark] var columnFamilyStr = Bytes.toString(columnFamily)
 
   def catalog = s"""{
-            |"table":{"namespace":"default", "name":"table1"},
+            |"table":{"namespace":"default", "name":"table1", "tableCoder":"PrimitiveType"},
             |"rowkey":"key",
             |"columns":{
               |"col0":{"cf":"rowkey", "col":"key", "type":"string"},

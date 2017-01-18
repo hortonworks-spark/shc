@@ -36,6 +36,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Row, SQLContext, SaveMode}
+import org.apache.spark.sql.execution.datasources.hbase.types.SHCDataTypeFactory
 
 /**
  * val people = sqlContext.read.format("hbase").load("people")
@@ -121,8 +122,9 @@ case class HBaseRelation(
           logDebug(s"add family $x to ${catalog.name}")
           tableDesc.addFamily(cf)
         }
-        val startKey = Bytes.toBytes("aaaaaaa")
-        val endKey = Bytes.toBytes("zzzzzzz")
+
+        val startKey = catalog.shcTableCoder.toBytes("aaaaaaa")
+        val endKey = catalog.shcTableCoder.toBytes("zzzzzzz")
         val splitKeys = Bytes.split(startKey, endKey, catalog.numReg - 3)
         admin.createTable(tableDesc, splitKeys)
         val r = connection.getRegionLocator(TableName.valueOf(catalog.name)).getAllRegionLocations
@@ -158,25 +160,36 @@ case class HBaseRelation(
       .partition( x => rkFields.map(_.colName).contains(x))
       ._2.map(x => (schema.fieldIndex(x), catalog.getField(x)))
     val rdd = data.rdd //df.queryExecution.toRdd
-    def convertToPut(row: Row) = {
-      // construct bytes for row key
-      val rowBytes = rkIdxedFields.map { case (x, y) =>
-        Utils.toBytes(row(x), y)
-      }
-      val rLen = rowBytes.foldLeft(0) { case (x, y) =>
-        x + y.length
-      }
-      val rBytes = new Array[Byte](rLen)
-      var offset = 0
-      rowBytes.foreach { x =>
-        System.arraycopy(x, 0, rBytes, offset, x.length)
-        offset += x.length
-      }
-      val put = timestamp.fold(new Put(rBytes))(new Put(rBytes, _))
 
+    def convertToPut(row: Row) = {
+      val coder = catalog.shcTableCoder
+      // construct bytes for row key
+      val rBytes =
+        if (isComposite()) {
+          val rowBytes = coder.encodeCompositeRowKey(rkIdxedFields, row)
+
+          val rLen = rowBytes.foldLeft(0) { case (x, y) =>
+            x + y.length
+          }
+          val rBytes = new Array[Byte](rLen)
+          var offset = 0
+          rowBytes.foreach { x =>
+            System.arraycopy(x, 0, rBytes, offset, x.length)
+            offset += x.length
+          }
+          rBytes
+        } else {
+          val rBytes = rkIdxedFields.map { case (x, y) =>
+            SHCDataTypeFactory.create(y).toBytes(row(x))
+          }
+          rBytes(0)
+        }
+      val put = timestamp.fold(new Put(rBytes))(new Put(rBytes, _))
       colsIdxedFields.foreach { case (x, y) =>
-        val b = Utils.toBytes(row(x), y)
-        put.addColumn(Bytes.toBytes(y.cf), Bytes.toBytes(y.col), b)
+        put.addColumn(
+          coder.toBytes(y.cf),
+          coder.toBytes(y.col),
+          SHCDataTypeFactory.create(y).toBytes(row(x)))
       }
       count += 1
       (new ImmutableBytesWritable, put)
@@ -268,5 +281,4 @@ object HBaseRelation {
   val MAX_STAMP = "maxStamp"
   val MAX_VERSIONS = "maxVersions"
   val HBASE_CONFIGURATION = "hbaseConfiguration"
-
 }

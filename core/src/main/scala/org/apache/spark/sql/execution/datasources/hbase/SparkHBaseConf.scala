@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.datasources.hbase
 
 import org.apache.hadoop.conf.Configuration
+import org.apache.spark.sql.execution.datasources.hbase.types._
 
 
 object SparkHBaseConf {
@@ -29,4 +30,9 @@ object SparkHBaseConf {
   var defaultCachingSize = 100
   // in milliseconds
   val connectionCloseDelay = 10 * 60 * 1000
+
+  // for SHC DataType
+  val Avro = classOf[Avro].getSimpleName
+  val Phoenix = classOf[Phoenix].getSimpleName
+  val PrimitiveType = classOf[PrimitiveType].getSimpleName
 }

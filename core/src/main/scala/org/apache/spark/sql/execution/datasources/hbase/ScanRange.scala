@@ -19,12 +19,13 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import scala.collection.mutable.ArrayBuffer
 import scala.math.Ordering
+import scala.annotation.tailrec
+
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase
 import org.apache.spark.unsafe.types.UTF8String
-
-import scala.annotation.tailrec
+import org.apache.spark.sql.execution.datasources.hbase.types.SHCDataTypeFactory
 
 case class Bound[T](point: T, inc: Boolean)(implicit ordering: Ordering[T]) {
   override def toString = {
@@ -297,98 +298,150 @@ case class BoundRange(
 case class BoundRanges(less: Array[BoundRange], greater: Array[BoundRange], value: Array[Byte])
 
 object BoundRange extends Logging{
-  def apply(in: Any): Option[BoundRanges] = in match {
-    // For short, integer, and long, the order of number is consistent with byte array order
-    // regardless of its sign. But the negative number is larger than positive number in byte array.
-    case a: Integer =>
-      val b =  Bytes.toBytes(a)
-      if (a >= 0) {
-        logDebug(s"range is 0 to $a and ${Integer.MIN_VALUE} to -1")
+
+  def apply(in: Any, f: Field): Option[BoundRanges] = {
+    val pt = SparkHBaseConf.PrimitiveType
+    lazy val coder = SHCDataTypeFactory.create(f)
+    lazy val b = coder.toBytes(in)
+
+    in match {
+      // For short, integer, and long, the order of number is consistent with byte array order
+      // regardless of its sign. But the negative number is larger than positive number in byte array.
+      case a: Integer =>
+        if (f.fCoder == pt) {
+          val b = Bytes.toBytes(a)
+          if (a >= 0) {
+            logDebug(s"range is 0 to $a and ${Integer.MIN_VALUE} to -1")
+            Some(BoundRanges(
+              Array(BoundRange(Bytes.toBytes(0: Int), b),
+                BoundRange(Bytes.toBytes(Integer.MIN_VALUE), Bytes.toBytes(-1: Int))),
+              Array(BoundRange(b, Bytes.toBytes(Integer.MAX_VALUE))), b))
+          } else {
+            Some(BoundRanges(
+              Array(BoundRange(Bytes.toBytes(Integer.MIN_VALUE), b)),
+              Array(BoundRange(Bytes.toBytes(0: Int), Bytes.toBytes(Integer.MAX_VALUE)),
+                BoundRange(b, Bytes.toBytes(-1: Integer))),
+              b))
+          }
+        } else {
+          // Non-PrimitiveType
+          val min = coder.toBytes(Integer.MIN_VALUE)
+          val max = coder.toBytes(Integer.MAX_VALUE)
+          Some(BoundRanges(Array(BoundRange(min, b)),Array(BoundRange(b, max)), b))
+        }
+
+      case a: Long =>
+        if (f.fCoder == pt) {
+          val b =  Bytes.toBytes(a)
+          if (a >= 0) {
+            Some(BoundRanges(
+              Array(BoundRange(Bytes.toBytes(0: Long), b),
+                BoundRange(Bytes.toBytes(Long.MinValue),  Bytes.toBytes(-1: Long))),
+              Array(BoundRange(b,  Bytes.toBytes(Long.MaxValue))), b))
+          } else {
+            Some(BoundRanges(
+              Array(BoundRange(Bytes.toBytes(Long.MinValue), b)),
+              Array(BoundRange(Bytes.toBytes(0: Long), Bytes.toBytes(Long.MaxValue)),
+                BoundRange(b, Bytes.toBytes(-1: Long))), b))
+          }
+        } else {
+          // Non-PrimitiveType
+          val min = coder.toBytes(Long.MinValue)
+          val max = coder.toBytes(Long.MaxValue)
+          Some(BoundRanges(Array(BoundRange(min, b)),Array(BoundRange(b, max)), b))
+        }
+
+      case a: Short =>
+        if (f.fCoder == pt) {
+          val b =  Bytes.toBytes(a)
+          if (a >= 0) {
+            Some(BoundRanges(
+              Array(BoundRange(Bytes.toBytes(0: Short), b),
+                BoundRange(Bytes.toBytes(Short.MinValue),  Bytes.toBytes(-1: Short))),
+              Array(BoundRange(b,  Bytes.toBytes(Short.MaxValue))), b))
+          } else {
+            Some(BoundRanges(
+              Array(BoundRange(Bytes.toBytes(Short.MinValue), b)),
+              Array(BoundRange(Bytes.toBytes(0: Short), Bytes.toBytes(Short.MaxValue)),
+                BoundRange(b, Bytes.toBytes(-1: Short))), b))
+          }
+        } else {
+          // Non-PrimitiveType
+          val min = coder.toBytes(Short.MinValue)
+          val max = coder.toBytes(Short.MaxValue)
+          Some(BoundRanges(Array(BoundRange(min, b)),Array(BoundRange(b, max)), b))
+        }
+
+      case a: Double =>
+        // For both double and float, the order of positive number is consistent
+        // with byte array order. But the order of negative number is the reverse
+        // order of byte array. Please refer to IEEE-754 and
+        // https://en.wikipedia.org/wiki/Single-precision_floating-point_format
+        if (f.fCoder == pt) {
+          val b =  Bytes.toBytes(a)
+          if (a >= 0.0f) {
+            Some(BoundRanges(
+              Array(BoundRange(Bytes.toBytes(0.0d), b),
+                BoundRange(Bytes.toBytes(-0.0d),  Bytes.toBytes(Double.MinValue))),
+              Array(BoundRange(b,  Bytes.toBytes(Double.MaxValue))), b))
+          } else {
+            Some(BoundRanges(
+              Array(BoundRange(b, Bytes.toBytes(Double.MinValue))),
+              Array(BoundRange(Bytes.toBytes(0.0d), Bytes.toBytes(Double.MaxValue)),
+                BoundRange(Bytes.toBytes(-0.0d), b)), b))
+          }
+        } else {
+          // Non-PrimitiveType
+          val min = coder.toBytes(Double.MinValue)
+          val max = coder.toBytes(Double.MaxValue)
+          Some(BoundRanges(Array(BoundRange(min, b)),Array(BoundRange(b, max)), b))
+        }
+
+      case a: Float =>
+        if (f.fCoder == pt) {
+          val b =  Bytes.toBytes(a)
+          if (a >= 0.0f) {
+            Some(BoundRanges(
+              Array(BoundRange(Bytes.toBytes(0.0f), b),
+                BoundRange(Bytes.toBytes(-0.0f),  Bytes.toBytes(Float.MinValue))),
+              Array(BoundRange(b,  Bytes.toBytes(Float.MaxValue))), b))
+          } else {
+            Some(BoundRanges(
+              Array(BoundRange(b, Bytes.toBytes(Float.MinValue))),
+              Array( BoundRange(Bytes.toBytes(0.0f), Bytes.toBytes(Float.MaxValue)),
+                BoundRange(Bytes.toBytes(-0.0f), b)), b))
+          }
+        } else {
+          // Non-PrimitiveType
+          val min = coder.toBytes(Float.MinValue)
+          val max = coder.toBytes(Float.MaxValue)
+          Some(BoundRanges(Array(BoundRange(min, b)),Array(BoundRange(b, max)), b))
+        }
+
+      case a: Array[Byte] =>
         Some(BoundRanges(
-          Array(BoundRange(Bytes.toBytes(0: Int), b),
-            BoundRange(Bytes.toBytes(Integer.MIN_VALUE),  Bytes.toBytes(-1: Int))),
-          Array(BoundRange(b,  Bytes.toBytes(Integer.MAX_VALUE))), b))
-      } else {
+          Array(BoundRange(Array.fill(a.length)(ByteMin), a)),
+          Array(BoundRange(a, Array.fill(a.length)(ByteMax))), a))
+
+      case a: Byte =>
+        val b =  Array(a)
         Some(BoundRanges(
-          Array(BoundRange(Bytes.toBytes(Integer.MIN_VALUE), b)),
-          Array(BoundRange(Bytes.toBytes(0: Int), Bytes.toBytes(Integer.MAX_VALUE)),
-            BoundRange(b, Bytes.toBytes(-1: Integer))), b))
-      }
-    case a: Long =>
-      val b =  Bytes.toBytes(a)
-      if (a >= 0) {
+          Array(BoundRange(Array(ByteMin), b)),
+          Array(BoundRange(b, Array(ByteMax))), b))
+
+      case a: String =>
+        val b =  Bytes.toBytes(a)
         Some(BoundRanges(
-          Array(BoundRange(Bytes.toBytes(0: Long), b),
-            BoundRange(Bytes.toBytes(Long.MinValue),  Bytes.toBytes(-1: Long))),
-          Array(BoundRange(b,  Bytes.toBytes(Long.MaxValue))), b))
-      } else {
+          Array(BoundRange(Array.fill(a.length)(ByteMin), b)),
+          Array(BoundRange(b, Array.fill(a.length)(ByteMax))), b))
+
+      case a: UTF8String =>
+        val b = a.getBytes
         Some(BoundRanges(
-          Array(BoundRange(Bytes.toBytes(Long.MinValue), b)),
-          Array(BoundRange(Bytes.toBytes(0: Long), Bytes.toBytes(Long.MaxValue)),
-            BoundRange(b, Bytes.toBytes(-1: Long))), b))
-      }
-    case a: Short =>
-      val b =  Bytes.toBytes(a)
-      if (a >= 0) {
-        Some(BoundRanges(
-          Array(BoundRange(Bytes.toBytes(0: Short), b),
-            BoundRange(Bytes.toBytes(Short.MinValue),  Bytes.toBytes(-1: Short))),
-          Array(BoundRange(b,  Bytes.toBytes(Short.MaxValue))), b))
-      } else {
-        Some(BoundRanges(
-          Array(BoundRange(Bytes.toBytes(Short.MinValue), b)),
-          Array(BoundRange(Bytes.toBytes(0: Short), Bytes.toBytes(Short.MaxValue)),
-            BoundRange(b, Bytes.toBytes(-1: Short))), b))
-      }
-    // For both double and float, the order of positive number is consistent
-    // with byte array order. But the order of negative number is the reverse
-    // order of byte array. Please refer to IEEE-754 and
-    // https://en.wikipedia.org/wiki/Single-precision_floating-point_format
-    case a: Double =>
-      val b =  Bytes.toBytes(a)
-      if (a >= 0.0f) {
-        Some(BoundRanges(
-          Array(BoundRange(Bytes.toBytes(0.0d), b),
-            BoundRange(Bytes.toBytes(-0.0d),  Bytes.toBytes(Double.MinValue))),
-          Array(BoundRange(b,  Bytes.toBytes(Double.MaxValue))), b))
-      } else {
-        Some(BoundRanges(
-          Array(BoundRange(b, Bytes.toBytes(Double.MinValue))),
-          Array(BoundRange(Bytes.toBytes(0.0d), Bytes.toBytes(Double.MaxValue)),
-            BoundRange(Bytes.toBytes(-0.0d), b)), b))
-      }
-    case a: Float =>
-      val b =  Bytes.toBytes(a)
-      if (a >= 0.0f) {
-        Some(BoundRanges(
-          Array(BoundRange(Bytes.toBytes(0.0f), b),
-            BoundRange(Bytes.toBytes(-0.0f),  Bytes.toBytes(Float.MinValue))),
-          Array(BoundRange(b,  Bytes.toBytes(Float.MaxValue))), b))
-      } else {
-        Some(BoundRanges(
-          Array(BoundRange(b, Bytes.toBytes(Float.MinValue))),
-          Array( BoundRange(Bytes.toBytes(0.0f), Bytes.toBytes(Float.MaxValue)),
-            BoundRange(Bytes.toBytes(-0.0f), b)), b))
-      }
-    case a: Array[Byte] =>
-      Some(BoundRanges(
-        Array(BoundRange(Array.fill(a.length)(ByteMin), a)),
-        Array(BoundRange(a, Array.fill(a.length)(ByteMax))), a))
-    case a: Byte =>
-      val b =  Array(a)
-      Some(BoundRanges(
-        Array(BoundRange(Array(ByteMin), b)),
-        Array(BoundRange(b, Array(ByteMax))), b))
-    case a: String =>
-      val b =  Bytes.toBytes(a)
-      Some(BoundRanges(
-        Array(BoundRange(Array.fill(a.length)(ByteMin), b)),
-        Array(BoundRange(b, Array.fill(a.length)(ByteMax))), b))
-    case a: UTF8String =>
-      val b = a.getBytes
-      Some(BoundRanges(
-        Array(BoundRange(Array.fill(a.numBytes())(ByteMin), b)),
-        Array(BoundRange(b, Array.fill(a.numBytes())(ByteMax))), b))
-    case _ => None
+          Array(BoundRange(Array.fill(a.numBytes())(ByteMin), b)),
+          Array(BoundRange(b, Array.fill(a.numBytes())(ByteMax))), b))
+
+      case _ => None
+    }
   }
 }
