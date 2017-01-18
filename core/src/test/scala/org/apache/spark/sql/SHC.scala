@@ -51,7 +51,7 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
   // private[spark] var columnFamilyStr = Bytes.toString(columnFamily)
 
   def catalog = s"""{
-            |"table":{"namespace":"default", "name":"table1"},
+            |"table":{"namespace":"default", "name":"table1", "tableCoder":"PrimitiveType"},
             |"rowkey":"key",
             |"columns":{
               |"col0":{"cf":"rowkey", "col":"key", "type":"string"},

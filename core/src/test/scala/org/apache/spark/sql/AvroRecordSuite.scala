@@ -23,33 +23,33 @@ import java.nio.ByteBuffer
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
-import org.apache.spark.sql.execution.datasources.hbase.{AvroSerde, SchemaConverters}
 import org.apache.spark.sql.execution.datasources.hbase.Logging
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
+import org.apache.spark.sql.execution.datasources.hbase.types._
 
 class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with Logging {
 
   test("avro to schema converterBasic setup") {
     val schemaString  =
       s"""{"namespace": "example.avro",
-         |   "type": "record",      "name": "User",
-         |    "fields": [      {"name": "name", "type": "string"},
+         |   "type": "record", "name": "User",
+         |    "fields": [ {"name": "name", "type": "string"},
          |      {"name": "favorite_number",  "type": ["int", "null"]},
-         |        {"name": "favorite_color", "type": ["string", "null"]}      ]    }""".stripMargin
+         |        {"name": "favorite_color", "type": ["string", "null"]} ] }""".stripMargin
     val avroSchema: Schema = {
       val p = new Schema.Parser
       p.parse(schemaString)
     }
 
-    val user1 = new GenericData.Record(avroSchema);
-    user1.put("name", "Alyssa");
-    user1.put("favorite_number", 256);
+    val user1 = new GenericData.Record(avroSchema)
+    user1.put("name", "Alyssa")
+    user1.put("favorite_number", 256)
     // Leave favorite color null
 
-    val user2 = new GenericData.Record(avroSchema);
-    user2.put("name", "Ben");
-    user2.put("favorite_number", 7);
-    user2.put("favorite_color", "red");
+    val user2 = new GenericData.Record(avroSchema)
+    user2.put("name", "Ben")
+    user2.put("favorite_number", 7)
+    user2.put("favorite_color", "red")
 
     val sqlUser1 = SchemaConverters.createConverterToSQL(avroSchema)(user1)
     println(sqlUser1)

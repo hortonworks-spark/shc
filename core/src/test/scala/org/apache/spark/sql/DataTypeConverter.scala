@@ -39,15 +39,14 @@ class DataTypeConverter extends SHC with Logging{
          |        {"name": "favorite_color", "type": ["string", "null"]}      ]    }""".stripMargin
 
     val catalog = s"""{
-            |"table":{"namespace":"default", "name":"htable"},
+            |"table":{"namespace":"default", "name":"htable", "tableCoder":"PrimitiveType"},
             |"rowkey":"key1:key2",
             |"columns":{
               |"col1":{"cf":"rowkey", "col":"key1", "type":"binary"},
               |"col2":{"cf":"rowkey", "col":"key2", "type":"double"},
               |"col3":{"cf":"cf1", "col":"col1", "avro":"schema1"},
               |"col4":{"cf":"cf1", "col":"col2", "type":"string"},
-              |"col5":{"cf":"cf1", "col":"col3", "type":"double",
-              |"sedes":"org.apache.spark.sql.execution.datasources.hbase.DoubleSedes"},
+              |"col5":{"cf":"cf1", "col":"col3", "type":"double"},
               |"col6":{"cf":"cf1", "col":"col4", "type":"$complex"}
             |}
           |}""".stripMargin
