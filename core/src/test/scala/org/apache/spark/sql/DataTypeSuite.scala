@@ -47,7 +47,7 @@ object IntKeyRecord {
 class DataTypeSuite extends SHC with Logging {
 
   override def catalog = s"""{
-            |"table":{"namespace":"default", "name":"table1"},
+            |"table":{"namespace":"default", "name":"table1", "tableCoder":"PrimitiveType"},
             |"rowkey":"key",
             |"columns":{
               |"col0":{"cf":"rowkey", "col":"key", "type":"int"},
@@ -83,8 +83,6 @@ class DataTypeSuite extends SHC with Logging {
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .save()
   }
-
-
 
   test("less than 0") {
     val df = withCatalog(catalog)

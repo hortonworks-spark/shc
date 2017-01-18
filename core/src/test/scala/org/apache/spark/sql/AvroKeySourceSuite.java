@@ -132,10 +132,10 @@ public class AvroKeySourceSuite {
   }
 
   private static Map<String, String> getHBaseSourceOptions() {
-    String hbaseCatalog = "{\"table\": {\"namespace\": \"default\", \"name\": \"TEST_TABLE\"}," +
+    String hbaseCatalog = "{\"table\": {\"namespace\": \"default\", \"name\": \"TEST_TABLE\", \"tableCoder\":\"PrimitiveType\"}," +
         "\"rowkey\": \"key\", \"columns\": {"
-        + "\"key\": {\"cf\": \"rowkey\", \"col\": \"key\", \"avro\": \"keySchema\"},"
-        + "\"value\": {\"cf\": \"" + COLUMN_FAMILY + "\", \"col\": \"" + COLUMN_QUALIFIER + "\", \"avro\": \"avroSchema\"}"
+        + "\"key\": {\"cf\": \"rowkey\", \"col\": \"key\", \"type\": \"keySchema\", \"coder\": \"Avro\"},"
+        + "\"value\": {\"cf\": \"" + COLUMN_FAMILY + "\", \"col\": \"" + COLUMN_QUALIFIER + "\", \"type\": \"avroSchema\", \"coder\": \"Avro\"}"
         + "}}";
     Map<String, String> hbaseOptions = new HashMap<>();
     hbaseOptions.put(HBaseTableCatalog.tableCatalog(), hbaseCatalog);

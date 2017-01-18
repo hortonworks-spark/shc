@@ -23,7 +23,7 @@ import org.apache.spark.sql.types.BinaryType
 
 object Test {
   def main(args: Array[String]) {
-   val a: Array[Byte] = Array.fill(10)(Byte.MinValue)
+    val a: Array[Byte] = Array.fill(10)(Byte.MinValue)
     val b = Bytes.toBytes ("row003")
     System.arraycopy(b, 0, a, 0, b.length)
     val c = Bytes.toBytes(Int.MinValue)
@@ -31,8 +31,6 @@ object Test {
     val len = a.indexOf(HBaseTableCatalog.delimiter, 0)
     val s1 = Bytes.toString(a, 0, 6)
     val s2 = Bytes.toString(a, 0, len)
-
-
 
     /*val l = Bytes.toBytes(Float.MinValue)
     val m = Bytes.toBytes(-20.0.asInstanceOf[Double])
@@ -68,15 +66,12 @@ object Test {
     val p4 = Bytes.compareTo(p1, p3)
     val p5 = Bytes.compareTo(p2, p3)
 
-
-
     val z = Array.fill(4)(Byte.MinValue)
     Bytes.putInt(z, 0, -1)
     val z1 = Array.fill(4)(Byte.MinValue)
     Bytes.putInt(z1, 0, -2147483648)
 
     val z2 = Bytes.compareTo(z, z1)
-
 
     val t = Array.fill(4)(-1: Byte)
     println(Bytes.toInt(t))
@@ -101,12 +96,9 @@ object Test {
     i = (i ^ ((i >> Integer.SIZE - 1) | Integer.MIN_VALUE)) + 1
     Bytes.putInt(buffer, 0, i)
 
-
     val mn = Bytes.toBytes(-0.0f)
     println(Bytes.toFloat(mn))
     println(Float.MinPositiveValue)
-
-
 
     println(s"a")
   }
