@@ -26,10 +26,10 @@ object AvroRecord {
     //Test avro to schema converterBasic setup
     val schemaString =
       """{"namespace": "example.avro",
-        |   "type": "record",      "name": "User",
-        |    "fields": [      {"name": "name", "type": "string"},
+        |   "type": "record", "name": "User",
+        |    "fields": [ {"name": "name", "type": "string"},
         |      {"name": "favorite_number",  "type": ["int", "null"]},
-        |        {"name": "favorite_color", "type": ["string", "null"]}      ]    }""".stripMargin
+        |        {"name": "favorite_color", "type": ["string", "null"]} ] }""".stripMargin
 
     val avroSchema: Schema = {
       val p = new Schema.Parser
