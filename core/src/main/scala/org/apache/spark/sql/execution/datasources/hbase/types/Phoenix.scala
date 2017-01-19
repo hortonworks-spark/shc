@@ -17,13 +17,13 @@
 
 package org.apache.spark.sql.execution.datasources.hbase.types
 
-import org.apache.hadoop.hbase.util.Bytes
+
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.phoenix.query.QueryConstants
-import org.apache.phoenix.schema.{SortOrder, PDatum, RowKeySchema}
+import org.apache.phoenix.schema._
 import org.apache.phoenix.schema.RowKeySchema.RowKeySchemaBuilder
 import org.apache.phoenix.schema.types._
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.execution.SparkSqlSerializer
 import org.apache.spark.sql.execution.datasources.hbase._
 import org.apache.spark.sql.types._
 
@@ -38,7 +38,7 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
       }
     } else {
       throw new UnsupportedOperationException(
-        "Phoenix coder: without field metadata, 'bytesToColumn' conversion can not be supported")
+        "Phoenix coder: without field metadata, 'fromBytes' conversion can not be supported")
     }
   }
 
@@ -57,6 +57,41 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
     }
   }
 
+  override def isCompositeKeySupported(): Boolean = true
+
+  override def decodeCompositeRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {
+    def buildSchema(): RowKeySchema = {
+      val builder: RowKeySchemaBuilder = new RowKeySchemaBuilder(keyFields.length)
+      keyFields.foreach{ x =>
+        builder.addField(buildPDatum(x.dt), false, SortOrder.getDefault)
+      }
+      builder.build
+    }
+    val schema: RowKeySchema = buildSchema()
+
+    val ptr: ImmutableBytesWritable = new ImmutableBytesWritable
+    val maxOffest = schema.iterator(row, 0, row.length, ptr)
+    var ret = Map.empty[Field, Any]
+    for (i <- 0 until schema.getFieldCount) {
+      if (schema.next(ptr, i, maxOffest) != null) {
+        val value = mapToPhoenixTypeInstance(keyFields(i).dt)
+          .toObject(ptr, schema.getField(i).getDataType, SortOrder.getDefault)
+        ret += ((keyFields(i), value))
+      }
+    }
+    ret
+  }
+
+  override def encodeCompositeRowKey(rkIdxedFields: Seq[(Int, Field)], row: Row): Seq[Array[Byte]] = {
+    rkIdxedFields.map { case (x, y) =>
+      var ret = toBytes(row(x))
+      // the last dimension of composite key does not need SEPARATOR
+      if (y.length == -1 && x < rkIdxedFields.size - 1)
+        ret ++= QueryConstants.SEPARATOR_BYTE_ARRAY
+      ret
+    }
+  }
+
   private def mapToPhoenixTypeInstance(input: DataType): PDataType[_] = {
     input match {
       case BooleanType => PBoolean.INSTANCE
@@ -70,5 +105,13 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
       case BinaryType => PBinary.INSTANCE
       case _ => throw new UnsupportedOperationException(s"unsupported data type $input")
     }
+  }
+
+  private def buildPDatum(input: DataType): PDatum = new PDatum {
+    override def getScale: Integer = null
+    override def isNullable: Boolean = false
+    override def getDataType: PDataType[_] = mapToPhoenixTypeInstance(input)
+    override def getMaxLength: Integer = null
+    override def getSortOrder: SortOrder = SortOrder.getDefault
   }
 }

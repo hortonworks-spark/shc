@@ -98,14 +98,15 @@ case class RowKey(k: String) {
   var fields: Seq[Field] = _
   var varLength = false
   def length = {
-    fields.foldLeft(0) { case (x, y) =>
+    val tmp = fields.foldLeft(0) { case (x, y) =>
       val yLen = if (y.length == -1) {
         MaxLength
       } else {
         y.length
       }
-      x + y.length
+      x + yLen
     }
+    tmp
   }
 }
 
@@ -164,7 +165,8 @@ case class HBaseTableCatalog(
 
   def validateCatalogDef() = {
     if (tCoder == SparkHBaseConf.Avro) {
-      throw new UnsupportedOperationException("Avro can only be column's coder")
+      throw new UnsupportedOperationException("Avro can only be column's coder, you may want " +
+        "to use PrimitiveType or Phoenix as 'tableCoder'")
     }
 
     if (coderSet.size > 1){
