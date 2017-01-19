@@ -49,7 +49,7 @@ object HBaseRecord {
 
 object HBaseSource {
   val cat = s"""{
-            |"table":{"namespace":"default", "name":"shcExampleTable"},
+            |"table":{"namespace":"default", "name":"shcExampleTable", "tableCoder":"PrimitiveType"},
             |"rowkey":"key",
             |"columns":{
               |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
@@ -65,7 +65,7 @@ object HBaseSource {
           |}""".stripMargin
 
   val cat1 = s"""{
-                |"table":{"namespace":"default", "name":"shcExampleTable1"},
+                |"table":{"namespace":"default", "name":"shcExampleTable1", "tableCoder":"PrimitiveType"},
                 |"rowkey":"key",
                 |"columns":{
                 |"col0":{"cf":"rowkey", "col":"key", "type":"string"},

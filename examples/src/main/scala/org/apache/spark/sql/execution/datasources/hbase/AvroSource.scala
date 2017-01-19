@@ -30,7 +30,7 @@ case class AvroHBaseRecord(col0: String,
 object AvroHBaseRecord {
   val schemaString =
     s"""{"namespace": "example.avro",
-        |   "type": "record",      "name": "User",
+        |   "type": "record", "name": "User",
         |    "fields": [
         |        {"name": "name", "type": "string"},
         |        {"name": "favorite_number",  "type": ["int", "null"]},
@@ -64,7 +64,7 @@ object AvroHBaseRecord {
 
 object AvroSource {
   def catalog = s"""{
-                     |"table":{"namespace":"default", "name":"shcExampleAvrotable"},
+                     |"table":{"namespace":"default", "name":"shcExampleAvrotable", "tableCoder":"PrimitiveType"},
                      |"rowkey":"key",
                      |"columns":{
                      |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
@@ -73,20 +73,20 @@ object AvroSource {
                      |}""".stripMargin
 
   def avroCatalog = s"""{
-                        |"table":{"namespace":"default", "name":"shcExampleAvrotable"},
+                        |"table":{"namespace":"default", "name":"shcExampleAvrotable", "tableCoder":"PrimitiveType"},
                         |"rowkey":"key",
                         |"columns":{
                         |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
-                        |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
+                        |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"Avro"}
                         |}
                         |}""".stripMargin
 
   def avroCatalogInsert = s"""{
-                              |"table":{"namespace":"default", "name":"shcExampleAvrotableInsert"},
+                              |"table":{"namespace":"default", "name":"shcExampleAvrotableInsert", "tableCoder":"PrimitiveType"},
                               |"rowkey":"key",
                               |"columns":{
                               |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
-                              |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
+                              |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"Avro"}
                               |}
                               |}""".stripMargin
 
