@@ -22,16 +22,16 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.{SparkSession, SQLContext, DataFrame}
 
 case class HBaseCompositeRecord(
-                                 col00: String,
-                                 col01: Int,
-                                 col1: Boolean,
-                                 col2: Double,
-                                 col3: Float,
-                                 col4: Int,
-                                 col5: Long,
-                                 col6: Short,
-                                 col7: String,
-                                 col8: Byte)
+    col00: String,
+    col01: Int,
+    col1: Boolean,
+    col2: Double,
+    col3: Float,
+    col4: Int,
+    col5: Long,
+    col6: Short,
+    col7: String,
+    col8: Byte)
 
 object HBaseCompositeRecord {
   def apply(i: Int): HBaseCompositeRecord = {
@@ -54,7 +54,7 @@ object HBaseCompositeRecord {
 
 object CompositeKey {
   def cat = s"""{
-                    |"table":{"namespace":"default", "name":"shcExampleTable"},
+                    |"table":{"namespace":"default", "name":"shcExampleTable", "tableCoder":"PrimitiveType"},
                     |"rowkey":"key1:key2",
                     |"columns":{
                       |"col00":{"cf":"rowkey", "col":"key1", "type":"string", "length":"6"},

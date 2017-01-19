@@ -22,15 +22,15 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.execution.datasources.hbase._
 
 case class IntKeyRecord(
-                         col0: Integer,
-                         col1: Boolean,
-                         col2: Double,
-                         col3: Float,
-                         col4: Int,
-                         col5: Long,
-                         col6: Short,
-                         col7: String,
-                         col8: Byte)
+    col0: Integer,
+    col1: Boolean,
+    col2: Double,
+    col3: Float,
+    col4: Int,
+    col5: Long,
+    col6: Short,
+    col7: String,
+    col8: Byte)
 
 object IntKeyRecord {
   def apply(i: Int): IntKeyRecord = {
@@ -48,7 +48,7 @@ object IntKeyRecord {
 
 object DataType {
   val cat = s"""{
-                    |"table":{"namespace":"default", "name":"shcExampleTable"},
+                    |"table":{"namespace":"default", "name":"shcExampleTable", "tableCoder":"PrimitiveType"},
                     |"rowkey":"key",
                     |"columns":{
                     |"col0":{"cf":"rowkey", "col":"key", "type":"int"},
