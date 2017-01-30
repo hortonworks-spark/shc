@@ -46,7 +46,7 @@ class Avro(f:Option[Field] = None) extends SHCDataType {
       n.get
     } else {
       throw new UnsupportedOperationException(
-        "Avro coder: without field metadata, 'bytesToColumn' conversion can not be supported")
+        "Avro coder: without field metadata, 'fromBytes' conversion can not be supported")
     }
   }
 
