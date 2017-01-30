@@ -41,8 +41,8 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
       }
     } else {
       throw new UnsupportedOperationException(
-        "PrimitiveType coder: without field metadata," +
-          " 'bytesToColumn' conversion can not be supported")
+        "PrimitiveType coder: without field metadata, " +
+          "'fromBytes' conversion can not be supported")
     }
   }
 
@@ -65,28 +65,38 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
 
   override def isCompositeKeySupported(): Boolean = true
 
-  override def decodeCompositeRowKey(src: HBaseType, offset: Int, length: Int): Any = {
-    if (f.isDefined) {
-      f.get.dt match {
-        case BooleanType => toBoolean(src, offset)
-        case ByteType => src(offset)
-        case DoubleType => Bytes.toDouble(src, offset)
-        case FloatType => Bytes.toFloat(src, offset)
-        case IntegerType => Bytes.toInt(src, offset)
-        case LongType => Bytes.toLong(src, offset)
-        case ShortType => Bytes.toShort(src, offset)
-        case StringType => toUTF8String(src, length, offset)
-        case BinaryType =>
-          val newArray = new Array[Byte](length)
-          System.arraycopy(src, offset, newArray, 0, length)
-          newArray
-        case _ => throw new
-            UnsupportedOperationException(s"PrimitiveType coder: unsupported data type ${f.get.dt}")
+  override def decodeCompositeRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {
+    keyFields.foldLeft((0, Seq[(Field, Any)]()))((state, field) => {
+      val idx = state._1
+      val parsed = state._2
+      if (field.length != -1) {
+        val value = fromBytes(field, row, idx, field.length)
+        // Return the new index and appended value
+        (idx + field.length, parsed ++ Seq((field, value)))
+      } else {
+        // This is the last dimension.
+        val value = fromBytes(field, row, idx, row.length - idx)
+        (row.length + 1, parsed ++ Seq((field, value)))
       }
-    } else {
-      throw new UnsupportedOperationException(
-        "PrimitiveType coder: without field metadata," +
-          " 'bytesToCompositeKeyField' conversion can not be supported")
+    })._2.toMap
+  }
+
+  private def fromBytes(field: Field, src: HBaseType, offset: Int, length: Int): Any = {
+    field.dt match {
+      case BooleanType => toBoolean(src, offset)
+      case ByteType => src(offset)
+      case DoubleType => Bytes.toDouble(src, offset)
+      case FloatType => Bytes.toFloat(src, offset)
+      case IntegerType => Bytes.toInt(src, offset)
+      case LongType => Bytes.toLong(src, offset)
+      case ShortType => Bytes.toShort(src, offset)
+      case StringType => toUTF8String(src, length, offset)
+      case BinaryType =>
+        val newArray = new Array[Byte](length)
+        System.arraycopy(src, offset, newArray, 0, length)
+        newArray
+      case _ => throw new
+        UnsupportedOperationException(s"PrimitiveType coder: unsupported data type ${field.dt}")
     }
   }
 
