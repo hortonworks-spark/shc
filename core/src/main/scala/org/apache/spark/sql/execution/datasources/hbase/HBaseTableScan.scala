@@ -83,36 +83,13 @@ private[hbase] class HBaseTableScanRDD(
     ps.asInstanceOf[Array[Partition]]
   }
 
-  /**
-   * Takes a HBase Row object and parses all of the fields from it.
-   * This is independent of which fields were requested from the key
-   * Because we have all the data it's less complex to parse everything.
-   *
-   * @param keyFields all of the fields in the row key, ORDERED by their order in the row key.
-   */
-  def parseCompositeRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {
-    keyFields.foldLeft((0, Seq[(Field, Any)]()))((state, field) => {
-      val idx = state._1
-      val parsed = state._2
-      val coder = SHCDataTypeFactory.create(field)
-      if (field.length != -1) {
-        val value = coder.decodeCompositeRowKey(row, idx, field.length)
-        // Return the new index and appended value
-        (idx + field.length, parsed ++ Seq((field, value)))
-      } else {
-        // This is the last dimension.
-        val value = coder.decodeCompositeRowKey(row, idx, row.length - idx)
-        (row.length + 1, parsed ++ Seq((field, value)))
-      }
-    })._2.toMap
-  }
-
   // TODO: It is a big performance overhead, as for each row, there is a hashmap lookup.
   def buildRow(fields: Seq[Field], result: Result): Row = {
     val r = result.getRow
     val keySeq = {
       if (relation.isComposite()) {
-        parseCompositeRowKey(r, relation.catalog.getRowKey)
+        relation.catalog.shcTableCoder
+          .decodeCompositeRowKey(r, relation.catalog.getRowKey)
       } else {
         val f = relation.catalog.getRowKey.head
         Seq((f, SHCDataTypeFactory.create(f).fromBytes(r))).toMap
