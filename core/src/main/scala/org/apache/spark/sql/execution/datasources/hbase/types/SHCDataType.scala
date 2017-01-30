@@ -28,11 +28,16 @@ trait SHCDataType extends Serializable {
   // Convert input to Byte Array (HBaseType)
   def toBytes(input: Any): Array[Byte]
 
-  // If your data type do not need to support composite keys, you can just leave it empty or
-  // threw an exception to remind users composite key is not supported.
   def isCompositeKeySupported(): Boolean = false
 
-  def decodeCompositeRowKey(src: HBaseType, offset: Int, length: Int): Any = {
+  /**
+   * Takes a HBase Row object and parses all of the fields from it.
+   * This is independent of which fields were requested from the key
+   * Because we have all the data it's less complex to parse everything.
+   *
+   * @param keyFields all of the fields in the row key, ORDERED by their order in the row key.
+   */
+  def decodeCompositeRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {
     throw new UnsupportedOperationException("Composite key is not supported")
   }
 
