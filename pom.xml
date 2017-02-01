@@ -33,6 +33,14 @@
   <name>HBase Spark Connector Project Parent POM</name>
   <url>https://github.com/hortonworks-spark/shc</url>
 
+  <distributionManagement>
+    <repository>
+      <id>${repoid}</id>
+      <name>${reponame}</name>
+      <url>${repourl}</url>
+    </repository>         
+  </distributionManagement>   
+
   <properties>
     <spark.version>2.1.0</spark.version>
     <hbase.version>1.1.2</hbase.version>
