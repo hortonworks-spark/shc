@@ -48,7 +48,7 @@ trait SHCDataType extends Serializable {
 
 /**
  * Currently, SHC supports three data types which can be used as serdes: Avro, Phoenix, PrimitiveType.
- * Adding New SHC data type should needs to implement the trait 'SHCDataType'.
+ * Adding New SHC data type needs to implement the trait 'SHCDataType'.
  */
 object SHCDataTypeFactory {
 
@@ -75,7 +75,7 @@ object SHCDataTypeFactory {
   }
 
   // Currently, the function below is only used for creating the table coder.
-  // One catalog/ Hbase table can only use one table coder, so the function is
+  // One catalog/HBase table can only use one table coder, so the function is
   // only called once in 'HBaseTableCatalog' class.
   def create(coder: String): SHCDataType = {
     if (coder == null || coder.isEmpty) {

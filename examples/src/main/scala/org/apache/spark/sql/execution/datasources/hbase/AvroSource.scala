@@ -77,7 +77,7 @@ object AvroSource {
                         |"rowkey":"key",
                         |"columns":{
                         |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
-                        |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"Avro"}
+                        |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
                         |}
                         |}""".stripMargin
 
@@ -86,7 +86,7 @@ object AvroSource {
                               |"rowkey":"key",
                               |"columns":{
                               |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
-                              |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"Avro"}
+                              |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
                               |}
                               |}""".stripMargin
 
