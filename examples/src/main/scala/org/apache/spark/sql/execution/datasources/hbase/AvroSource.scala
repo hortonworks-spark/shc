@@ -46,7 +46,7 @@ object AvroHBaseRecord {
 
   def apply(i: Int): AvroHBaseRecord = {
 
-    val user = new GenericData.Record(avroSchema);
+    val user = new GenericData.Record(avroSchema)
     user.put("name", s"name${"%03d".format(i)}")
     user.put("favorite_number", i)
     user.put("favorite_color", s"color${"%03d".format(i)}")
