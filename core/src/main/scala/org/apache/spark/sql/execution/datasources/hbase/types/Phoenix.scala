@@ -27,6 +27,7 @@ import org.apache.spark.sql.execution.datasources.hbase._
 import org.apache.spark.sql.types._
 
 class Phoenix(f:Option[Field] = None) extends SHCDataType {
+  private var schema: RowKeySchema = null
 
   def fromBytes(src: HBaseType): Any = {
     if (f.isDefined) {
@@ -59,15 +60,7 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
   override def isCompositeKeySupported(): Boolean = true
 
   override def decodeCompositeRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {
-    def buildSchema(): RowKeySchema = {
-      val builder: RowKeySchemaBuilder = new RowKeySchemaBuilder(keyFields.length)
-      keyFields.foreach{ x =>
-        builder.addField(buildPDatum(x.dt), false, SortOrder.getDefault)
-      }
-      builder.build
-    }
-    val schema: RowKeySchema = buildSchema()
-
+    if (schema == null) schema = buildSchema(keyFields)
     val ptr: ImmutableBytesWritable = new ImmutableBytesWritable
     val maxOffest = schema.iterator(row, 0, row.length, ptr)
     var ret = Map.empty[Field, Any]
@@ -89,6 +82,14 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
         ret ++= QueryConstants.SEPARATOR_BYTE_ARRAY
       ret
     }
+  }
+
+  private def buildSchema(keyFields: Seq[Field]): RowKeySchema = {
+    val builder: RowKeySchemaBuilder = new RowKeySchemaBuilder(keyFields.length)
+    keyFields.foreach{ x =>
+      builder.addField(buildPDatum(x.dt), false, SortOrder.getDefault)
+    }
+    builder.build
   }
 
   private def mapToPhoenixTypeInstance(input: DataType): PDataType[_] = {
