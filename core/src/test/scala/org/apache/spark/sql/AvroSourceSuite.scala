@@ -12,7 +12,7 @@ case class AvroHBaseRecord(col0: String,
 object AvroHBaseRecord {
   val schemaString =
     s"""{"namespace": "example.avro",
-         |   "type": "record",      "name": "User",
+         |   "type": "record", "name": "User",
          |    "fields": [
          |        {"name": "name", "type": "string"},
          |        {"name": "favorite_number",  "type": ["int", "null"]},
@@ -61,7 +61,7 @@ class AvroSourceSuite extends SHC with Logging{
             |"rowkey":"key",
             |"columns":{
               |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
-              |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"Avro"}
+              |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
             |}
           |}""".stripMargin
 
@@ -70,7 +70,7 @@ class AvroSourceSuite extends SHC with Logging{
             |"rowkey":"key",
             |"columns":{
               |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
-              |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"Avro"}
+              |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
             |}
           |}""".stripMargin
 
