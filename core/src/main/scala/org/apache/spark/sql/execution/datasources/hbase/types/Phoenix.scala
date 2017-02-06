@@ -17,7 +17,6 @@
 
 package org.apache.spark.sql.execution.datasources.hbase.types
 
-
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.phoenix.query.QueryConstants
 import org.apache.phoenix.schema._

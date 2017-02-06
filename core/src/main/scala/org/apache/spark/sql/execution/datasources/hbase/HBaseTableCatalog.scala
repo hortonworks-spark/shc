@@ -61,7 +61,7 @@ case class Field(
   }
 
   val dt =
-    if (fCoder == SparkHBaseConf.Avro)
+    if (avroSchema.isDefined)
       schema.map{ x => SchemaConverters.toSqlType(x).dataType }.get
     else
       sType.map(DataTypeParser.parse(_)).get
@@ -154,7 +154,7 @@ case class HBaseTableCatalog(
           start += f.length
         }
       } else {
-        throw new Exception("Only the last dimension of RowKey is allowed to have " +
+        throw new Exception("PrimitiveType: only the last dimension of RowKey is allowed to have " +
           "varied length. You may want to add 'length' to the dimensions which have " +
           "varied length or use dimensions which are scala/java primitive data " +
           "types of fixed length.")
@@ -201,7 +201,7 @@ object HBaseTableCatalog {
   val col = "col"
   val `type` = "type"
   // the name of avro schema json string
-  val avro = "Avro"
+  val avro = "avro"
   val delimiter: Byte = 0
   val length = "length"
   val fCoder = "coder"
@@ -220,24 +220,17 @@ object HBaseTableCatalog {
     val tableMeta = map.get(table).get.asInstanceOf[Map[String, _]]
     val nSpace = tableMeta.get(nameSpace).getOrElse("default").asInstanceOf[String]
     val tName = tableMeta.get(tableName).get.asInstanceOf[String]
-    val tCoder =
-      if (!tableMeta.get(tableCoder).isDefined) {
-        throw new NullPointerException("Please define 'tableCoder' in your catalog. " +
-          "If there is an Avro records/schema in your catalog, please explicitly define " +
-          "'coder' in its corresponding column.")
-      } else {
-        tableMeta.get(tableCoder).get.asInstanceOf[String]
-      }
+    // If 'tableCoder' is not specified in the catalog, 'Phoenix' will be the table coder
+    val tCoder = tableMeta.getOrElse(tableCoder, SparkHBaseConf.Phoenix).asInstanceOf[String]
     val schemaMap = mutable.LinkedHashMap.empty[String, Field]
     var coderSet = Set(tCoder)
     getColsPreservingOrder(jObj).foreach { case (name, column)=>
       val len = column.get(length).map(_.toInt).getOrElse(-1)
-      val fc = column.getOrElse(fCoder, tCoder)
+      val sAvro = column.get(avro).map(parameters(_))
+      val fc = if (sAvro.isDefined) SparkHBaseConf.Avro else column.getOrElse(fCoder, tCoder)
       coderSet += fc
-      val sType = column.get(`type`)
-      val sAvro = if (fc == avro) sType.map(parameters(_)) else None
       val f = Field(name, column.getOrElse(cf, rowKey), column.get(col).get,
-        fc, sType, sAvro, len)
+        fc, column.get(`type`), sAvro, len)
       schemaMap.+= ((name, f))
     }
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)
@@ -274,7 +267,7 @@ object HBaseTableCatalog {
             |"columns":{
               |"col1":{"cf":"rowkey", "col":"key1", "type":"string"},
               |"col2":{"cf":"rowkey", "col":"key2", "type":"double"},
-              |"col3":{"cf":"cf1", "col":"col1", "type":"schema1", "coder":"Avro"},
+              |"col3":{"cf":"cf1", "col":"col1", "avro":"schema1"},
               |"col4":{"cf":"cf1", "col":"col2", "type":"binary"},
               |"col5":{"cf":"cf1", "col":"col3", "type":"double"},
               |"col6":{"cf":"cf1", "col":"col4", "type":"$complex"}

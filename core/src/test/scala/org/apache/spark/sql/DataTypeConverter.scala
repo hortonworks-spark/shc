@@ -28,10 +28,10 @@ class DataTypeConverter extends SHC with Logging{
     val complex = s"""MAP<int, struct<varchar:string>>"""
     val schema =
       s"""{"namespace": "example.avro",
-         |   "type": "record",      "name": "User",
-         |    "fields": [      {"name": "name", "type": "string"},
+         |   "type": "record", "name": "User",
+         |    "fields": [ {"name": "name", "type": "string"},
          |      {"name": "favorite_number",  "type": ["int", "null"]},
-         |        {"name": "favorite_color", "type": ["string", "null"]}      ]    }""".stripMargin
+         |        {"name": "favorite_color", "type": ["string", "null"]} ]}""".stripMargin
 
     val catalog = s"""{
             |"table":{"namespace":"default", "name":"htable", "tableCoder":"PrimitiveType"},

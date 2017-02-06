@@ -35,14 +35,14 @@ object AvroRecord {
       val p = new Schema.Parser
       p.parse(schemaString)
     }
-    val user1 = new GenericData.Record(avroSchema);
-    user1.put("name", "Alyssa");
-    user1.put("favorite_number", 256);
+    val user1 = new GenericData.Record(avroSchema)
+    user1.put("name", "Alyssa")
+    user1.put("favorite_number", 256)
 
-    val user2 = new GenericData.Record(avroSchema);
-    user2.put("name", "Ben");
-    user2.put("favorite_number", 7);
-    user2.put("favorite_color", "red");
+    val user2 = new GenericData.Record(avroSchema)
+    user2.put("name", "Ben")
+    user2.put("favorite_number", 7)
+    user2.put("favorite_color", "red")
 
     val sqlUser1 = SchemaConverters.createConverterToSQL(avroSchema)(user1)
     println(sqlUser1)

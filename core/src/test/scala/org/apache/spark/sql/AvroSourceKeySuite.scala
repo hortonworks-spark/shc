@@ -64,8 +64,8 @@ class AvroSourceKeySuite extends SHC with Logging{
             |"table":{"namespace":"default", "name":"avrotable", "tableCoder":"PrimitiveType"},
             |"rowkey":"key",
             |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key", "type":"avroSchema", "coder":"Avro"},
-              |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"Avro"}
+              |"col0":{"cf":"rowkey", "col":"key", "avro":"avroSchema"},
+              |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
             |}
           |}""".stripMargin
 
@@ -73,8 +73,8 @@ class AvroSourceKeySuite extends SHC with Logging{
             |"table":{"namespace":"default", "name":"avrotableInsert", "tableCoder":"PrimitiveType"},
             |"rowkey":"key",
             |"columns":{
-              |"col0":{"cf":"rowkey", "col":"key", "type":"avroSchema", "coder":"Avro"},
-              |"col1":{"cf":"cf1", "col":"col1", "type":"avroSchema", "coder":"Avro"}
+              |"col0":{"cf":"rowkey", "col":"key", "avro":"avroSchema"},
+              |"col1":{"cf":"cf1", "col":"col1", "avro":"avroSchema"}
             |}
           |}""".stripMargin
 
