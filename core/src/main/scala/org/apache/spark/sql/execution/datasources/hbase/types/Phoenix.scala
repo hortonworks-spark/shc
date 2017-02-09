@@ -57,6 +57,8 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
     }
   }
 
+  override def isRowKeySupported(): Boolean = true
+
   override def isCompositeKeySupported(): Boolean = true
 
   override def decodeCompositeRowKey(row: Array[Byte], keyFields: Seq[Field]): Map[Field, Any] = {

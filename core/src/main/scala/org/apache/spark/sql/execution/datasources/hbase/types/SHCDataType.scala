@@ -28,6 +28,10 @@ trait SHCDataType extends Serializable {
   // Convert input to Byte Array (HBaseType)
   def toBytes(input: Any): Array[Byte]
 
+  // If lexicographic sort order is maintained, then return true.
+  // If return false, the data type can not be the table coder, i.g, Avro.
+  def isRowKeySupported(): Boolean = false
+
   def isCompositeKeySupported(): Boolean = false
 
   /**
