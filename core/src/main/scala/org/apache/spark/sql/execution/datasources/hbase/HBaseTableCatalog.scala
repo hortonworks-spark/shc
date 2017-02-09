@@ -163,9 +163,9 @@ case class HBaseTableCatalog(
   initRowKey()
 
   def validateCatalogDef() = {
-    if (tCoder == SparkHBaseConf.Avro) {
-      throw new UnsupportedOperationException("Avro can only be column's coder, you may want " +
-        "to use PrimitiveType or Phoenix as 'tableCoder'")
+    if (!shcTableCoder.isRowKeySupported()) {
+      throw new UnsupportedOperationException(s"$tCoder does not support row key, and can not be " +
+        s"the table coder.")
     }
 
     if (coderSet.size > 1){
