@@ -318,7 +318,7 @@ object HBaseFilter extends Logging{
         val b = SHCDataTypeFactory.create(relation.getField(attribute).fCoder).toBytes(value)
         if (relation.isPrimaryKey(attribute)) {
           val prefixFilter = new PrefixFilter(b)
-          HRF(Array(ScanRange.empty[Array[Byte]]),
+          HRF[Array[Byte]](Array(ScanRange.empty[Array[Byte]]),
             TypedFilter(Some(prefixFilter), FilterType.Prefix))
         } else if (relation.isColumn(attribute)) {
           val f = relation.getField(attribute)
@@ -328,7 +328,7 @@ object HBaseFilter extends Logging{
             CompareOp.EQUAL,
             new BinaryPrefixComparator(b)
           )
-          HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), handled = true)
+          HRF[Array[Byte]](Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), handled = true)
         } else {
           HRF.empty[Array[Byte]]
         }
@@ -341,7 +341,7 @@ object HBaseFilter extends Logging{
           CompareOp.EQUAL,
           new RegexStringComparator(s".*$value")
         )
-        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), handled = true)
+        HRF[Array[Byte]](Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), handled = true)
 
       case StringContains(attribute: String, value: String) if relation.isColumn(attribute) =>
         val f = relation.getField(attribute)
@@ -351,7 +351,7 @@ object HBaseFilter extends Logging{
           CompareOp.EQUAL,
           new SubstringComparator(value)
         )
-        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), handled = true)
+        HRF[Array[Byte]](Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), handled = true)
       // We should also add Not(GreatThan, LessThan, ...)
       // because if we miss some filter, it may result in a large scan range.
       case Not(StringContains(attribute: String, value: String)) if relation.isColumn(attribute) =>
@@ -362,7 +362,7 @@ object HBaseFilter extends Logging{
           CompareOp.NOT_EQUAL,
           new SubstringComparator(value)
         )
-        HRF(Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), handled = true)
+        HRF[Array[Byte]](Array(ScanRange.empty[Array[Byte]]), TypedFilter(Some(filter), FilterType.Atomic), handled = true)
       case In(attribute: String, values: Array[Any]) =>
         //converting a "key in (x1, x2, x3..) filter to (key == x1) or (key == x2) or ...
         val ranges = new ArrayBuffer[ScanRange[Array[Byte]]]()
