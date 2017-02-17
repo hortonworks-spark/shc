@@ -248,7 +248,7 @@ object HBaseTableCatalog {
     val nSpace = tableMeta.get(nameSpace).getOrElse("default").asInstanceOf[String]
     val tName = tableMeta.get(tableName).get.asInstanceOf[String]
 
-    // The logic below is to fix the incompatibility issue from the change of adding
+    // The snippet below is to fix the incompatibility issue caused by the change of adding
     // Phoenix as coder. Before the change, the catalog version is 1.0. If the catalog
     // version specified by user is later than 1.0, tableCoder must be specified too.
     // The default value of the catalog version is 1.0. When the catalog version is 1.0,
@@ -256,7 +256,7 @@ object HBaseTableCatalog {
     val vNum = tableMeta.getOrElse(cVersion, "1.0").asInstanceOf[String]
     if (CatalogVersion(vNum).compareTo(CatalogVersion("1.0")) == 1){
       if (tableMeta.get(tableCoder).isEmpty)
-        throw new UnsupportedClassVersionError("Please specify the tableCoder " +
+        throw new UnsupportedClassVersionError("Please specify 'tableCoder' in your catalog " +
           "if the catalog version is later than 1.0")
 
     }
