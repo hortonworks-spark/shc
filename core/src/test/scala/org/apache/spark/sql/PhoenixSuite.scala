@@ -98,6 +98,12 @@ class PhoenixSuite extends SHC with Logging {
       .save()
   }
 
+  test("full query") {
+    val df = withCatalog(catalog)
+    df.show
+    assert(df.count() == 256)
+  }
+
   test("empty column") {
     val df = withCatalog(catalog)
     df.registerTempTable("table0")
