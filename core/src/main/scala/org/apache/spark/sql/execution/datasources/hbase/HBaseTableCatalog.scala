@@ -258,7 +258,6 @@ object HBaseTableCatalog {
       if (tableMeta.get(tableCoder).isEmpty)
         throw new UnsupportedClassVersionError("Please specify 'tableCoder' in your catalog " +
           "if the catalog version is later than 1.0")
-
     }
 
     val tCoder = tableMeta.getOrElse(tableCoder, SparkHBaseConf.PrimitiveType).asInstanceOf[String]
