@@ -30,6 +30,31 @@ import org.apache.spark.sql.catalyst.util.DataTypeParser
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.execution.datasources.hbase.types._
 
+case class CatalogVersion(major: Int, minor: Int) extends Comparable[CatalogVersion] {
+  override def compareTo(o: CatalogVersion): Int = {
+    if(major > o.major)
+      1
+    else if(major == o.major)
+      minor - o.minor
+    else
+      -1
+  }
+
+  override def toString: String = major + "." + minor
+}
+
+object CatalogVersion {
+  def apply(s: String): CatalogVersion = {
+    if(!s.matches("^[0-9]*\\.[0-9]*$"))
+      throw new IllegalArgumentException("Invalid version: " + s)
+
+    val arr: Array[String] = s.split("\\.")
+    val m = Integer.parseInt(arr(0))
+    val n = Integer.parseInt(arr(1))
+    CatalogVersion(m, n)
+  }
+}
+
 // The definition of each column cell, which may be composite type
 case class Field(
     colName: String,
@@ -206,6 +231,8 @@ object HBaseTableCatalog {
   val length = "length"
   val fCoder = "coder"
   val tableCoder = "tableCoder"
+  // The version num of catalog
+  val cVersion = "version"
   /**
    * User provide table schema definition
    * {"tablename":"name", "rowkey":"key1:key2",
@@ -220,8 +247,21 @@ object HBaseTableCatalog {
     val tableMeta = map.get(table).get.asInstanceOf[Map[String, _]]
     val nSpace = tableMeta.get(nameSpace).getOrElse("default").asInstanceOf[String]
     val tName = tableMeta.get(tableName).get.asInstanceOf[String]
-    // If 'tableCoder' is not specified in the catalog, 'Phoenix' will be the table coder
-    val tCoder = tableMeta.getOrElse(tableCoder, SparkHBaseConf.Phoenix).asInstanceOf[String]
+
+    // The logic below is to fix the incompatibility issue from the change of adding
+    // Phoenix as coder. Before the change, the catalog version is 1.0. If the catalog
+    // version specified by user is later than 1.0, tableCoder must be specified too.
+    // The default value of the catalog version is 1.0. When the catalog version is 1.0,
+    // the default value of tableCoder is PrimitiveType.
+    val vNum = tableMeta.getOrElse(cVersion, "1.0").asInstanceOf[String]
+    if (CatalogVersion(vNum).compareTo(CatalogVersion("1.0")) == 1){
+      if (tableMeta.get(tableCoder).isEmpty)
+        throw new UnsupportedClassVersionError("Please specify the tableCoder " +
+          "if the catalog version is later than 1.0")
+
+    }
+
+    val tCoder = tableMeta.getOrElse(tableCoder, SparkHBaseConf.PrimitiveType).asInstanceOf[String]
     val schemaMap = mutable.LinkedHashMap.empty[String, Field]
     var coderSet = Set(tCoder)
     getColsPreservingOrder(jObj).foreach { case (name, column)=>
@@ -262,7 +302,7 @@ object HBaseTableCatalog {
          |        {"name": "favorite_color", "type": ["string", "null"]} ] }""".stripMargin
 
     val catalog = s"""{
-            |"table":{"namespace":"default", "name":"htable", "tableCoder":"PrimitiveType"},
+            |"table":{"namespace":"default", "name":"htable"},
             |"rowkey":"key1:key2",
             |"columns":{
               |"col1":{"cf":"rowkey", "col":"key1", "type":"string"},
