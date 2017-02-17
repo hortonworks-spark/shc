@@ -21,7 +21,7 @@ import org.apache.spark.sql.execution.datasources.hbase._
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.{SQLContext, DataFrame}
 
-case class PRecord(col00: String,
+case class DCRecord(col00: String,
                    col01: Int,
                    col1: Boolean,
                    col2: Double,
@@ -32,9 +32,9 @@ case class PRecord(col00: String,
                    col7: String,
                    col8: Byte)
 
-object PRecord {
-  def apply(i: Int): PRecord = {
-    PRecord(s"row${"%03d".format(i)}",
+object DCRecord {
+  def apply(i: Int): DCRecord = {
+    DCRecord(s"row${"%03d".format(i)}",
       if (i % 2 == 0) {
         i
       } else {
@@ -86,7 +86,7 @@ object DataCoder {
 
     //populate table with composite key
     val data = (0 to 255).map { i =>
-      PRecord(i)
+      DCRecord(i)
     }
 
     sc.parallelize(data).toDF.write.options(
