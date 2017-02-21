@@ -102,6 +102,7 @@ class PhoenixSuite extends SHC with Logging {
     val df = withCatalog(catalog)
     df.show
     assert(df.count() == 256)
+    assert(df.first().getByte(8) == 0)
   }
 
   test("empty column") {
