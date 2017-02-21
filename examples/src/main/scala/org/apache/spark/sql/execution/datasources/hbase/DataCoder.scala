@@ -21,16 +21,17 @@ import org.apache.spark.sql.execution.datasources.hbase._
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.{SQLContext, DataFrame}
 
-case class DCRecord(col00: String,
-                   col01: Int,
-                   col1: Boolean,
-                   col2: Double,
-                   col3: Float,
-                   col4: Int,
-                   col5: Long,
-                   col6: Short,
-                   col7: String,
-                   col8: Byte)
+case class DCRecord(
+    col00: String,
+    col01: Int,
+    col1: Boolean,
+    col2: Double,
+    col3: Float,
+    col4: Int,
+    col5: Long,
+    col6: Short,
+    col7: String,
+    col8: Byte)
 
 object DCRecord {
   def apply(i: Int): DCRecord = {
@@ -70,7 +71,7 @@ object DataCoder {
                 |}""".stripMargin
 
   def main(args: Array[String]){
-    val sparkConf = new SparkConf().setAppName("CompositeKeyTest")
+    val sparkConf = new SparkConf().setAppName("DataCoderExample")
     val sc = new SparkContext(sparkConf)
     val sqlContext = new SQLContext(sc)
 
@@ -84,13 +85,13 @@ object DataCoder {
         .load()
     }
 
-    //populate table with composite key
+    // populate table with composite key
     val data = (0 to 255).map { i =>
       DCRecord(i)
     }
 
-    sc.parallelize(data).toDF.write.options(
-      Map(HBaseTableCatalog.tableCatalog -> cat, HBaseTableCatalog.newTable -> "5"))
+    sc.parallelize(data).toDF.write
+      .options(Map(HBaseTableCatalog.tableCatalog -> cat, HBaseTableCatalog.newTable -> "5"))
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .save()
 

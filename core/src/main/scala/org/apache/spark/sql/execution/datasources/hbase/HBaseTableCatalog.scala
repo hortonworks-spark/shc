@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
+import java.lang.NumberFormatException
+
 import scala.collection.mutable
 
 import org.json4s.JsonAST.JObject
@@ -32,9 +34,9 @@ import org.apache.spark.sql.execution.datasources.hbase.types._
 
 case class CatalogVersion(major: Int, minor: Int) extends Comparable[CatalogVersion] {
   override def compareTo(o: CatalogVersion): Int = {
-    if(major > o.major)
+    if (major > o.major)
       1
-    else if(major == o.major)
+    else if (major == o.major)
       minor - o.minor
     else
       -1
@@ -45,12 +47,23 @@ case class CatalogVersion(major: Int, minor: Int) extends Comparable[CatalogVers
 
 object CatalogVersion {
   def apply(s: String): CatalogVersion = {
-    if(!s.matches("^[0-9]*\\.[0-9]*$"))
+    // Valid versions: "1.3", "1"
+    // Invalid versions: ".3"
+    if (!s.matches("^[0-9]{1,9}(\\.[0-9]{1,9})?$"))
       throw new IllegalArgumentException("Invalid version: " + s)
 
     val arr: Array[String] = s.split("\\.")
-    val m = Integer.parseInt(arr(0))
-    val n = Integer.parseInt(arr(1))
+
+    var m: Int = 0
+    var n: Int = 0
+    try {
+      m = Integer.parseInt(arr(0)) // must always have a major version number
+      if (arr(1) != null && !arr(1).isEmpty) // minor version number is optional
+        n = Integer.parseInt(arr(1))
+    } catch {
+      case e: NumberFormatException =>
+        throw new IllegalArgumentException("Invalid version: " + s)
+    }
     CatalogVersion(m, n)
   }
 }
@@ -208,6 +221,8 @@ case class HBaseTableCatalog(
   validateCatalogDef()
 }
 
+class CatalogDefinitionException(msg: String) extends Exception(msg)
+
 object HBaseTableCatalog {
   val newTable = "newtable"
   // The json string specifying hbase catalog information
@@ -231,7 +246,7 @@ object HBaseTableCatalog {
   val length = "length"
   val fCoder = "coder"
   val tableCoder = "tableCoder"
-  // The version num of catalog
+  // The version number of catalog
   val cVersion = "version"
   /**
    * User provide table schema definition
@@ -248,19 +263,22 @@ object HBaseTableCatalog {
     val nSpace = tableMeta.get(nameSpace).getOrElse("default").asInstanceOf[String]
     val tName = tableMeta.get(tableName).get.asInstanceOf[String]
 
-    // The snippet below is to fix the incompatibility issue caused by the change of adding
-    // Phoenix as coder. Before the change, the catalog version is 1.0. If the catalog
-    // version specified by user is later than 1.0, tableCoder must be specified too.
-    // The default value of the catalog version is 1.0. When the catalog version is 1.0,
-    // the default value of tableCoder is PrimitiveType.
+    // Since the catalog version 2.0, SHC supports Phoenix as coder.
+    // If the catalog version specified by users is equal or later than 2.0, tableCoder must be specified.
+    // The default catalog version is 1.0, which uses 'PrimitiveType' as the default 'tableCoder'.
     val vNum = tableMeta.getOrElse(cVersion, "1.0").asInstanceOf[String]
-    if (CatalogVersion(vNum).compareTo(CatalogVersion("1.0")) == 1){
-      if (tableMeta.get(tableCoder).isEmpty)
-        throw new UnsupportedClassVersionError("Please specify 'tableCoder' in your catalog " +
-          "if the catalog version is later than 1.0")
+    val tCoder = {
+      if (CatalogVersion(vNum).compareTo(CatalogVersion("2.0")) < 0) {
+        tableMeta.getOrElse(tableCoder, SparkHBaseConf.PrimitiveType).asInstanceOf[String]
+      } else {
+        val tc = tableMeta.get(tableCoder)
+        if (tc.isEmpty) {
+          throw new CatalogDefinitionException("Please specify 'tableCoder' in your catalog " +
+            "if the catalog version is equal or later than 2.0")
+        }
+        tc.get.asInstanceOf[String]
+      }
     }
-
-    val tCoder = tableMeta.getOrElse(tableCoder, SparkHBaseConf.PrimitiveType).asInstanceOf[String]
     val schemaMap = mutable.LinkedHashMap.empty[String, Field]
     var coderSet = Set(tCoder)
     getColsPreservingOrder(jObj).foreach { case (name, column)=>
@@ -321,3 +339,5 @@ object HBaseTableCatalog {
     val sqlContext: SQLContext = null
   }
 }
+
+
