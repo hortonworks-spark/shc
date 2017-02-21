@@ -114,9 +114,10 @@ class PhoenixSuite extends SHC with Logging {
   test("IN and Not IN filter1") {
     val df = withCatalog(catalog)
     val s = df.filter(($"col0" isin ("row005", "row001", "row002")) and !($"col0" isin ("row001", "row002")))
-      .select("col0")
+      .select("col0", "col8")
     s.explain(true)
     s.show
     assert(s.count() == 1)
+    assert(s.first().getByte(1) == 5)
   }
 }
