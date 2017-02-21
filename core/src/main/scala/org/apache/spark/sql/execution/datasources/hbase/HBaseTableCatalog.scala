@@ -17,8 +17,6 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import java.lang.NumberFormatException
-
 import scala.collection.mutable
 
 import org.json4s.JsonAST.JObject
@@ -339,5 +337,3 @@ object HBaseTableCatalog {
     val sqlContext: SQLContext = null
   }
 }
-
-
