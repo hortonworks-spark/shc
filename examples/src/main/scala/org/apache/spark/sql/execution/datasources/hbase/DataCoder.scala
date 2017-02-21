@@ -54,7 +54,7 @@ object DCRecord {
 
 object DataCoder {
   def cat = s"""{
-                |"table":{"namespace":"default", "name":"PhoenixTable", "tableCoder":"Phoenix", "version":"2.0"},
+                |"table":{"namespace":"default", "name":"shcExampleDCTable", "tableCoder":"Phoenix", "version":"2.0"},
                 |"rowkey":"key1:key2",
                 |"columns":{
                 |"col00":{"cf":"rowkey", "col":"key1", "type":"string"},
