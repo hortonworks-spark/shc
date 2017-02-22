@@ -29,7 +29,7 @@ import org.apache.hadoop.hbase.client.Put
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{HBaseConfiguration, HColumnDescriptor, HTableDescriptor, TableName}
+import org.apache.hadoop.hbase._
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
@@ -102,19 +102,28 @@ case class HBaseRelation(
 
   def createTable() {
     if (catalog.numReg > 3) {
-      val tName = TableName.valueOf(catalog.name)
       val cfs = catalog.getColumnFamilies
-
       val connection = HBaseConnectionCache.getConnection(hbaseConf)
       // Initialize hBase table if necessary
       val admin = connection.getAdmin
 
+      val isNameSpaceExist = try {
+        admin.getNamespaceDescriptor(catalog.namespace)
+        true
+      } catch {
+        case e: NamespaceNotFoundException => false
+      }
+      if (!isNameSpaceExist) {
+        admin.createNamespace(NamespaceDescriptor.create(catalog.namespace).build)
+      }
+
+      val tName = TableName.valueOf(s"${catalog.namespace}:${catalog.name}")
       // The names of tables which are created by the Examples has prefix "shcExample"
-      if (admin.isTableAvailable(tName) && tName.toString.startsWith("shcExample")){
+      if (admin.isTableAvailable(tName)
+          && tName.toString.startsWith(s"${catalog.namespace}:shcExample")){
         admin.disableTable(tName)
         admin.deleteTable(tName)
       }
-
       if (!admin.isTableAvailable(tName)) {
         val tableDesc = new HTableDescriptor(tName)
         cfs.foreach { x =>
