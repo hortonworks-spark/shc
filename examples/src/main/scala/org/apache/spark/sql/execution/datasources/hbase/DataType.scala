@@ -64,7 +64,7 @@ object DataType {
                     |}""".stripMargin
 
   def main(args: Array[String]){
-    val sparkConf = new SparkConf().setAppName("DataTypeTest")
+    val sparkConf = new SparkConf().setAppName("DataTypeExample")
     val sc = new SparkContext(sparkConf)
     val sqlContext = new SQLContext(sc)
 
