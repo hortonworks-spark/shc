@@ -149,6 +149,17 @@ Suppose hrt_qa is a headless account, user can use following command for kinit:
 
     /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-cluster --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc:1.0.0-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/ --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
 
+If the solution above does not work and you encounter errors like :
+
+    org.apache.zookeeper.ZooKeeper: Initiating client connection, connectString=localhost:2181
+
+or
+
+    ERROR ipc.AbstractRpcClient: SASL authentication failed. The most likely cause is missing or invalid credentials. Consider 'kinit'.
+    javax.security.sasl.SaslException: GSS initiate failed [Caused by GSSException: No valid credentials provided (Mechanism level: Failed to find any Kerberos tgt)]
+    
+Include the hbase-site.xml under SPARK_CONF_DIR (/etc/spark/conf) on the host where the spark job is submitted from, by creating a symbolic link towards your main hbase-site.xml (in order to be synchronous with your platform updates).
+
 ## Others
 ### Example. Support of Avro schemas:
 The connector fully supports all the avro schemas. Users can use either a complete record schema or partial field schema as data type in their catalog.
