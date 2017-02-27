@@ -104,12 +104,7 @@ private[hbase] class HBaseTableScanRDD(
         (x, null)
       } else {
         val v = CellUtil.cloneValue(kv)
-        (x, x.dt match {
-          // Here, to avoid arraycopy, return v directly instead of calling bytesToColumn()
-          // to covert hbase field to Scala type
-          case BinaryType => v
-          case _ => SHCDataTypeFactory.create(x).fromBytes(v)
-        })
+        (x, SHCDataTypeFactory.create(x).fromBytes(v))
       }
     }.toMap
 
