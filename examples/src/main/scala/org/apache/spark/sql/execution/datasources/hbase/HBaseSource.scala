@@ -81,7 +81,7 @@ object HBaseSource {
                 |}""".stripMargin
 
   def main(args: Array[String]) {
-    val sparkConf = new SparkConf().setAppName("HBaseTest")
+    val sparkConf = new SparkConf().setAppName("HBaseSourceExample")
     val sc = new SparkContext(sparkConf)
     val sqlContext = new SQLContext(sc)
 
@@ -91,15 +91,6 @@ object HBaseSource {
       sqlContext
         .read
         .options(Map(HBaseTableCatalog.tableCatalog->cat))
-        .format("org.apache.spark.sql.execution.datasources.hbase")
-        .load()
-    }
-
-    // for testing connection sharing only
-    def withCatalog1(cat: String): DataFrame = {
-      sqlContext
-        .read
-        .options(Map(HBaseTableCatalog.tableCatalog->cat1))
         .format("org.apache.spark.sql.execution.datasources.hbase")
         .load()
     }
