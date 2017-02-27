@@ -91,7 +91,7 @@ object AvroSource {
 
   def main(args: Array[String]) {
     val spark = SparkSession.builder()
-      .appName("AvroTest")
+      .appName("AvroExample")
       .getOrCreate()
 
     val sc = spark.sparkContext

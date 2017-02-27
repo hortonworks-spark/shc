@@ -72,7 +72,7 @@ object CompositeKey {
 
   def main(args: Array[String]){
     val spark = SparkSession.builder()
-      .appName("CompositeKeyTest")
+      .appName("CompositeKeyExample")
       .getOrCreate()
 
     val sc = spark.sparkContext
