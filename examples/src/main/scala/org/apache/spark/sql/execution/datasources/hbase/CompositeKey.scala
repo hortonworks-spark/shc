@@ -71,7 +71,7 @@ object CompositeKey {
                     |}""".stripMargin
 
   def main(args: Array[String]){
-    val sparkConf = new SparkConf().setAppName("CompositeKeyTest")
+    val sparkConf = new SparkConf().setAppName("CompositeKeyExample")
     val sc = new SparkContext(sparkConf)
     val sqlContext = new SQLContext(sc)
 

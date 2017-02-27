@@ -91,7 +91,7 @@ object AvroSource {
                               |}""".stripMargin
 
   def main(args: Array[String]) {
-    val sparkConf = new SparkConf().setAppName("AvroTest")
+    val sparkConf = new SparkConf().setAppName("AvroExample")
     val sc = new SparkContext(sparkConf)
     val sqlContext = new SQLContext(sc)
 
