@@ -65,7 +65,7 @@ object DataType {
 
   def main(args: Array[String]){
     val spark = SparkSession.builder()
-      .appName("DataTypeTest")
+      .appName("DataTypeExample")
       .getOrCreate()
 
     val sc = spark.sparkContext

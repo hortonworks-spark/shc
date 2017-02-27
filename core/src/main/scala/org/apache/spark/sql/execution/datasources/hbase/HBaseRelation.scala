@@ -20,6 +20,7 @@ package org.apache.spark.sql.execution.datasources.hbase
 import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
 
 import scala.util.control.NonFatal
+import scala.xml.XML
 
 import org.json4s.DefaultFormats
 import org.json4s.jackson.JsonMethods._
@@ -85,8 +86,20 @@ case class HBaseRelation(
         val hBaseConfiguration = parameters.get(HBaseRelation.HBASE_CONFIGURATION).map(
           parse(_).extract[Map[String, String]])
 
+        val cFile = parameters.get(HBaseRelation.HBASE_CONFIGFILE)
+        val hBaseConfigFile = {
+          var confMap: Map[String, String] = Map.empty
+          if (cFile.isDefined) {
+            val xmlFile = XML.loadFile(cFile.get)
+            (xmlFile \\ "property").foreach(
+              x => { confMap += ((x \ "name").text -> (x \ "value").text) })
+          }
+          confMap
+        }
+
         val conf = HBaseConfiguration.create
         hBaseConfiguration.foreach(_.foreach(e => conf.set(e._1, e._2)))
+        hBaseConfigFile.foreach(e => conf.set(e._1, e._2))
         conf
       }
     }
@@ -289,4 +302,6 @@ object HBaseRelation {
   val MAX_STAMP = "maxStamp"
   val MAX_VERSIONS = "maxVersions"
   val HBASE_CONFIGURATION = "hbaseConfiguration"
+  // HBase configuration file such as HBase-site.xml, core-site.xml
+  val HBASE_CONFIGFILE = "hbaseConfigFile"
 }

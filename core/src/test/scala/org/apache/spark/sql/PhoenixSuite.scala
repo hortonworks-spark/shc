@@ -61,7 +61,7 @@ object PRecord {
 
 class PhoenixSuite extends SHC with Logging {
   override def catalog = s"""{
-                    |"table":{"namespace":"phoenixSpace", "name":"phoenixTable", "tableCoder":"Phoenix"},
+                    |"table":{"namespace":"default", "name":"phoenixTable", "tableCoder":"Phoenix"},
                     |"rowkey":"key",
                     |"columns":{
                     |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
