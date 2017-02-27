@@ -31,11 +31,7 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
 
   def fromBytes(src: HBaseType): Any = {
     if (f.isDefined) {
-      f.get.dt match {
-        case ByteType => src(0)
-        case BinaryType => src
-        case _ => mapToPhoenixTypeInstance(f.get.dt).toObject(src)
-      }
+      mapToPhoenixTypeInstance(f.get.dt).toObject(src)
     } else {
       throw new UnsupportedOperationException(
         "Phoenix coder: without field metadata, 'fromBytes' conversion can not be supported")
@@ -46,7 +42,7 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
     input match {
       case data: Boolean => PBoolean.INSTANCE.toBytes(data)
       case data: Byte => PTinyint.INSTANCE.toBytes(data)
-      case data: Array[Byte] => data
+      case data: Array[Byte] => PVarbinary.INSTANCE.toBytes(data)
       case data: Double => PDouble.INSTANCE.toBytes(data)
       case data: Float => PFloat.INSTANCE.toBytes(data)
       case data: Int => PInteger.INSTANCE.toBytes(data)
@@ -104,7 +100,7 @@ class Phoenix(f:Option[Field] = None) extends SHCDataType {
       case LongType => PLong.INSTANCE
       case ShortType => PSmallint.INSTANCE
       case StringType => PVarchar.INSTANCE
-      case BinaryType => PBinary.INSTANCE
+      case BinaryType => PVarbinary.INSTANCE
       case _ => throw new UnsupportedOperationException(s"unsupported data type $input")
     }
   }
