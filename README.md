@@ -1,19 +1,16 @@
 # Apache Spark - Apache HBase Connector
 
-The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apache.org/) Connector is a library to support Spark accessing HBase table as external data source or sink. With it, user can operate HBase with Spark-SQL on data frame level. 
+The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apache.org/) Connector is a library to support Spark accessing HBase table as external data source or sink. With it, user can operate HBase with Spark-SQL on data frame level.
 
-With the data frame support, the lib leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc. 
+With the data frame support, the lib leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc.
 
 ## Catalog
 For each table, a catalog has to be provided,  which includes the row key, and the columns with data type with predefined column families, and defines the mapping between hbase column and table schema. The catalog is user defined json format.
 
 ## Datatype conversion
-Java primitive types is supported. In the future, other data types will be supported, which relies on user specified sedes. Take avro as an example. User defined sedes will be responsible to convert byte array to avro object, and connector will be responsible to convert avro object to catalyst supported datatypes. 
+Java primitive types is supported. In the future, other data types will be supported, which relies on user specified serdes. There are three internal serdes supported in SHC: Avro, Phoenix, PrimitiveType. User can specify which serde they want to use by defining 'tableCoder' in their catalog. For this, please refer to examples and unit tests. Take Avro as an example. User defined serdes will be responsible to convert byte array to Avro object, and connector will be responsible to convert Avro object to catalyst supported data types. When user define a new serde, they need to make it 'implement' the trait 'SHCDataType'.
 
 Note that if user want dataframe to only handle byte array, the binary type can be specified. Then user can get the catalyst row with each column as a byte array. User can further deserialize it with customized deserializer, or operate on the RDD of the data frame directly.
-
-## Solve the conflicts of Catalyst datatype order and HBase byte array order
-The libary automatically handle the orderness between the conflicts between the java data type (Short, Integer, Long, Float, Double, String, etc) and HBase bytearray order, which means as long as the format saved in HBase is consistent with the Java native data format, the libary will be able to take care of pruning and comparison instead of relying on a specific import tools.
 
 ## Data locality
 When the spark work node co-located with hbase region servers, data locality is achieved by identifying the region server location, and co-locate the executor with the region server. Each executor will only perform Scan/BulkGet on the part of the data that co-locates on the same host. 
