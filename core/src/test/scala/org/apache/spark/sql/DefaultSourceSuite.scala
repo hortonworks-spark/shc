@@ -286,11 +286,11 @@ class DefaultSourceSuite extends SHC with Logging {
     }
 
     sc.parallelize(oldData).toDF.write.options(
-      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.tableName -> "5", HBaseRelation.TIMESTAMP -> oldMs.toString))
+      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5", HBaseRelation.TIMESTAMP -> oldMs.toString))
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .save()
     sc.parallelize(newData).toDF.write.options(
-      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.tableName -> "5"))
+      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5"))
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .save()
 
@@ -346,7 +346,7 @@ class DefaultSourceSuite extends SHC with Logging {
     createTable(tableName, columnFamilies)
 
     sc.parallelize(data).toDF.write.options(
-      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.tableName -> "5"))
+      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5"))
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .save()
 
