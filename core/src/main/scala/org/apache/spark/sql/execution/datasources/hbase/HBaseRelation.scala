@@ -64,6 +64,9 @@ private[sql] class DefaultSource extends RelationProvider with CreatableRelation
   }
 }
 
+case class InvalidRegionNumberException(message: String = "", cause: Throwable = null)
+              extends Exception(message, cause) 
+
 case class HBaseRelation(
     parameters: Map[String, String],
     userSpecifiedschema: Option[StructType]
@@ -159,6 +162,9 @@ case class HBaseRelation(
       }
       admin.close()
       connection.close()
+    }
+    else {
+        throw new InvalidRegionNumberException("Number of regions specified for new table must be greater than 3.")
     }
   }
 
