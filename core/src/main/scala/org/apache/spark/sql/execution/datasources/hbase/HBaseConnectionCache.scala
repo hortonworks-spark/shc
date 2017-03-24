@@ -28,11 +28,13 @@ import org.apache.hadoop.hbase.{HConstants, TableName}
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.ipc.RpcControllerFactory
 import org.apache.hadoop.hbase.security.{User, UserProvider}
+import org.apache.hadoop.security.Credentials
 
 private[spark] object HBaseConnectionCache extends Logging {
 
   // A hashmap of Spark-HBase connections. Key is HBaseConnectionKey.
-  private[hbase] val connectionMap = new mutable.HashMap[HBaseConnectionKey, SmartConnection]()
+  val connectionMap = new mutable.HashMap[HBaseConnectionKey, SmartConnection]()
+  val credentialsMap = new mutable.HashMap[SmartConnection, Credentials]()
 
   private val cacheStat = HBaseConnectionCacheStat(0, 0, 0)
 
@@ -53,7 +55,7 @@ private[spark] object HBaseConnectionCache extends Logging {
   housekeepingThread.setDaemon(true)
   housekeepingThread.start()
 
-  // Thread.sleep can be spuriously woken up, this ensure we sleep for atleast the
+  // Thread.sleep can be spuriously woken up, this ensure we sleep for at least the
   // 'duration' specified
   private[hbase] def sleep(duration: Long, allowInterrupt: Boolean = false, allowClosed: Boolean = false): Unit = {
     val startTime = System.currentTimeMillis()
@@ -166,13 +168,13 @@ private[hbase] class SmartConnection (
 }
 
 /**
-  * Denotes a unique key to an HBase Connection instance.
-  * Please refer to 'org.apache.hadoop.hbase.client.HConnectionKey'.
-  *
-  * In essence, this class captures the properties in Configuration
-  * that may be used in the process of establishing a connection.
-  *
-  */
+ * Denotes a unique key to an HBase Connection instance.
+ * Please refer to 'org.apache.hadoop.hbase.client.HConnectionKey'.
+ *
+ * In essence, this class captures the properties in Configuration
+ * that may be used in the process of establishing a connection.
+ *
+ */
 class HBaseConnectionKey(c: Configuration) extends Logging {
   import HBaseConnectionKey.CONNECTION_PROPERTIES
 
