@@ -146,7 +146,10 @@ private[spark] object HBaseConnectionCache extends Logging {
       sc.refCount += 1
       if((sc.credentials != null) && (sc.refCount != 1) ) {
         if(System.currentTimeMillis() > sc.credReissueDate) {
-          sc.credReissueDate = getReissueTime(sc.credentials)
+          val creds = new Credentials()
+          credentialProvider.obtainCredentials(key.c, SparkEnv.get.conf, creds)
+          sc.credentials = creds
+          sc.credReissueDate = getReissueTime(creds)
         }
       }
       sc
