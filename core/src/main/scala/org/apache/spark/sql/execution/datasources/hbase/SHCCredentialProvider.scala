@@ -17,38 +17,40 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
+import scala.collection.JavaConverters._
 import scala.reflect.runtime._
 import scala.util.control.NonFatal
 
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.hbase.security.token.AuthenticationTokenIdentifier
 import org.apache.hadoop.security.Credentials
 import org.apache.hadoop.security.token.{TokenIdentifier, Token}
 import org.apache.spark.SparkConf
-import org.apache.spark.deploy.yarn.security.ServiceCredentialProvider
+import org.apache.spark.util.Utils
 
-class SHCCredentialProvider extends ServiceCredentialProvider with Logging {
-  override def serviceName: String = "shc"
+class SHCCredentialProvider extends Logging {
+  def serviceName: String = "shc"
 
-  override def credentialsRequired(hadoopConf: Configuration): Boolean = {
-    if (hadoopConf != null) {
-      hbaseConf(hadoopConf).get("hbase.security.authentication") == "kerberos"
+  def credentialsRequired(conf: Configuration): Boolean = {
+    if (conf != null) {
+      hbaseConf(conf).get("hbase.security.authentication") == "kerberos"
     } else {
       false
     }
   }
 
-  override def obtainCredentials(
-      hadoopConf: Configuration,
+  def obtainCredentials(
+      conf: Configuration,
       sparkConf: SparkConf,
       creds: Credentials): Option[Long] = {
     try {
-      val mirror = universe.runtimeMirror(getClass.getClassLoader)
+      val mirror = universe.runtimeMirror(Utils.getContextOrSparkClassLoader)
       val obtainToken = mirror.classLoader.
         loadClass("org.apache.hadoop.hbase.security.token.TokenUtil").
         getMethod("obtainToken", classOf[Configuration])
 
       logDebug("Attempting to fetch HBase security token.")
-      val token = obtainToken.invoke(null, hbaseConf(hadoopConf))
+      val token = obtainToken.invoke(null, hbaseConf(conf))
         .asInstanceOf[Token[_ <: TokenIdentifier]]
       logInfo(s"Get token from HBase: ${token.toString}")
       creds.addToken(token.getService, token)
@@ -57,7 +59,16 @@ class SHCCredentialProvider extends ServiceCredentialProvider with Logging {
         logDebug(s"Failed to get token from service $serviceName", e)
     }
 
-    None
+    val expirationDates = creds.getAllTokens.asScala
+      .filter(_.decodeIdentifier().isInstanceOf[AuthenticationTokenIdentifier])
+      .map { t =>
+        val identifier = t.decodeIdentifier().asInstanceOf[AuthenticationTokenIdentifier]
+        identifier.getExpirationDate
+      }
+    if (expirationDates.isEmpty)
+      None
+    else
+      Some(expirationDates.min)
   }
 
   def getOrCreate(hbaseConf: Configuration): Credentials = {
@@ -66,7 +77,7 @@ class SHCCredentialProvider extends ServiceCredentialProvider with Logging {
 
   private def hbaseConf(conf: Configuration): Configuration = {
     try {
-      val mirror = universe.runtimeMirror(getClass.getClassLoader)
+      val mirror = universe.runtimeMirror(Utils.getContextOrSparkClassLoader)
       val confCreate = mirror.classLoader.
         loadClass("org.apache.hadoop.hbase.HBaseConfiguration").
         getMethod("create", classOf[Configuration])

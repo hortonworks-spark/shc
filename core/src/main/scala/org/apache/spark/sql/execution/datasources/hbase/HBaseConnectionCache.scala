@@ -28,7 +28,6 @@ import org.apache.hadoop.hbase.{HConstants, TableName}
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.ipc.RpcControllerFactory
 import org.apache.hadoop.hbase.security.{User, UserProvider}
-import org.apache.hadoop.hbase.security.token.AuthenticationTokenIdentifier
 import org.apache.hadoop.security.Credentials
 import org.apache.spark.SparkEnv
 
@@ -136,8 +135,8 @@ private[spark] object HBaseConnectionCache extends Logging {
         cacheStat.incrementActualConnectionsCreated(1)
         if (credentialProvider.credentialsRequired(key.c)) {
           val creds = new Credentials()
-          credentialProvider.obtainCredentials(key.c, SparkEnv.get.conf, creds)
-          new SmartConnection(conn, creds, getReissueTime(creds))
+          val expirationDate = credentialProvider.obtainCredentials(key.c, SparkEnv.get.conf, creds)
+          new SmartConnection(conn, creds, getReissueTime(expirationDate))
         } else {
           new SmartConnection(conn)
         }
@@ -147,9 +146,9 @@ private[spark] object HBaseConnectionCache extends Logging {
       if((sc.credentials != null) && (sc.refCount != 1) ) {
         if(System.currentTimeMillis() > sc.credReissueDate) {
           val creds = new Credentials()
-          credentialProvider.obtainCredentials(key.c, SparkEnv.get.conf, creds)
+          val expirationDate = credentialProvider.obtainCredentials(key.c, SparkEnv.get.conf, creds)
           sc.credentials = creds
-          sc.credReissueDate = getReissueTime(creds)
+          sc.credReissueDate = getReissueTime(expirationDate)
         }
       }
       sc
@@ -168,12 +167,14 @@ private[spark] object HBaseConnectionCache extends Logging {
     }
   }
 
-  private def getReissueTime(creds: Credentials): Long = {
-    var minExpirationDate = Long.MaxValue
-    creds.getAllTokens.toArray.map(_.asInstanceOf[AuthenticationTokenIdentifier])
-      .foreach(t => minExpirationDate = Math.min(minExpirationDate, t.getExpirationDate))
+  private def getReissueTime(expirationDate: Option[Long]): Long = {
     val currTime = System.currentTimeMillis()
-    ((currTime - minExpirationDate) * 0.75 + currTime).toLong
+    val timeInterval = expirationDate.getOrElse(Long.MaxValue) - currTime
+    if (timeInterval < 0) {
+      throw new IllegalArgumentException("Invalid token expiration date: " + expirationDate)
+    } else {
+      (timeInterval * 0.75 + currTime).toLong
+    }
   }
 }
 
