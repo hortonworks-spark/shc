@@ -28,15 +28,18 @@ import org.apache.hadoop.hbase.{HConstants, TableName}
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.ipc.RpcControllerFactory
 import org.apache.hadoop.hbase.security.{User, UserProvider}
+import org.apache.hadoop.hbase.security.token.AuthenticationTokenIdentifier
 import org.apache.hadoop.security.Credentials
+import org.apache.spark.SparkEnv
 
 private[spark] object HBaseConnectionCache extends Logging {
 
   // A hashmap of Spark-HBase connections. Key is HBaseConnectionKey.
-  val connectionMap = new mutable.HashMap[HBaseConnectionKey, SmartConnection]()
-  val credentialsMap = new mutable.HashMap[SmartConnection, Credentials]()
+  private[hbase] val connectionMap = new mutable.HashMap[HBaseConnectionKey, SmartConnection]()
 
   private val cacheStat = HBaseConnectionCacheStat(0, 0, 0)
+
+  private val credentialProvider = new SHCCredentialProvider()
 
   // in milliseconds
   private final val DEFAULT_TIME_OUT: Long = SparkHBaseConf.connectionCloseDelay
@@ -131,10 +134,21 @@ private[spark] object HBaseConnectionCache extends Logging {
       if (closed.get()) return null
       val sc = connectionMap.getOrElseUpdate(key, {
         cacheStat.incrementActualConnectionsCreated(1)
-        new SmartConnection(conn)
+        if (credentialProvider.credentialsRequired(key.c)) {
+          val creds = new Credentials()
+          credentialProvider.obtainCredentials(key.c, SparkEnv.get.conf, creds)
+          new SmartConnection(conn, creds, getReissueTime(creds))
+        } else {
+          new SmartConnection(conn)
+        }
       })
       cacheStat.incrementTotalRequests(1)
       sc.refCount += 1
+      if((sc.credentials != null) && (sc.refCount != 1) ) {
+        if(System.currentTimeMillis() > sc.credReissueDate) {
+          sc.credReissueDate = getReissueTime(sc.credentials)
+        }
+      }
       sc
     }
   }
@@ -150,10 +164,22 @@ private[spark] object HBaseConnectionCache extends Logging {
       housekeepingThread.interrupt()
     }
   }
+
+  private def getReissueTime(creds: Credentials): Long = {
+    var minExpirationDate = Long.MaxValue
+    creds.getAllTokens.toArray.map(_.asInstanceOf[AuthenticationTokenIdentifier])
+      .foreach(t => minExpirationDate = Math.min(minExpirationDate, t.getExpirationDate))
+    val currTime = System.currentTimeMillis()
+    ((currTime - minExpirationDate) * 0.75 + currTime).toLong
+  }
 }
 
-private[hbase] class SmartConnection (
-    val connection: Connection, var refCount: Int = 0, var timestamp: Long = 0) extends Closeable {
+private[hbase] class SmartConnection(
+    val connection: Connection,
+    var credentials: Credentials = null,
+    var credReissueDate: Long = 0,
+    var refCount: Int = 0,
+    var timestamp: Long = 0) extends Closeable {
   def getTable(tableName: TableName): Table = connection.getTable(tableName)
   def getRegionLocator(tableName: TableName): RegionLocator = connection.getRegionLocator(tableName)
   def isClosed: Boolean = connection.isClosed
@@ -175,7 +201,7 @@ private[hbase] class SmartConnection (
  * that may be used in the process of establishing a connection.
  *
  */
-class HBaseConnectionKey(c: Configuration) extends Logging {
+class HBaseConnectionKey(val c: Configuration) extends Logging {
   import HBaseConnectionKey.CONNECTION_PROPERTIES
 
   val (username, properties) = {
