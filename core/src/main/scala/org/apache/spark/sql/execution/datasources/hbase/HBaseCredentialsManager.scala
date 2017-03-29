@@ -48,7 +48,8 @@ final class HBaseCredentialsManager private() extends Logging {
     override def run(): Unit = Utils.logUncaughtExceptions(updateTokensIfRequired())
   }
 
-  tokenUpdater.schedule(tokenUpdateRunnable, nextRefresh, TimeUnit.MILLISECONDS)
+  tokenUpdater.scheduleAtFixedRate(
+    tokenUpdateRunnable, nextRefresh, nextRefresh, TimeUnit.MILLISECONDS)
 
   /**
    * Get HBase credential from specified cluster name.
@@ -58,14 +59,15 @@ final class HBaseCredentialsManager private() extends Logging {
       hbaseConf: HBaseConfiguration): Credentials = synchronized {
     val credentials = new Credentials()
 
+    val tokenOpt = tokensMap.get(hbaseCluster)
     // If token is existed and not expired, directly return the Credentials with tokens added in.
-    if (tokensMap.contains(hbaseCluster) && !isTokenExpired(tokensMap(hbaseCluster).expireTime)) {
-      credentials.addToken(tokensMap(hbaseCluster).token.getService, tokensMap(hbaseCluster).token)
+    if (tokenOpt.isDefined && !isTokenExpired(tokenOpt.get.expireTime)) {
+      credentials.addToken(tokenOpt.get.token.getService, tokenOpt.get.token)
     } else {
       // Acquire a new token if not existed or old one is expired.
       val tokenInfo = getNewToken(hbaseConf)
       tokensMap.put(hbaseCluster, tokenInfo)
-      logInfo(s"Obtain new token from cluster $hbaseCluster")
+      logInfo(s"Obtain new token for cluster $hbaseCluster")
 
       credentials.addToken(tokenInfo.token.getService, tokenInfo.token)
     }
@@ -108,13 +110,9 @@ final class HBaseCredentialsManager private() extends Logging {
         }
       } catch {
         case NonFatal(e) =>
-          logWarning("Error while trying to fetch tokens from HBase cluster," +
-            " will try again in 1 minute", e)
+          logWarning("Error while trying to fetch tokens from HBase cluster", e)
       }
     }
-
-    logInfo(s"Scheduling token update from HBase clusters in $nextRefresh ms.")
-    tokenUpdater.schedule(tokenUpdateRunnable, nextRefresh, TimeUnit.MILLISECONDS)
   }
 
   private def getNewToken(hbaseConf: HBaseConfiguration): TokenInfo = {
@@ -122,18 +120,19 @@ final class HBaseCredentialsManager private() extends Logging {
     val tokenIdentifier = token.decodeIdentifier()
     val expireTime =
       expectedExpireTime(tokenIdentifier.getIssueDate, tokenIdentifier.getExpirationDate)
+    logInfo(s"Obtain new token with expiration time $expireTime")
     TokenInfo(expireTime, hbaseConf, token)
   }
 }
 
 object HBaseCredentialsManager {
-  private var _hbaseCredentialManager: HBaseCredentialsManager = null
+  @volatile private var _hbaseCredentialManager: HBaseCredentialsManager = null
 
   /**
    * Get an instance of [[HBaseCredentialsManager]], this is a singleton to make sure only one
    * instance is created.
    */
-  def hbaseCredentialManager: HBaseCredentialsManager = {
+  def get(): HBaseCredentialsManager = {
     if (_hbaseCredentialManager == null) {
       HBaseCredentialsManager.synchronized {
         if (_hbaseCredentialManager == null) {
