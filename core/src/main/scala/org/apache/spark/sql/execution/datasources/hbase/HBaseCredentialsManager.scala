@@ -54,13 +54,12 @@ final class HBaseCredentialsManager private() extends Logging {
   /**
    * Get HBase credential from specified cluster name.
    */
-  def getCredentialsForCluster(
-      hbaseCluster: String,
-      hbaseConf: HBaseConfiguration): Credentials = synchronized {
+  def getCredentialsForCluster(hbaseConf: HBaseConfiguration): Credentials = {
     val credentials = new Credentials()
+    val identifier = clusterIdentifier(hbaseConf)
 
     val tokenOpt = this.synchronized {
-      tokensMap.get(hbaseCluster)
+      tokensMap.get(identifier)
     }
 
     // If token is existed and not expired, directly return the Credentials with tokens added in.
@@ -70,9 +69,9 @@ final class HBaseCredentialsManager private() extends Logging {
       // Acquire a new token if not existed or old one is expired.
       val tokenInfo = getNewToken(hbaseConf)
       this.synchronized {
-        tokensMap.put(hbaseCluster, tokenInfo)
+        tokensMap.put(identifier, tokenInfo)
       }
-      logInfo(s"Obtain new token for cluster $hbaseCluster")
+      logInfo(s"Obtain new token for cluster $identifier")
 
       credentials.addToken(tokenInfo.token.getService, tokenInfo.token)
     }
@@ -94,32 +93,30 @@ final class HBaseCredentialsManager private() extends Logging {
   }
 
   private def updateTokensIfRequired(): Unit = {
-    this.synchronized {
-      try {
-        val currTime = System.currentTimeMillis()
+    try {
+      val currTime = System.currentTimeMillis()
 
-        // Filter out all the tokens should be re-issued.
-        val tokensShouldUpdate = this.synchronized {
-          tokensMap.filter { case (_, tokenInfo) => tokenInfo.expireTime <= currTime }
-        }
-
-        if (tokensShouldUpdate.isEmpty) {
-          logDebug(s"No token requires update now $currTime")
-        } else {
-          // Update all the expect to be expired tokens
-          val updatedTokens = tokensShouldUpdate.map { case (cluster, tokenInfo) =>
-            logInfo(s"Update token for cluster $cluster")
-            (cluster, getNewToken(tokenInfo.conf))
-          }
-
-          this.synchronized {
-            updatedTokens.foreach { kv => tokensMap.put(kv._1, kv._2) }
-          }
-        }
-      } catch {
-        case NonFatal(e) =>
-          logWarning("Error while trying to fetch tokens from HBase cluster", e)
+      // Filter out all the tokens should be re-issued.
+      val tokensShouldUpdate = this.synchronized {
+        tokensMap.filter { case (_, tokenInfo) => tokenInfo.expireTime <= currTime }
       }
+
+      if (tokensShouldUpdate.isEmpty) {
+        logDebug(s"No token requires update now $currTime")
+      } else {
+        // Update all the expect to be expired tokens
+        val updatedTokens = tokensShouldUpdate.map { case (cluster, tokenInfo) =>
+          logInfo(s"Update token for cluster $cluster")
+          (cluster, getNewToken(tokenInfo.conf))
+        }
+
+        this.synchronized {
+          updatedTokens.foreach { kv => tokensMap.put(kv._1, kv._2) }
+        }
+      }
+    } catch {
+      case NonFatal(e) =>
+        logWarning("Error while trying to fetch tokens from HBase cluster", e)
     }
   }
 
@@ -130,6 +127,16 @@ final class HBaseCredentialsManager private() extends Logging {
       expectedExpireTime(tokenIdentifier.getIssueDate, tokenIdentifier.getExpirationDate)
     logInfo(s"Obtain new token with expiration time $expireTime")
     new TokenInfo(expireTime, hbaseConf, token)
+  }
+
+  private def clusterIdentifier(hbaseConf: HBaseConfiguration): String = {
+    require(hbaseConf.get("zookeeper.znode.parent") != null &&
+      hbaseConf.get("hbase.zookeeper.quorum") != null &&
+      hbaseConf.get("hbase.zookeeper.property.clientPort") != null)
+
+    hbaseConf.get("zookeeper.znode.parent") + "-"
+      hbaseConf.get("hbase.zookeeper.quorum") + "-"
+      hbaseConf.get("hbase.zookeeper.property.clientPort")
   }
 }
 
