@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
+import java.io._
 
 import scala.util.control.NonFatal
 import scala.xml.XML
@@ -31,7 +31,9 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase._
+import org.apache.hadoop.io.DataOutputBuffer
 import org.apache.hadoop.mapreduce.Job
+import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
@@ -114,6 +116,16 @@ case class HBaseRelation(
   }
 
   def hbaseConf = wrappedConf.value
+
+  val serializedCredentials = {
+    if (HBaseCredentialsManager.manager.isCredentialsRequired(hbaseConf)) {
+      val credentials = HBaseCredentialsManager.manager.getCredentialsForCluster(hbaseConf)
+      UserGroupInformation.getCurrentUser.addCredentials(credentials)
+      HBaseRelation.serialize(credentials)
+    } else {
+      null
+    }
+  }
 
   def createTable() {
     if (catalog.numReg > 3) {
@@ -221,7 +233,14 @@ case class HBaseRelation(
       count += 1
       (new ImmutableBytesWritable, put)
     }
-    rdd.map(convertToPut).saveAsNewAPIHadoopDataset(job.getConfiguration)
+
+    rdd.mapPartitions(iter => {
+      if (null != serializedCredentials) {
+        UserGroupInformation.getCurrentUser
+          .addCredentials(HBaseRelation.deserialize(serializedCredentials))
+      }
+      iter.map(convertToPut)
+    }).saveAsNewAPIHadoopDataset(job.getConfiguration)
   }
 
   def rows = catalog.row
@@ -302,7 +321,6 @@ class SerializableConfiguration(@transient var value: Configuration) extends Ser
 }
 
 object HBaseRelation {
-
   val TIMESTAMP = "timestamp"
   val MIN_STAMP = "minStamp"
   val MAX_STAMP = "maxStamp"
@@ -310,4 +328,28 @@ object HBaseRelation {
   val HBASE_CONFIGURATION = "hbaseConfiguration"
   // HBase configuration file such as HBase-site.xml, core-site.xml
   val HBASE_CONFIGFILE = "hbaseConfigFile"
+
+  def serialize(credentials: Credentials): Array[Byte] = {
+    if (credentials != null) {
+      val dob = new DataOutputBuffer()
+      credentials.writeTokenStorageToStream(dob)
+      val dobCopy = new Array[Byte](dob.getLength)
+      System.arraycopy(dob.getData, 0, dobCopy, 0, dobCopy.length)
+      dobCopy
+    } else {
+      null
+    }
+  }
+
+  def deserialize(credsBytes: Array[Byte]): Credentials = {
+    if (credsBytes != null) {
+      val byteStream = new ByteArrayInputStream(credsBytes)
+      val dataStream = new DataInputStream(byteStream)
+      val credentials = new Credentials()
+      credentials.readTokenStorageStream(dataStream)
+      credentials
+    } else {
+      null
+    }
+  }
 }

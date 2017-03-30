@@ -152,5 +152,3 @@ final class HBaseCredentialsManager private() extends Logging {
 object HBaseCredentialsManager {
   lazy val manager = new  HBaseCredentialsManager
 }
-
-
