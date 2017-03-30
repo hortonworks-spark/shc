@@ -31,10 +31,10 @@ import org.apache.hadoop.security.token.{Token, TokenIdentifier}
 import org.apache.spark.util.{ThreadUtils, Utils}
 
 final class HBaseCredentialsManager private() extends Logging {
-  private case class TokenInfo(
-      expireTime: Long,
-      conf: HBaseConfiguration,
-      token: Token[_ <: TokenIdentifier])
+  private class TokenInfo(
+      val expireTime: Long,
+      val conf: HBaseConfiguration,
+      val token: Token[_ <: TokenIdentifier])
   private val tokensMap = new mutable.HashMap[String, TokenInfo]
 
   // We assume token expiration time should be no less than 10 minutes.
@@ -59,14 +59,19 @@ final class HBaseCredentialsManager private() extends Logging {
       hbaseConf: HBaseConfiguration): Credentials = synchronized {
     val credentials = new Credentials()
 
-    val tokenOpt = tokensMap.get(hbaseCluster)
+    val tokenOpt = this.synchronized {
+      tokensMap.get(hbaseCluster)
+    }
+
     // If token is existed and not expired, directly return the Credentials with tokens added in.
     if (tokenOpt.isDefined && !isTokenExpired(tokenOpt.get.expireTime)) {
       credentials.addToken(tokenOpt.get.token.getService, tokenOpt.get.token)
     } else {
       // Acquire a new token if not existed or old one is expired.
       val tokenInfo = getNewToken(hbaseConf)
-      tokensMap.put(hbaseCluster, tokenInfo)
+      this.synchronized {
+        tokensMap.put(hbaseCluster, tokenInfo)
+      }
       logInfo(s"Obtain new token for cluster $hbaseCluster")
 
       credentials.addToken(tokenInfo.token.getService, tokenInfo.token)
@@ -94,8 +99,8 @@ final class HBaseCredentialsManager private() extends Logging {
         val currTime = System.currentTimeMillis()
 
         // Filter out all the tokens should be re-issued.
-        val tokensShouldUpdate = tokensMap.filter { case (_, tokenInfo) =>
-          tokenInfo.expireTime <= currTime
+        val tokensShouldUpdate = this.synchronized {
+          tokensMap.filter { case (_, tokenInfo) => tokenInfo.expireTime <= currTime }
         }
 
         if (tokensShouldUpdate.isEmpty) {
@@ -106,7 +111,10 @@ final class HBaseCredentialsManager private() extends Logging {
             logInfo(s"Update token for cluster $cluster")
             (cluster, getNewToken(tokenInfo.conf))
           }
-          updatedTokens.foreach { kv => tokensMap.put(kv._1, kv._2) }
+
+          this.synchronized {
+            updatedTokens.foreach { kv => tokensMap.put(kv._1, kv._2) }
+          }
         }
       } catch {
         case NonFatal(e) =>
@@ -121,27 +129,12 @@ final class HBaseCredentialsManager private() extends Logging {
     val expireTime =
       expectedExpireTime(tokenIdentifier.getIssueDate, tokenIdentifier.getExpirationDate)
     logInfo(s"Obtain new token with expiration time $expireTime")
-    TokenInfo(expireTime, hbaseConf, token)
+    new TokenInfo(expireTime, hbaseConf, token)
   }
 }
 
 object HBaseCredentialsManager {
-  @volatile private var _hbaseCredentialManager: HBaseCredentialsManager = null
-
-  /**
-   * Get an instance of [[HBaseCredentialsManager]], this is a singleton to make sure only one
-   * instance is created.
-   */
-  def get(): HBaseCredentialsManager = {
-    if (_hbaseCredentialManager == null) {
-      HBaseCredentialsManager.synchronized {
-        if (_hbaseCredentialManager == null) {
-          _hbaseCredentialManager = new HBaseCredentialsManager
-        }
-      }
-    }
-    _hbaseCredentialManager
-  }
+  lazy val manager = new  HBaseCredentialsManager
 }
 
 
