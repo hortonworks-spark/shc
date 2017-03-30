@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
+import java.io._
 
 import scala.util.control.NonFatal
 import scala.xml.XML
@@ -31,7 +31,9 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase._
+import org.apache.hadoop.io.DataOutputBuffer
 import org.apache.hadoop.mapreduce.Job
+import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
@@ -114,6 +116,16 @@ case class HBaseRelation(
   }
 
   def hbaseConf = wrappedConf.value
+
+  val serializedCredentials = {
+    if (HBaseCredentialsManager.manager.isCredentialsRequired(hbaseConf)) {
+      val credentials = HBaseCredentialsManager.manager.getCredentialsForCluster(hbaseConf)
+      UserGroupInformation.getCurrentUser.addCredentials(credentials)
+      serialize(credentials)
+    } else {
+      null
+    }
+  }
 
   def createTable() {
     if (catalog.numReg > 3) {
@@ -221,7 +233,13 @@ case class HBaseRelation(
       count += 1
       (new ImmutableBytesWritable, put)
     }
-    rdd.map(convertToPut).saveAsNewAPIHadoopDataset(job.getConfiguration)
+
+    rdd.mapPartitions(iter => {
+      if (HBaseCredentialsManager.manager.isCredentialsRequired(hbaseConf)) {
+        UserGroupInformation.getCurrentUser.addCredentials(deserialize(serializedCredentials))
+      }
+      iter.map(convertToPut)
+    }).saveAsNewAPIHadoopDataset(job.getConfiguration)
   }
 
   def rows = catalog.row
@@ -277,6 +295,28 @@ case class HBaseRelation(
 
   def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
     new HBaseTableScanRDD(this, requiredColumns, filters)
+  }
+
+  def serialize(credentials: Credentials): Array[Byte] = {
+    if (credentials != null) {
+      val dob = new DataOutputBuffer()
+      credentials.writeTokenStorageToStream(dob)
+      dob.getData
+    } else {
+      null
+    }
+  }
+
+  def deserialize(credsBytes: Array[Byte]): Credentials = {
+    if (credsBytes != null) {
+      val byteStream = new ByteArrayInputStream(credsBytes)
+      val dataStream = new DataInputStream(byteStream)
+      val credentials = new Credentials()
+      credentials.readTokenStorageStream(dataStream)
+      credentials
+    } else {
+      null
+    }
   }
 }
 
