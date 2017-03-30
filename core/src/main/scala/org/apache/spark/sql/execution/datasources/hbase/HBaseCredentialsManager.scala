@@ -98,30 +98,34 @@ final class HBaseCredentialsManager private() extends Logging {
   }
 
   private def updateTokensIfRequired(): Unit = {
-    try {
-      val currTime = System.currentTimeMillis()
+    val currTime = System.currentTimeMillis()
 
-      // Filter out all the tokens should be re-issued.
-      val tokensShouldUpdate = this.synchronized {
-        tokensMap.filter { case (_, tokenInfo) => tokenInfo.expireTime <= currTime }
-      }
+    // Filter out all the tokens should be re-issued.
+    val tokensShouldUpdate = this.synchronized {
+      tokensMap.filter { case (_, tokenInfo) => tokenInfo.expireTime <= currTime }
+    }
 
-      if (tokensShouldUpdate.isEmpty) {
-        logDebug(s"No token requires update now $currTime")
-      } else {
-        // Update all the expect to be expired tokens
-        val updatedTokens = tokensShouldUpdate.map { case (cluster, tokenInfo) =>
-          logInfo(s"Update token for cluster $cluster")
-          (cluster, getNewToken(tokenInfo.conf))
+    if (tokensShouldUpdate.isEmpty) {
+      logDebug(s"No token requires update now $currTime")
+    } else {
+      // Update all the expect to be expired tokens
+      val updatedTokens = tokensShouldUpdate.map { case (cluster, tokenInfo) =>
+        logInfo(s"Update token for cluster $cluster")
+        val token = {
+          try {
+            getNewToken(tokenInfo.conf)
+          } catch {
+            case NonFatal(ex) =>
+              logWarning("Error while trying to fetch tokens from HBase cluster", ex)
+              null
+          }
         }
+        (cluster, token)
+      }.filter(null != _._2)
 
-        this.synchronized {
-          updatedTokens.foreach { kv => tokensMap.put(kv._1, kv._2) }
-        }
+      this.synchronized {
+        updatedTokens.foreach { kv => tokensMap.put(kv._1, kv._2) }
       }
-    } catch {
-      case NonFatal(e) =>
-        logWarning("Error while trying to fetch tokens from HBase cluster", e)
     }
   }
 
