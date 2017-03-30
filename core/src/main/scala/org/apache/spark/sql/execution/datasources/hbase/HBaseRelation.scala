@@ -121,7 +121,7 @@ case class HBaseRelation(
     if (HBaseCredentialsManager.manager.isCredentialsRequired(hbaseConf)) {
       val credentials = HBaseCredentialsManager.manager.getCredentialsForCluster(hbaseConf)
       UserGroupInformation.getCurrentUser.addCredentials(credentials)
-      serialize(credentials)
+      HBaseRelation.serialize(credentials)
     } else {
       null
     }
@@ -235,8 +235,9 @@ case class HBaseRelation(
     }
 
     rdd.mapPartitions(iter => {
-      if (HBaseCredentialsManager.manager.isCredentialsRequired(hbaseConf)) {
-        UserGroupInformation.getCurrentUser.addCredentials(deserialize(serializedCredentials))
+      if (null != serializedCredentials) {
+        UserGroupInformation.getCurrentUser
+          .addCredentials(HBaseRelation.deserialize(serializedCredentials))
       }
       iter.map(convertToPut)
     }).saveAsNewAPIHadoopDataset(job.getConfiguration)
@@ -296,28 +297,6 @@ case class HBaseRelation(
   def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
     new HBaseTableScanRDD(this, requiredColumns, filters)
   }
-
-  def serialize(credentials: Credentials): Array[Byte] = {
-    if (credentials != null) {
-      val dob = new DataOutputBuffer()
-      credentials.writeTokenStorageToStream(dob)
-      dob.getData
-    } else {
-      null
-    }
-  }
-
-  def deserialize(credsBytes: Array[Byte]): Credentials = {
-    if (credsBytes != null) {
-      val byteStream = new ByteArrayInputStream(credsBytes)
-      val dataStream = new DataInputStream(byteStream)
-      val credentials = new Credentials()
-      credentials.readTokenStorageStream(dataStream)
-      credentials
-    } else {
-      null
-    }
-  }
 }
 
 class SerializableConfiguration(@transient var value: Configuration) extends Serializable {
@@ -342,7 +321,6 @@ class SerializableConfiguration(@transient var value: Configuration) extends Ser
 }
 
 object HBaseRelation {
-
   val TIMESTAMP = "timestamp"
   val MIN_STAMP = "minStamp"
   val MAX_STAMP = "maxStamp"
@@ -350,4 +328,28 @@ object HBaseRelation {
   val HBASE_CONFIGURATION = "hbaseConfiguration"
   // HBase configuration file such as HBase-site.xml, core-site.xml
   val HBASE_CONFIGFILE = "hbaseConfigFile"
+
+  def serialize(credentials: Credentials): Array[Byte] = {
+    if (credentials != null) {
+      val dob = new DataOutputBuffer()
+      credentials.writeTokenStorageToStream(dob)
+      val dobCopy = new Array[Byte](dob.getLength)
+      System.arraycopy(dob.getData, 0, dobCopy, 0, dobCopy.length)
+      dobCopy
+    } else {
+      null
+    }
+  }
+
+  def deserialize(credsBytes: Array[Byte]): Credentials = {
+    if (credsBytes != null) {
+      val byteStream = new ByteArrayInputStream(credsBytes)
+      val dataStream = new DataInputStream(byteStream)
+      val credentials = new Credentials()
+      credentials.readTokenStorageStream(dataStream)
+      credentials
+    } else {
+      null
+    }
+  }
 }
