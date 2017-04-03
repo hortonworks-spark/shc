@@ -73,7 +73,7 @@ object SHCDataTypeFactory {
       // Data type implemented by user
       Class.forName(f.fCoder)
         .getConstructor(classOf[Option[Field]])
-        .newInstance(f.fCoder)
+        .newInstance(Some(f))
         .asInstanceOf[SHCDataType]
     }
   }
