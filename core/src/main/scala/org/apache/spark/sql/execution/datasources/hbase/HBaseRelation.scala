@@ -152,7 +152,7 @@ case class HBaseRelation(
         val endKey = catalog.shcTableCoder.toBytes("zzzzzzz")
         val splitKeys = Bytes.split(startKey, endKey, catalog.numReg - 3)
         admin.createTable(tableDesc, splitKeys)
-        val r = connection.getRegionLocator(TableName.valueOf(catalog.name)).getAllRegionLocations
+        val r = connection.getRegionLocator(tName).getAllRegionLocations
         while(r == null || r.size() == 0) {
           logDebug(s"region not allocated")
           Thread.sleep(1000)
@@ -174,7 +174,7 @@ case class HBaseRelation(
    * @param overwrite Overwrite existing values
    */
   override def insert(data: DataFrame, overwrite: Boolean): Unit = {
-    hbaseConf.set(TableOutputFormat.OUTPUT_TABLE, catalog.name)
+    hbaseConf.set(TableOutputFormat.OUTPUT_TABLE, s"${catalog.namespace}:${catalog.name}")
     val job = Job.getInstance(hbaseConf)
     job.setOutputFormatClass(classOf[TableOutputFormat[String]])
 
