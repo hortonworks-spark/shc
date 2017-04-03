@@ -91,7 +91,7 @@ case class RegionResource(relation: HBaseRelation) extends ReferencedResource {
 
   override def init(): Unit = {
     connection = HBaseConnectionCache.getConnection(relation.hbaseConf)
-    rl = connection.getRegionLocator(TableName.valueOf(relation.catalog.name))
+    rl = connection.getRegionLocator(TableName.valueOf(relation.catalog.namespace, relation.catalog.name))
   }
 
   override def destroy(): Unit = {
@@ -123,7 +123,7 @@ case class TableResource(relation: HBaseRelation) extends ReferencedResource {
 
   override def init(): Unit = {
     connection = HBaseConnectionCache.getConnection(relation.hbaseConf)
-    table = connection.getTable(TableName.valueOf(relation.catalog.name))
+    table = connection.getTable(TableName.valueOf(relation.catalog.namespace, relation.catalog.name))
   }
 
   override def destroy(): Unit = {
