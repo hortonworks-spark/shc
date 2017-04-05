@@ -26,6 +26,7 @@ import scala.util.control.NonFatal
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.security.token.TokenUtil
+import org.apache.hadoop.io.Text
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.hadoop.security.token.{Token, TokenIdentifier}
 
@@ -80,7 +81,7 @@ final class HBaseCredentialsManager private(sparkConf: SparkConf) extends Loggin
       }
       logInfo(s"Obtain new token for cluster $identifier")
 
-      credentials.addToken(tokenInfo.token.getService, tokenInfo.token)
+      credentials.addToken(new Text(identifier), tokenInfo.token)
     }
 
     credentials
