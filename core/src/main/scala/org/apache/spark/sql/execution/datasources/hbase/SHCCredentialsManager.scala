@@ -205,7 +205,7 @@ object SHCCredentialsManager extends Logging {
       s"tokens ${getMinimumExpirationDates(credentials).getOrElse(-1)}")
   }
 
-  private def getMinimumExpirationDates (credentials: Credentials): Option[Long] = {
+  private def getMinimumExpirationDates(credentials: Credentials): Option[Long] = {
     val expirationDates = credentials.getAllTokens.asScala
       .filter(_.decodeIdentifier().isInstanceOf[AuthenticationTokenIdentifier])
       .map { t =>
