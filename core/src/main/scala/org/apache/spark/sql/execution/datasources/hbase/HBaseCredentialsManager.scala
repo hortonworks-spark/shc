@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
+import java.security.PrivilegedExceptionAction
 import java.util.concurrent.{Executors, TimeUnit}
 
 import scala.collection.mutable
@@ -25,12 +26,14 @@ import scala.util.control.NonFatal
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.security.token.TokenUtil
+import org.apache.hadoop.io.Text
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.hadoop.security.token.{Token, TokenIdentifier}
 
+import org.apache.spark.SparkConf
 import org.apache.spark.util.{ThreadUtils, Utils}
 
-final class HBaseCredentialsManager private() extends Logging {
+final class HBaseCredentialsManager private(sparkConf: SparkConf) extends Logging {
   private class TokenInfo(
       val expireTime: Long,
       val conf: Configuration,
@@ -43,6 +46,11 @@ final class HBaseCredentialsManager private() extends Logging {
   private val tokenUpdater =
     Executors.newSingleThreadScheduledExecutor(
       ThreadUtils.namedThreadFactory("HBase Tokens Refresh Thread"))
+
+  require(sparkConf.contains("spark.yarn.principal"))
+  require(sparkConf.contains("spark.yarn.keytab"))
+  private val principal = sparkConf.get("spark.yarn.principal")
+  private val keytab = sparkConf.get("spark.yarn.keytab")
 
   private val tokenUpdateRunnable = new Runnable {
     override def run(): Unit = Utils.logUncaughtExceptions(updateTokensIfRequired())
@@ -73,7 +81,7 @@ final class HBaseCredentialsManager private() extends Logging {
       }
       logInfo(s"Obtain new token for cluster $identifier")
 
-      credentials.addToken(tokenInfo.token.getService, tokenInfo.token)
+      credentials.addToken(new Text(identifier), tokenInfo.token)
     }
 
     credentials
@@ -130,12 +138,17 @@ final class HBaseCredentialsManager private() extends Logging {
   }
 
   private def getNewToken(conf: Configuration): TokenInfo = {
-    val token = TokenUtil.obtainToken(conf)
-    val tokenIdentifier = token.decodeIdentifier()
-    val expireTime =
-      expectedExpireTime(tokenIdentifier.getIssueDate, tokenIdentifier.getExpirationDate)
-    logInfo(s"Obtain new token with expiration time $expireTime")
-    new TokenInfo(expireTime, conf, token)
+    val kerberosLoggedUGI = UserGroupInformation.loginUserFromKeytabAndReturnUGI(principal, keytab)
+    kerberosLoggedUGI.doAs(new PrivilegedExceptionAction[TokenInfo] {
+      override def run(): TokenInfo = {
+        val token = TokenUtil.obtainToken(conf)
+        val tokenIdentifier = token.decodeIdentifier()
+        val expireTime =
+          expectedExpireTime(tokenIdentifier.getIssueDate, tokenIdentifier.getExpirationDate)
+        logInfo(s"Obtain new token with expiration time $expireTime")
+        new TokenInfo(expireTime, conf, token)
+      }
+    })
   }
 
   private def clusterIdentifier(conf: Configuration): String = {
@@ -150,5 +163,16 @@ final class HBaseCredentialsManager private() extends Logging {
 }
 
 object HBaseCredentialsManager {
-  lazy val manager = new  HBaseCredentialsManager
+  @volatile private var _hbaseCredentialManager: HBaseCredentialsManager = _
+
+  def get(sparkConf: SparkConf): HBaseCredentialsManager = {
+    if (_hbaseCredentialManager == null) {
+      HBaseCredentialsManager.synchronized {
+        if (_hbaseCredentialManager == null) {
+          _hbaseCredentialManager = new HBaseCredentialsManager(sparkConf)
+        }
+      }
+    }
+    _hbaseCredentialManager
+  }
 }
