@@ -118,9 +118,8 @@ case class HBaseRelation(
   def hbaseConf = wrappedConf.value
 
   val serializedCredentials = {
-    val sparkConf = sqlContext.sparkContext.getConf
-    if (HBaseCredentialsManager.get(sparkConf).isCredentialsRequired(hbaseConf)) {
-      val credentials = HBaseCredentialsManager.get(sparkConf).getCredentialsForCluster(hbaseConf)
+    if (HBaseCredentialsManager.manager.isCredentialsRequired(hbaseConf)) {
+      val credentials = HBaseCredentialsManager.manager.getCredentialsForCluster(hbaseConf)
       UserGroupInformation.getCurrentUser.addCredentials(credentials)
       HBaseRelation.serialize(credentials)
     } else {
