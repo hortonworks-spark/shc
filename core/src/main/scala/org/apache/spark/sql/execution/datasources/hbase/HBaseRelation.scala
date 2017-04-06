@@ -77,6 +77,7 @@ case class HBaseRelation(
   val minStamp = parameters.get(HBaseRelation.MIN_STAMP).map(_.toLong)
   val maxStamp = parameters.get(HBaseRelation.MAX_STAMP).map(_.toLong)
   val maxVersions = parameters.get(HBaseRelation.MAX_VERSIONS).map(_.toInt)
+  val enableCredsManager = parameters.get(HBaseRelation.EnableSHCCredentialsManager).map(_.toBoolean)
 
   val catalog = HBaseTableCatalog(parameters)
 
@@ -104,6 +105,7 @@ case class HBaseRelation(
         val conf = HBaseConfiguration.create
         hBaseConfiguration.foreach(_.foreach(e => conf.set(e._1, e._2)))
         hBaseConfigFile.foreach(e => conf.set(e._1, e._2))
+        conf.setBoolean(SparkHBaseConf.credentialsManagerEnabled, enableCredsManager.get)
         conf
       }
     }
@@ -325,4 +327,6 @@ object HBaseRelation {
   val HBASE_CONFIGURATION = "hbaseConfiguration"
   // HBase configuration file such as HBase-site.xml, core-site.xml
   val HBASE_CONFIGFILE = "hbaseConfigFile"
+  // Set false to disable SHCCredentialsManager
+  val EnableSHCCredentialsManager = "true"
 }

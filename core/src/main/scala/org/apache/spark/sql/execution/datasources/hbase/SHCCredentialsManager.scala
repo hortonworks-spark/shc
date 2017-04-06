@@ -86,7 +86,7 @@ final class SHCCredentialsManager private() extends Logging {
     // If token is existed and not expired, directly return the Credentials with tokens added in.
     if (tokenOpt.isDefined && !tokenOpt.get.isTokenInfoExpired) {
       credentials.addToken(tokenOpt.get.token.getService, tokenOpt.get.token)
-      logInfo(s"Use existing token for on-demand cluster $identifier")
+      logDebug(s"Use existing token for on-demand cluster $identifier")
     } else {
 
       logInfo(s"getCredentialsForCluster: Obtaining new token for cluster $identifier")
@@ -104,13 +104,13 @@ final class SHCCredentialsManager private() extends Logging {
       credentials.addToken(tokenInfo.token.getService, tokenInfo.token)
     }
 
-    UserGroupInformation.getCurrentUser.addCredentials(credentials)
     SHCCredentialsManager.addLogs("Driver", credentials) // Only driver invokes getCredentialsForCluster
     SHCCredentialsManager.serialize(credentials)
   }
 
   def isCredentialsRequired(conf: Configuration): Boolean = {
-    UserGroupInformation.isSecurityEnabled &&
+    conf.getBoolean(SparkHBaseConf.credentialsManagerEnabled, true) &&
+      UserGroupInformation.isSecurityEnabled &&
       conf.get("hbase.security.authentication") == "kerberos"
   }
 
@@ -162,8 +162,8 @@ final class SHCCredentialsManager private() extends Logging {
       conf.get("hbase.zookeeper.quorum") != null &&
       conf.get("hbase.zookeeper.property.clientPort") != null)
 
-    conf.get("zookeeper.znode.parent") + "-"
-      conf.get("hbase.zookeeper.quorum") + "-"
+    conf.get("zookeeper.znode.parent") + "#"
+      conf.get("hbase.zookeeper.quorum") + "#"
       conf.get("hbase.zookeeper.property.clientPort")
   }
 }
