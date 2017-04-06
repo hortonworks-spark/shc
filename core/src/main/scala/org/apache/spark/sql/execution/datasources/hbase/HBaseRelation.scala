@@ -105,7 +105,7 @@ case class HBaseRelation(
         val conf = HBaseConfiguration.create
         hBaseConfiguration.foreach(_.foreach(e => conf.set(e._1, e._2)))
         hBaseConfigFile.foreach(e => conf.set(e._1, e._2))
-        conf.setBoolean(SparkHBaseConf.credentialsManagerEnabled, enableCredsManager.get)
+        conf.setBoolean(SparkHBaseConf.credentialsManagerEnabled, enableCredsManager.getOrElse(true))
         conf
       }
     }
