@@ -41,7 +41,7 @@ final class SHCCredentialsManager private() extends Logging {
     val conf: Configuration,
     val token: Token[_ <: TokenIdentifier]) {
 
-    val isTokenInfoExpired: Boolean = {
+    def isTokenInfoExpired: Boolean = {
       System.currentTimeMillis() >=
         ((expireTime - issueTime) * SHCCredentialsManager.expireTimeFraction + issueTime).toLong
     }
@@ -105,7 +105,7 @@ final class SHCCredentialsManager private() extends Logging {
     }
 
     UserGroupInformation.getCurrentUser.addCredentials(credentials)
-    SHCCredentialsManager.addLogs("Driver", credentials) // Only driver invokes getCredentialsForCluster in SHC
+    SHCCredentialsManager.addLogs("Driver", credentials) // Only driver invokes getCredentialsForCluster
     SHCCredentialsManager.serialize(credentials)
   }
 
