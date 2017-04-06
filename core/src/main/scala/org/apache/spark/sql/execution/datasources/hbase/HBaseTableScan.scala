@@ -259,7 +259,10 @@ private[hbase] class HBaseTableScanRDD(
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
     if (null != credentials) {
       val creds = SHCCredentialsManager.deserialize(credentials)
-      SHCCredentialsManager.addLogs("Task", creds) // for debug
+
+      logInfo(s"Task: Obtain credentials with minimum expiration date of " +
+        s"tokens ${SHCCredentialsManager.getMinimumExpirationDates(creds).getOrElse(-1)}")
+
       UserGroupInformation.getCurrentUser.addCredentials(creds)
     }
     val ord = hbase.ord//implicitly[Ordering[HBaseType]]

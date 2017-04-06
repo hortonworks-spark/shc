@@ -77,7 +77,6 @@ case class HBaseRelation(
   val minStamp = parameters.get(HBaseRelation.MIN_STAMP).map(_.toLong)
   val maxStamp = parameters.get(HBaseRelation.MAX_STAMP).map(_.toLong)
   val maxVersions = parameters.get(HBaseRelation.MAX_VERSIONS).map(_.toInt)
-  val enableCredsManager = parameters.get(HBaseRelation.EnableSHCCredentialsManager).map(_.toBoolean)
 
   val catalog = HBaseTableCatalog(parameters)
 
@@ -105,7 +104,6 @@ case class HBaseRelation(
         val conf = HBaseConfiguration.create
         hBaseConfiguration.foreach(_.foreach(e => conf.set(e._1, e._2)))
         hBaseConfigFile.foreach(e => conf.set(e._1, e._2))
-        conf.setBoolean(SparkHBaseConf.credentialsManagerEnabled, enableCredsManager.getOrElse(true))
         conf
       }
     }
@@ -118,12 +116,14 @@ case class HBaseRelation(
 
   def hbaseConf = wrappedConf.value
 
-  val serializedCredentials =
-    if (SHCCredentialsManager.manager.isCredentialsRequired(hbaseConf)) {
-      SHCCredentialsManager.manager.getCredentialsForCluster(hbaseConf)
+  val serializedCredentials = {
+    val manager = SHCCredentialsManager.get(sqlContext.sparkContext.getConf)
+    if (manager.isCredentialsRequired(hbaseConf)) {
+      manager.getCredentialsForCluster(hbaseConf)
     } else {
       null
     }
+  }
 
   def createTable() {
     if (catalog.numReg > 3) {
@@ -235,7 +235,10 @@ case class HBaseRelation(
     rdd.mapPartitions(iter => {
       if (null != serializedCredentials) {
         val creds = SHCCredentialsManager.deserialize(serializedCredentials)
-        SHCCredentialsManager.addLogs("Task", creds) // for debug
+
+        logInfo(s"Task: Obtain credentials with minimum expiration date of " +
+          s"tokens ${SHCCredentialsManager.getMinimumExpirationDates(creds).getOrElse(-1)}")
+
         UserGroupInformation.getCurrentUser.addCredentials(creds)
       }
       iter.map(convertToPut)
@@ -327,6 +330,4 @@ object HBaseRelation {
   val HBASE_CONFIGURATION = "hbaseConfiguration"
   // HBase configuration file such as HBase-site.xml, core-site.xml
   val HBASE_CONFIGFILE = "hbaseConfigFile"
-  // Set false to disable SHCCredentialsManager
-  val EnableSHCCredentialsManager = "true"
 }

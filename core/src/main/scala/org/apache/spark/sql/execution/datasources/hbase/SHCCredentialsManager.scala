@@ -31,35 +31,40 @@ import org.apache.hadoop.hbase.security.token.{AuthenticationTokenIdentifier, To
 import org.apache.hadoop.io.DataOutputBuffer
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.hadoop.security.token.{Token, TokenIdentifier}
-
 import org.apache.spark.util.{ThreadUtils, Utils}
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.execution.datasources.hbase.SHCCredentialsManager._
 
-final class SHCCredentialsManager private() extends Logging {
+final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging {
   private class TokenInfo(
     val expireTime: Long,
     val issueTime: Long,
+    val refreshTime: Long,
     val conf: Configuration,
-    val token: Token[_ <: TokenIdentifier]) {
+    val token: Token[_ <: TokenIdentifier])
 
-    def isTokenInfoExpired: Boolean = {
-      System.currentTimeMillis() >=
-        ((expireTime - issueTime) * SHCCredentialsManager.expireTimeFraction + issueTime).toLong
-    }
+  private val expireTimeFraction =sparkConf.getDouble(SparkHBaseConf.expireTimeFraction, 0.95)
+  private val refreshTimeFraction = sparkConf.getDouble(SparkHBaseConf.refreshTimeFraction, 0.6)
+  private val refreshDurationMins = sparkConf.getInt(SparkHBaseConf.refreshDurationMins, 10)
 
-    val refreshTime: Long = {
-      require(expireTime > issueTime,
-        s"Token expire time $expireTime is smaller than issue time $issueTime")
+  private def isTokenInfoExpired(tokenInfo: TokenInfo): Boolean = {
+    System.currentTimeMillis() >=
+      ((tokenInfo.expireTime - tokenInfo.issueTime) * expireTimeFraction + tokenInfo.issueTime).toLong
+  }
 
-      // the expected expire time would be 60% of real expire time, to avoid long running task
-      // failure.
-      ((expireTime - issueTime) * SHCCredentialsManager.refreshTimeFraction + issueTime).toLong
-    }
+  private def getRefreshTime(issueTime: Long, expireTime: Long): Long = {
+    require(expireTime > issueTime,
+      s"Token expire time $expireTime is smaller than issue time $issueTime")
+
+    // the expected expire time would be 60% of real expire time, to avoid long running task
+    // failure.
+    ((expireTime - issueTime) * refreshTimeFraction + issueTime).toLong
   }
 
   private val tokensMap = new mutable.HashMap[String, TokenInfo]
 
   // We assume token expiration time should be no less than 10 minutes.
-  private val nextRefresh = TimeUnit.MINUTES.toMillis(SHCCredentialsManager.refreshDurationMins)
+  private val nextRefresh = TimeUnit.MINUTES.toMillis(refreshDurationMins)
 
   private val tokenUpdater =
     Executors.newSingleThreadScheduledExecutor(
@@ -84,7 +89,7 @@ final class SHCCredentialsManager private() extends Logging {
     }
 
     // If token is existed and not expired, directly return the Credentials with tokens added in.
-    if (tokenOpt.isDefined && !tokenOpt.get.isTokenInfoExpired) {
+    if (tokenOpt.isDefined && !isTokenInfoExpired(tokenOpt.get)) {
       credentials.addToken(tokenOpt.get.token.getService, tokenOpt.get.token)
       logDebug(s"Use existing token for on-demand cluster $identifier")
     } else {
@@ -104,29 +109,31 @@ final class SHCCredentialsManager private() extends Logging {
       credentials.addToken(tokenInfo.token.getService, tokenInfo.token)
     }
 
-    SHCCredentialsManager.addLogs("Driver", credentials) // Only driver invokes getCredentialsForCluster
+    logInfo(s"Driver: Obtain credentials with minimum expiration date of " +
+      s"tokens ${getMinimumExpirationDates(credentials).getOrElse(-1)}")
+
     SHCCredentialsManager.serialize(credentials)
   }
 
   def isCredentialsRequired(conf: Configuration): Boolean = {
-    conf.getBoolean(SparkHBaseConf.credentialsManagerEnabled, true) &&
+    sparkConf.getBoolean(SparkHBaseConf.credentialsManagerEnabled, true) &&
       UserGroupInformation.isSecurityEnabled &&
-      conf.get("hbase.security.authentication") == "kerberos"
+        conf.get("hbase.security.authentication") == "kerberos"
   }
 
   private def updateTokensIfRequired(): Unit = {
     val currTime = System.currentTimeMillis()
 
     // Filter out all the tokens should be re-issued.
-    val tokensShouldUpdate = this.synchronized {
+    val tokensToUpdate = this.synchronized {
       tokensMap.filter { case (_, tokenInfo) => tokenInfo.refreshTime <= currTime }
     }
 
-    if (tokensShouldUpdate.isEmpty) {
+    if (tokensToUpdate.isEmpty) {
       logInfo("Refresh Thread: No tokens require update")
     } else {
       // Update all the expect to be expired tokens
-      val updatedTokens = tokensShouldUpdate.map { case (cluster, tokenInfo) =>
+      val updatedTokens = tokensToUpdate.map { case (cluster, tokenInfo) =>
         logInfo(s"Refresh Thread: Update token for cluster $cluster")
 
         val token = {
@@ -154,7 +161,8 @@ final class SHCCredentialsManager private() extends Logging {
     val tokenIdentifier = token.decodeIdentifier()
     val expireTime = tokenIdentifier.getExpirationDate
     val issueTime = tokenIdentifier.getIssueDate
-    new TokenInfo(expireTime, issueTime, conf, token)
+    val refreshTime = getRefreshTime(issueTime, expireTime)
+    new TokenInfo(expireTime, issueTime, refreshTime, conf, token)
   }
 
   private def clusterIdentifier(conf: Configuration): String = {
@@ -169,11 +177,8 @@ final class SHCCredentialsManager private() extends Logging {
 }
 
 object SHCCredentialsManager extends Logging {
-  lazy val manager = new  SHCCredentialsManager
 
-  private val expireTimeFraction = 0.95
-  private val refreshTimeFraction = 0.6
-  private val refreshDurationMins = 10
+  def get(sparkConf: SparkConf): SHCCredentialsManager = new SHCCredentialsManager(sparkConf)
 
   def serialize(credentials: Credentials): Array[Byte] = {
     if (credentials != null) {
@@ -199,18 +204,15 @@ object SHCCredentialsManager extends Logging {
     }
   }
 
-  // for debug
-  def addLogs(component: String, credentials: Credentials): Unit = {
-    logInfo(s"$component: Obtain credentials with minimum expiration date of " +
-      s"tokens ${getMinimumExpirationDates(credentials).getOrElse(-1)}")
-  }
-
-  private def getMinimumExpirationDates(credentials: Credentials): Option[Long] = {
+  def getMinimumExpirationDates(credentials: Credentials): Option[Long] = {
     val expirationDates = credentials.getAllTokens.asScala
-      .filter(_.decodeIdentifier().isInstanceOf[AuthenticationTokenIdentifier])
       .map { t =>
-        val identifier = t.decodeIdentifier().asInstanceOf[AuthenticationTokenIdentifier]
-        identifier.getExpirationDate
+        val identifier = t.decodeIdentifier()
+        identifier match {
+          case _ if identifier.isInstanceOf[AuthenticationTokenIdentifier]
+            => identifier.asInstanceOf[AuthenticationTokenIdentifier].getExpirationDate
+          case _ => Long.MaxValue
+        }
       }
     if (expirationDates.isEmpty) None else Some(expirationDates.min)
   }
