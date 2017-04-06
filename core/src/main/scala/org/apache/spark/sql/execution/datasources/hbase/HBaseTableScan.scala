@@ -24,7 +24,7 @@ import scala.collection.mutable
 import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{Filter => HFilter}
-import org.apache.hadoop.security.UserGroupInformation
+import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
@@ -54,7 +54,7 @@ private[hbase] class HBaseTableScanRDD(
   val outputs = StructType(requiredColumns.map(relation.schema(_))).toAttributes
   val columnFields = relation.splitRowKeyColumns(requiredColumns)._2
   private def sparkConf = SparkEnv.get.conf
-  val credentials = relation.serializedCredentials
+  val token = relation.serializedToken
 
   override def getPartitions: Array[Partition] = {
     val hbaseFilter = HBaseFilter.buildFilters(filters, relation)
@@ -257,13 +257,15 @@ private[hbase] class HBaseTableScanRDD(
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
-    if (null != credentials) {
-      val creds = SHCCredentialsManager.deserialize(credentials)
+    if (null != token) {
+      val tok = SHCCredentialsManager.deserializeToken(token)
+      val credentials = new Credentials()
+      credentials.addToken(tok.getService, tok)
 
       logInfo(s"Task: Obtain credentials with minimum expiration date of " +
-        s"tokens ${SHCCredentialsManager.getMinimumExpirationDates(creds).getOrElse(-1)}")
+        s"tokens ${SHCCredentialsManager.getMinimumExpirationDates(credentials).getOrElse(-1)}")
 
-      UserGroupInformation.getCurrentUser.addCredentials(creds)
+      UserGroupInformation.getCurrentUser.addCredentials(credentials)
     }
     val ord = hbase.ord//implicitly[Ordering[HBaseType]]
     val partition = split.asInstanceOf[HBaseScanPartition]

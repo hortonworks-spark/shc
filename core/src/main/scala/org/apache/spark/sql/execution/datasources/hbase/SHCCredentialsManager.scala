@@ -21,6 +21,8 @@ import java.io.{DataInputStream, ByteArrayInputStream}
 import java.util.concurrent.{Executors, TimeUnit}
 import java.util.Date
 
+import com.sun.org.apache.xml.internal.utils.SerializableLocatorImpl
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.existentials
@@ -41,7 +43,8 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
     val issueTime: Long,
     val refreshTime: Long,
     val conf: Configuration,
-    val token: Token[_ <: TokenIdentifier])
+    val token: Token[_ <: TokenIdentifier],
+    val serializedToken: Array[Byte])
 
   private val expireTimeFraction =sparkConf.getDouble(SparkHBaseConf.expireTimeFraction, 0.95)
   private val refreshTimeFraction = sparkConf.getDouble(SparkHBaseConf.refreshTimeFraction, 0.6)
@@ -80,9 +83,10 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
   /**
    * Get HBase credential from specified cluster name.
    */
-  def getCredentialsForCluster(conf: Configuration): Array[Byte] = {
+  def getTokenForCluster(conf: Configuration): Array[Byte] = {
     val credentials = new Credentials()
     val identifier = clusterIdentifier(conf)
+    var token: Array[Byte] = null
 
     val tokenOpt = this.synchronized {
       tokensMap.get(identifier)
@@ -91,6 +95,7 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
     // If token is existed and not expired, directly return the Credentials with tokens added in.
     if (tokenOpt.isDefined && !isTokenInfoExpired(tokenOpt.get)) {
       credentials.addToken(tokenOpt.get.token.getService, tokenOpt.get.token)
+      token = tokenOpt.get.serializedToken
       logDebug(s"Use existing token for on-demand cluster $identifier")
     } else {
 
@@ -107,12 +112,14 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
         s"for cluster $identifier")
 
       credentials.addToken(tokenInfo.token.getService, tokenInfo.token)
+      token = tokenInfo.serializedToken
     }
 
     logInfo(s"Driver: Obtain credentials with minimum expiration date of " +
       s"tokens ${getMinimumExpirationDates(credentials).getOrElse(-1)}")
+    // UserGroupInformation.getCurrentUser.addCredentials(credentials) // will uncomment this in the following PR
 
-    SHCCredentialsManager.serialize(credentials)
+    token
   }
 
   def isCredentialsRequired(conf: Configuration): Boolean = {
@@ -162,7 +169,7 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
     val expireTime = tokenIdentifier.getExpirationDate
     val issueTime = tokenIdentifier.getIssueDate
     val refreshTime = getRefreshTime(issueTime, expireTime)
-    new TokenInfo(expireTime, issueTime, refreshTime, conf, token)
+    new TokenInfo(expireTime, issueTime, refreshTime, conf, token, serializeToken(token))
   }
 
   private def clusterIdentifier(conf: Configuration): String = {
@@ -180,28 +187,20 @@ object SHCCredentialsManager extends Logging {
 
   def get(sparkConf: SparkConf): SHCCredentialsManager = new SHCCredentialsManager(sparkConf)
 
-  def serialize(credentials: Credentials): Array[Byte] = {
-    if (credentials != null) {
-      val dob = new DataOutputBuffer()
-      credentials.writeTokenStorageToStream(dob)
-      val dobCopy = new Array[Byte](dob.getLength)
-      System.arraycopy(dob.getData, 0, dobCopy, 0, dobCopy.length)
-      dobCopy
-    } else {
-      null
-    }
+  def serializeToken(token: Token[_ <: TokenIdentifier]): Array[Byte] = {
+    val dob: DataOutputBuffer = new DataOutputBuffer()
+    token.write(dob)
+    val dobCopy = new Array[Byte](dob.getLength)
+    System.arraycopy(dob.getData, 0, dobCopy, 0, dobCopy.length)
+    dobCopy
   }
 
-  def deserialize(credsBytes: Array[Byte]): Credentials = {
-    if (credsBytes != null) {
-      val byteStream = new ByteArrayInputStream(credsBytes)
-      val dataStream = new DataInputStream(byteStream)
-      val credentials = new Credentials()
-      credentials.readTokenStorageStream(dataStream)
-      credentials
-    } else {
-      null
-    }
+  def deserializeToken(tokenBytes: Array[Byte]): Token[_ <: TokenIdentifier] = {
+    val byteStream = new ByteArrayInputStream(tokenBytes)
+    val dataStream = new DataInputStream(byteStream)
+    val destToken = new Token
+    destToken.readFields(dataStream)
+    destToken
   }
 
   def getMinimumExpirationDates(credentials: Credentials): Option[Long] = {

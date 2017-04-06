@@ -32,7 +32,7 @@ import org.apache.hadoop.hbase.mapreduce.TableOutputFormat
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.mapreduce.Job
-import org.apache.hadoop.security.UserGroupInformation
+import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
@@ -116,10 +116,10 @@ case class HBaseRelation(
 
   def hbaseConf = wrappedConf.value
 
-  val serializedCredentials = {
+  val serializedToken = {
     val manager = SHCCredentialsManager.get(sqlContext.sparkContext.getConf)
     if (manager.isCredentialsRequired(hbaseConf)) {
-      manager.getCredentialsForCluster(hbaseConf)
+      manager.getTokenForCluster(hbaseConf)
     } else {
       null
     }
@@ -233,13 +233,15 @@ case class HBaseRelation(
     }
 
     rdd.mapPartitions(iter => {
-      if (null != serializedCredentials) {
-        val creds = SHCCredentialsManager.deserialize(serializedCredentials)
+      if (null != serializedToken) {
+        val tok = SHCCredentialsManager.deserializeToken(serializedToken)
+        val credentials = new Credentials()
+        credentials.addToken(tok.getService, tok)
 
         logInfo(s"Task: Obtain credentials with minimum expiration date of " +
-          s"tokens ${SHCCredentialsManager.getMinimumExpirationDates(creds).getOrElse(-1)}")
+          s"tokens ${SHCCredentialsManager.getMinimumExpirationDates(credentials).getOrElse(-1)}")
 
-        UserGroupInformation.getCurrentUser.addCredentials(creds)
+        UserGroupInformation.getCurrentUser.addCredentials(credentials)
       }
       iter.map(convertToPut)
     }).saveAsNewAPIHadoopDataset(job.getConfiguration)
