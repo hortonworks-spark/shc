@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.datasources.hbase
 
 import java.io._
+import java.util.Date
 
 import scala.util.control.NonFatal
 import scala.xml.XML
@@ -239,8 +240,8 @@ case class HBaseRelation(
         val credentials = new Credentials()
         credentials.addToken(tok.getService, tok)
 
-        logInfo(s"Task: Obtain token with expiration date " +
-          s"${tok.decodeIdentifier().asInstanceOf[AuthenticationTokenIdentifier].getExpirationDate}")
+        logInfo(s"Task: Obtained token with expiration date " +
+          s"${new Date(tok.decodeIdentifier().asInstanceOf[AuthenticationTokenIdentifier].getExpirationDate)}")
 
         UserGroupInformation.getCurrentUser.addCredentials(credentials)
       }

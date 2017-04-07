@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import java.util.ArrayList
+import java.util.{Date, ArrayList}
 
 import scala.collection.mutable
 
@@ -263,8 +263,8 @@ private[hbase] class HBaseTableScanRDD(
       val credentials = new Credentials()
       credentials.addToken(tok.getService, tok)
 
-      logInfo(s"Task: Obtain token with expiration date" +
-        s" ${tok.decodeIdentifier().asInstanceOf[AuthenticationTokenIdentifier].getExpirationDate}")
+      logInfo(s"Task: Obtained token with expiration date" +
+        s" ${new Date(tok.decodeIdentifier().asInstanceOf[AuthenticationTokenIdentifier].getExpirationDate)}")
 
       UserGroupInformation.getCurrentUser.addCredentials(credentials)
     }
