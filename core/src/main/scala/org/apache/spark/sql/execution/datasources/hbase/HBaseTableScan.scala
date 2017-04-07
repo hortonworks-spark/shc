@@ -24,6 +24,7 @@ import scala.collection.mutable
 import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{Filter => HFilter}
+import org.apache.hadoop.hbase.security.token.AuthenticationTokenIdentifier
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
@@ -262,8 +263,8 @@ private[hbase] class HBaseTableScanRDD(
       val credentials = new Credentials()
       credentials.addToken(tok.getService, tok)
 
-      logInfo(s"Task: Obtain credentials with minimum expiration date of " +
-        s"tokens ${SHCCredentialsManager.getMinimumExpirationDates(credentials).getOrElse(-1)}")
+      logInfo(s"Task: Obtain token with expiration date" +
+        s" ${tok.asInstanceOf[AuthenticationTokenIdentifier].getExpirationDate}")
 
       UserGroupInformation.getCurrentUser.addCredentials(credentials)
     }

@@ -21,9 +21,6 @@ import java.io.{DataInputStream, ByteArrayInputStream}
 import java.util.concurrent.{Executors, TimeUnit}
 import java.util.Date
 
-import com.sun.org.apache.xml.internal.utils.SerializableLocatorImpl
-
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.existentials
 import scala.util.control.NonFatal
@@ -115,9 +112,8 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
       token = tokenInfo.serializedToken
     }
 
-    logInfo(s"Driver: Obtain credentials with minimum expiration date of " +
-      s"tokens ${getMinimumExpirationDates(credentials).getOrElse(-1)}")
-    // UserGroupInformation.getCurrentUser.addCredentials(credentials) // will uncomment this in the following PR
+    // the code will be rewritten or uncommented in the following PR
+    // UserGroupInformation.getCurrentUser.addCredentials(credentials)
 
     token
   }
@@ -201,18 +197,5 @@ object SHCCredentialsManager extends Logging {
     val destToken = new Token
     destToken.readFields(dataStream)
     destToken
-  }
-
-  def getMinimumExpirationDates(credentials: Credentials): Option[Long] = {
-    val expirationDates = credentials.getAllTokens.asScala
-      .map { t =>
-        val identifier = t.decodeIdentifier()
-        identifier match {
-          case _ if identifier.isInstanceOf[AuthenticationTokenIdentifier]
-            => identifier.asInstanceOf[AuthenticationTokenIdentifier].getExpirationDate
-          case _ => Long.MaxValue
-        }
-      }
-    if (expirationDates.isEmpty) None else Some(expirationDates.min)
   }
 }

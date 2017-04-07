@@ -29,6 +29,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.Put
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat
+import org.apache.hadoop.hbase.security.token.AuthenticationTokenIdentifier
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.mapreduce.Job
@@ -238,8 +239,8 @@ case class HBaseRelation(
         val credentials = new Credentials()
         credentials.addToken(tok.getService, tok)
 
-        logInfo(s"Task: Obtain credentials with minimum expiration date of " +
-          s"tokens ${SHCCredentialsManager.getMinimumExpirationDates(credentials).getOrElse(-1)}")
+        logInfo(s"Task: Obtain token with expiration date " +
+          s"${tok.asInstanceOf[AuthenticationTokenIdentifier].getExpirationDate}")
 
         UserGroupInformation.getCurrentUser.addCredentials(credentials)
       }
