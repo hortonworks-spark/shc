@@ -26,7 +26,7 @@ import scala.language.existentials
 import scala.util.control.NonFatal
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.security.token.{AuthenticationTokenIdentifier, TokenUtil}
+import org.apache.hadoop.hbase.security.token.TokenUtil
 import org.apache.hadoop.io.DataOutputBuffer
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.hadoop.security.token.{Token, TokenIdentifier}
@@ -78,44 +78,54 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
     tokenUpdateRunnable, nextRefresh, nextRefresh, TimeUnit.MILLISECONDS)
 
   /**
-   * Get HBase credential from specified cluster name.
+   * Get HBase Token from specified cluster name.
    */
   def getTokenForCluster(conf: Configuration): Array[Byte] = {
-    val credentials = new Credentials()
+    var token: Token[_ <: TokenIdentifier] = null
+    var serizedToken: Array[Byte] = null
     val identifier = clusterIdentifier(conf)
-    var token: Array[Byte] = null
 
-    val tokenOpt = this.synchronized {
+    val tokenInfoOpt = this.synchronized {
       tokensMap.get(identifier)
     }
 
-    // If token is existed and not expired, directly return the Credentials with tokens added in.
-    if (tokenOpt.isDefined && !isTokenInfoExpired(tokenOpt.get)) {
-      credentials.addToken(tokenOpt.get.token.getService, tokenOpt.get.token)
-      token = tokenOpt.get.serializedToken
-      logDebug(s"Use existing token for on-demand cluster $identifier")
-    } else {
+    var needNewToken = true
+    if (tokenInfoOpt.isDefined) {
+      if (isTokenInfoExpired(tokenInfoOpt.get)) {
+        // Should not happen if refresh thread works as expected
+        needNewToken = true
+        logWarning(s"getTokenForCluster: refresh thread may not be working for cluster $identifier")
+      } else {
+        token = tokenInfoOpt.get.token
+        serizedToken = tokenInfoOpt.get.serializedToken
+        needNewToken = false
+        logDebug(s"getTokenForCluster: Use existing token for cluster $identifier")
+      }
+    }
 
-      logInfo(s"getCredentialsForCluster: Obtaining new token for cluster $identifier")
+    if(needNewToken) {
+      logInfo(s"getTokenForCluster: Obtaining new token for cluster $identifier")
 
-      // Acquire a new token if not existed or old one is expired.
       val tokenInfo = getNewToken(conf)
       this.synchronized {
         tokensMap.put(identifier, tokenInfo)
       }
 
-      logInfo(s"getCredentialsForCluster: Obtained new token with expiration time" +
+      token = tokenInfo.token
+      serizedToken = tokenInfo.serializedToken
+
+      logInfo(s"getTokenForCluster: Obtained new token with expiration time" +
         s" ${new Date(tokenInfo.expireTime)} and refresh time ${new Date(tokenInfo.refreshTime)} " +
         s"for cluster $identifier")
-
-      credentials.addToken(tokenInfo.token.getService, tokenInfo.token)
-      token = tokenInfo.serializedToken
     }
 
-    // the code will be rewritten or uncommented in the following PR
-    // UserGroupInformation.getCurrentUser.addCredentials(credentials)
+    // TODO: the code will be rewritten or uncommented in the following PR
+    /* val credentials = new Credentials()
+    credentials.addToken(token.getService, token)
+    UserGroupInformation.getCurrentUser.addCredentials(credentials)
+    */
 
-    token
+    serizedToken
   }
 
   def isCredentialsRequired(conf: Configuration): Boolean = {
@@ -137,8 +147,6 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
     } else {
       // Update all the expect to be expired tokens
       val updatedTokens = tokensToUpdate.map { case (cluster, tokenInfo) =>
-        logInfo(s"Refresh Thread: Update token for cluster $cluster")
-
         val token = {
           try {
             val tok = getNewToken(tokenInfo.conf)
