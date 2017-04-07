@@ -81,8 +81,8 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
    * Get HBase Token from specified cluster name.
    */
   def getTokenForCluster(conf: Configuration): Array[Byte] = {
-    var token: Token[_ <: TokenIdentifier] = null
-    var serizedToken: Array[Byte] = null
+    // var token: Token[_ <: TokenIdentifier] = null
+    var serializedToken: Array[Byte] = null
     val identifier = clusterIdentifier(conf)
 
     val tokenInfoOpt = this.synchronized {
@@ -96,8 +96,8 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
         needNewToken = true
         logWarning(s"getTokenForCluster: refresh thread may not be working for cluster $identifier")
       } else {
-        token = tokenInfoOpt.get.token
-        serizedToken = tokenInfoOpt.get.serializedToken
+        // token = tokenInfoOpt.get.token
+        serializedToken = tokenInfoOpt.get.serializedToken
         needNewToken = false
         logDebug(s"getTokenForCluster: Use existing token for cluster $identifier")
       }
@@ -111,21 +111,21 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
         tokensMap.put(identifier, tokenInfo)
       }
 
-      token = tokenInfo.token
-      serizedToken = tokenInfo.serializedToken
+      // token = tokenInfo.token
+      serializedToken = tokenInfo.serializedToken
 
       logInfo(s"getTokenForCluster: Obtained new token with expiration time" +
         s" ${new Date(tokenInfo.expireTime)} and refresh time ${new Date(tokenInfo.refreshTime)} " +
         s"for cluster $identifier")
     }
 
-    // TODO: the code will be rewritten or uncommented in the following PR
+    // TODO: the code below and the commented variable 'token' above will be rewritten or uncommented in the following PR.
     /* val credentials = new Credentials()
     credentials.addToken(token.getService, token)
     UserGroupInformation.getCurrentUser.addCredentials(credentials)
     */
 
-    serizedToken
+    serializedToken
   }
 
   def isCredentialsRequired(conf: Configuration): Boolean = {
