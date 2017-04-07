@@ -264,7 +264,7 @@ private[hbase] class HBaseTableScanRDD(
       credentials.addToken(tok.getService, tok)
 
       logInfo(s"Task: Obtain token with expiration date" +
-        s" ${tok.asInstanceOf[AuthenticationTokenIdentifier].getExpirationDate}")
+        s" ${tok.decodeIdentifier().asInstanceOf[AuthenticationTokenIdentifier].getExpirationDate}")
 
       UserGroupInformation.getCurrentUser.addCredentials(credentials)
     }
