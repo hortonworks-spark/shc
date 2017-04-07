@@ -118,14 +118,8 @@ case class HBaseRelation(
 
   def hbaseConf = wrappedConf.value
 
-  val serializedToken = {
-    val manager = SHCCredentialsManager.get(sqlContext.sparkContext.getConf)
-    if (manager.isCredentialsRequired(hbaseConf)) {
-      manager.getTokenForCluster(hbaseConf)
-    } else {
-      null
-    }
-  }
+  val serializedToken = SHCCredentialsManager.get(sqlContext.sparkContext.getConf)
+    .getTokenForCluster(hbaseConf)
 
   def createTable() {
     if (catalog.numReg > 3) {
@@ -235,16 +229,7 @@ case class HBaseRelation(
     }
 
     rdd.mapPartitions(iter => {
-      if (null != serializedToken) {
-        val tok = SHCCredentialsManager.deserializeToken(serializedToken)
-        val credentials = new Credentials()
-        credentials.addToken(tok.getService, tok)
-
-        logInfo(s"Task: Obtained token with expiration date " +
-          s"${new Date(tok.decodeIdentifier().asInstanceOf[AuthenticationTokenIdentifier].getExpirationDate)}")
-
-        UserGroupInformation.getCurrentUser.addCredentials(credentials)
-      }
+      SHCCredentialsManager.processShcToken(serializedToken)
       iter.map(convertToPut)
     }).saveAsNewAPIHadoopDataset(job.getConfiguration)
   }

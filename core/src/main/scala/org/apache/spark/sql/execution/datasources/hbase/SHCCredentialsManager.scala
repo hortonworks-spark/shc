@@ -26,7 +26,7 @@ import scala.language.existentials
 import scala.util.control.NonFatal
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.security.token.TokenUtil
+import org.apache.hadoop.hbase.security.token.{AuthenticationTokenIdentifier, TokenUtil}
 import org.apache.hadoop.io.DataOutputBuffer
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.hadoop.security.token.{Token, TokenIdentifier}
@@ -43,23 +43,9 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
     val token: Token[_ <: TokenIdentifier],
     val serializedToken: Array[Byte])
 
-  private val expireTimeFraction =sparkConf.getDouble(SparkHBaseConf.expireTimeFraction, 0.95)
+  private val expireTimeFraction = sparkConf.getDouble(SparkHBaseConf.expireTimeFraction, 0.95)
   private val refreshTimeFraction = sparkConf.getDouble(SparkHBaseConf.refreshTimeFraction, 0.6)
   private val refreshDurationMins = sparkConf.getInt(SparkHBaseConf.refreshDurationMins, 10)
-
-  private def isTokenInfoExpired(tokenInfo: TokenInfo): Boolean = {
-    System.currentTimeMillis() >=
-      ((tokenInfo.expireTime - tokenInfo.issueTime) * expireTimeFraction + tokenInfo.issueTime).toLong
-  }
-
-  private def getRefreshTime(issueTime: Long, expireTime: Long): Long = {
-    require(expireTime > issueTime,
-      s"Token expire time $expireTime is smaller than issue time $issueTime")
-
-    // the expected expire time would be 60% of real expire time, to avoid long running task
-    // failure.
-    ((expireTime - issueTime) * refreshTimeFraction + issueTime).toLong
-  }
 
   private val tokensMap = new mutable.HashMap[String, TokenInfo]
 
@@ -74,6 +60,13 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
     override def run(): Unit = Utils.logUncaughtExceptions(updateTokensIfRequired())
   }
 
+  private val isCredentialsManagerEnabled = {
+    val isEnabled = sparkConf.getBoolean(SparkHBaseConf.credentialsManagerEnabled, true) &&
+      UserGroupInformation.isSecurityEnabled
+    logInfo(s"SHCCredentialsManager was${if (isEnabled) "" else " not"} enabled.")
+    isEnabled
+  }
+
   tokenUpdater.scheduleAtFixedRate(
     tokenUpdateRunnable, nextRefresh, nextRefresh, TimeUnit.MILLISECONDS)
 
@@ -81,6 +74,9 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
    * Get HBase Token from specified cluster name.
    */
   def getTokenForCluster(conf: Configuration): Array[Byte] = {
+    if (!isCredentialsRequired(conf))
+      return null
+
     // var token: Token[_ <: TokenIdentifier] = null
     var serializedToken: Array[Byte] = null
     val identifier = clusterIdentifier(conf)
@@ -89,21 +85,22 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
       tokensMap.get(identifier)
     }
 
-    var needNewToken = true
-    if (tokenInfoOpt.isDefined) {
+    val needNewToken = if (tokenInfoOpt.isDefined) {
       if (isTokenInfoExpired(tokenInfoOpt.get)) {
         // Should not happen if refresh thread works as expected
-        needNewToken = true
         logWarning(s"getTokenForCluster: refresh thread may not be working for cluster $identifier")
+        true
       } else {
         // token = tokenInfoOpt.get.token
         serializedToken = tokenInfoOpt.get.serializedToken
-        needNewToken = false
         logDebug(s"getTokenForCluster: Use existing token for cluster $identifier")
+        false
       }
+    } else {
+      true
     }
 
-    if(needNewToken) {
+    if (needNewToken) {
       logInfo(s"getTokenForCluster: Obtaining new token for cluster $identifier")
 
       val tokenInfo = getNewToken(conf)
@@ -124,15 +121,25 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
     credentials.addToken(token.getService, token)
     UserGroupInformation.getCurrentUser.addCredentials(credentials)
     */
-
     serializedToken
   }
 
-  def isCredentialsRequired(conf: Configuration): Boolean = {
-    sparkConf.getBoolean(SparkHBaseConf.credentialsManagerEnabled, true) &&
-      UserGroupInformation.isSecurityEnabled &&
-        conf.get("hbase.security.authentication") == "kerberos"
+  private def isTokenInfoExpired(tokenInfo: TokenInfo): Boolean = {
+    System.currentTimeMillis() >=
+      ((tokenInfo.expireTime - tokenInfo.issueTime) * expireTimeFraction + tokenInfo.issueTime).toLong
   }
+
+  private def getRefreshTime(issueTime: Long, expireTime: Long): Long = {
+    require(expireTime > issueTime,
+      s"Token expire time $expireTime is smaller than issue time $issueTime")
+
+    // the expected expire time would be 60% of real expire time, to avoid long running task
+    // failure.
+    ((expireTime - issueTime) * refreshTimeFraction + issueTime).toLong
+  }
+
+  private def isCredentialsRequired(conf: Configuration): Boolean =
+    isCredentialsManagerEnabled && conf.get("hbase.security.authentication") == "kerberos"
 
   private def updateTokensIfRequired(): Unit = {
     val currTime = System.currentTimeMillis()
@@ -191,7 +198,20 @@ object SHCCredentialsManager extends Logging {
 
   def get(sparkConf: SparkConf): SHCCredentialsManager = new SHCCredentialsManager(sparkConf)
 
-  def serializeToken(token: Token[_ <: TokenIdentifier]): Array[Byte] = {
+  def processShcToken(serializedToken: Array[Byte]): Unit = {
+    if (null != serializedToken) {
+      val tok = deserializeToken(serializedToken)
+      val credentials = new Credentials()
+      credentials.addToken(tok.getService, tok)
+
+      logInfo(s"Obtained token with expiration date ${new Date(tok.decodeIdentifier()
+        .asInstanceOf[AuthenticationTokenIdentifier].getExpirationDate)}")
+
+      UserGroupInformation.getCurrentUser.addCredentials(credentials)
+    }
+  }
+
+  private def serializeToken(token: Token[_ <: TokenIdentifier]): Array[Byte] = {
     val dob: DataOutputBuffer = new DataOutputBuffer()
     token.write(dob)
     val dobCopy = new Array[Byte](dob.getLength)
@@ -199,11 +219,11 @@ object SHCCredentialsManager extends Logging {
     dobCopy
   }
 
-  def deserializeToken(tokenBytes: Array[Byte]): Token[_ <: TokenIdentifier] = {
+  private def deserializeToken(tokenBytes: Array[Byte]): Token[_ <: TokenIdentifier] = {
     val byteStream = new ByteArrayInputStream(tokenBytes)
     val dataStream = new DataInputStream(byteStream)
-    val destToken = new Token
-    destToken.readFields(dataStream)
-    destToken
+    val token = new Token
+    token.readFields(dataStream)
+    token
   }
 }

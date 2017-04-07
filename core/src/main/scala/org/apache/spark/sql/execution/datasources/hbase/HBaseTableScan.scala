@@ -55,7 +55,7 @@ private[hbase] class HBaseTableScanRDD(
   val outputs = StructType(requiredColumns.map(relation.schema(_))).toAttributes
   val columnFields = relation.splitRowKeyColumns(requiredColumns)._2
   private def sparkConf = SparkEnv.get.conf
-  val token = relation.serializedToken
+  val serializedToken = relation.serializedToken
 
   override def getPartitions: Array[Partition] = {
     val hbaseFilter = HBaseFilter.buildFilters(filters, relation)
@@ -258,16 +258,7 @@ private[hbase] class HBaseTableScanRDD(
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
-    if (null != token) {
-      val tok = SHCCredentialsManager.deserializeToken(token)
-      val credentials = new Credentials()
-      credentials.addToken(tok.getService, tok)
-
-      logInfo(s"Task: Obtained token with expiration date" +
-        s" ${new Date(tok.decodeIdentifier().asInstanceOf[AuthenticationTokenIdentifier].getExpirationDate)}")
-
-      UserGroupInformation.getCurrentUser.addCredentials(credentials)
-    }
+    SHCCredentialsManager.processShcToken(serializedToken)
     val ord = hbase.ord//implicitly[Ordering[HBaseType]]
     val partition = split.asInstanceOf[HBaseScanPartition]
     // remove the inclusive upperbound
