@@ -50,7 +50,7 @@ final class SHCCredentialsManager private() extends Logging {
 
   private val tokensMap = new mutable.HashMap[String, TokenInfo]
 
-  // We assume token expiration time should be no less than 10 minutes.
+  // We assume token expiration time should be no less than 10 minutes by default.
   private val nextRefresh = TimeUnit.MINUTES.toMillis(refreshDurationMins)
 
   private val tokenUpdater =
