@@ -31,10 +31,10 @@ import org.apache.hadoop.io.DataOutputBuffer
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.hadoop.security.token.{Token, TokenIdentifier}
 import org.apache.spark.util.{ThreadUtils, Utils}
-import org.apache.spark.SparkConf
+import org.apache.spark.SparkEnv
 import org.apache.spark.sql.execution.datasources.hbase.SHCCredentialsManager._
 
-final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging {
+final class SHCCredentialsManager private() extends Logging {
   private class TokenInfo(
     val expireTime: Long,
     val issueTime: Long,
@@ -43,6 +43,7 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
     val token: Token[_ <: TokenIdentifier],
     val serializedToken: Array[Byte])
 
+  private def sparkConf = SparkEnv.get.conf
   private val expireTimeFraction = sparkConf.getDouble(SparkHBaseConf.expireTimeFraction, 0.95)
   private val refreshTimeFraction = sparkConf.getDouble(SparkHBaseConf.refreshTimeFraction, 0.6)
   private val refreshDurationMins = sparkConf.getInt(SparkHBaseConf.refreshDurationMins, 10)
@@ -195,8 +196,7 @@ final class SHCCredentialsManager private(sparkConf: SparkConf) extends Logging 
 }
 
 object SHCCredentialsManager extends Logging {
-
-  def get(sparkConf: SparkConf): SHCCredentialsManager = new SHCCredentialsManager(sparkConf)
+  lazy val manager = new  SHCCredentialsManager
 
   def processShcToken(serializedToken: Array[Byte]): Unit = {
     if (null != serializedToken) {

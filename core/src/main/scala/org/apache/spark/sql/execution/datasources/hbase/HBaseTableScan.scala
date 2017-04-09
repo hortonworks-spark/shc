@@ -17,15 +17,13 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import java.util.{Date, ArrayList}
+import java.util.ArrayList
 
 import scala.collection.mutable
 
 import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{Filter => HFilter}
-import org.apache.hadoop.hbase.security.token.AuthenticationTokenIdentifier
-import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row

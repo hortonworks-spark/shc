@@ -18,7 +18,6 @@
 package org.apache.spark.sql.execution.datasources.hbase
 
 import java.io._
-import java.util.Date
 
 import scala.util.control.NonFatal
 import scala.xml.XML
@@ -30,11 +29,9 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.Put
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat
-import org.apache.hadoop.hbase.security.token.AuthenticationTokenIdentifier
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.mapreduce.Job
-import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
@@ -118,8 +115,7 @@ case class HBaseRelation(
 
   def hbaseConf = wrappedConf.value
 
-  val serializedToken = SHCCredentialsManager.get(sqlContext.sparkContext.getConf)
-    .getTokenForCluster(hbaseConf)
+  val serializedToken = SHCCredentialsManager.manager.getTokenForCluster(hbaseConf)
 
   def createTable() {
     if (catalog.numReg > 3) {
