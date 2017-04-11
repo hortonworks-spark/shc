@@ -60,15 +60,14 @@ final class SHCCredentialsManager private() extends Logging {
     isEnabled
   }
 
+  val tokenUpdateExecutor = Executors.newSingleThreadScheduledExecutor(
+    ThreadUtils.namedThreadFactory("HBase Tokens Refresh Thread"))
+
   // If SHCCredentialsManager is enabled, start an executor to update tokens
   if (credentialsManagerEnabled) {
-    val tokenUpdateExecutor = Executors.newSingleThreadScheduledExecutor(
-      ThreadUtils.namedThreadFactory("HBase Tokens Refresh Thread"))
-
     val tokenUpdateRunnable = new Runnable {
       override def run(): Unit = Utils.logUncaughtExceptions(updateTokensIfRequired())
     }
-
     tokenUpdateExecutor.scheduleAtFixedRate(
       tokenUpdateRunnable, nextRefresh, nextRefresh, TimeUnit.MILLISECONDS)
   }
