@@ -53,23 +53,25 @@ final class SHCCredentialsManager private() extends Logging {
   // We assume token expiration time should be no less than 10 minutes by default.
   private val nextRefresh = TimeUnit.MINUTES.toMillis(refreshDurationMins)
 
-  private val tokenUpdater =
-    Executors.newSingleThreadScheduledExecutor(
-      ThreadUtils.namedThreadFactory("HBase Tokens Refresh Thread"))
-
-  private val tokenUpdateRunnable = new Runnable {
-    override def run(): Unit = Utils.logUncaughtExceptions(updateTokensIfRequired())
-  }
-
-  private val isCredentialsManagerEnabled = {
+  private val credentialsManagerEnabled = {
     val isEnabled = sparkConf.getBoolean(SparkHBaseConf.credentialsManagerEnabled, true) &&
       UserGroupInformation.isSecurityEnabled
     logInfo(s"SHCCredentialsManager was${if (isEnabled) "" else " not"} enabled.")
     isEnabled
   }
 
-  tokenUpdater.scheduleAtFixedRate(
-    tokenUpdateRunnable, nextRefresh, nextRefresh, TimeUnit.MILLISECONDS)
+  // If SHCCredentialsManager is enabled, start an executor to update tokens
+  if (credentialsManagerEnabled) {
+    val tokenUpdateExecutor = Executors.newSingleThreadScheduledExecutor(
+      ThreadUtils.namedThreadFactory("HBase Tokens Refresh Thread"))
+
+    val tokenUpdateRunnable = new Runnable {
+      override def run(): Unit = Utils.logUncaughtExceptions(updateTokensIfRequired())
+    }
+
+    tokenUpdateExecutor.scheduleAtFixedRate(
+      tokenUpdateRunnable, nextRefresh, nextRefresh, TimeUnit.MILLISECONDS)
+  }
 
   /**
    * Get HBase Token from specified cluster name.
@@ -140,7 +142,7 @@ final class SHCCredentialsManager private() extends Logging {
   }
 
   private def isCredentialsRequired(conf: Configuration): Boolean =
-    isCredentialsManagerEnabled && conf.get("hbase.security.authentication") == "kerberos"
+    credentialsManagerEnabled && conf.get("hbase.security.authentication") == "kerberos"
 
   private def updateTokensIfRequired(): Unit = {
     val currTime = System.currentTimeMillis()
