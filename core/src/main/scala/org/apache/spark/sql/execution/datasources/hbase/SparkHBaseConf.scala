@@ -23,6 +23,11 @@ import org.apache.spark.sql.execution.datasources.hbase.types._
 
 object SparkHBaseConf {
   val testConf = "spark.hbase.connector.test"
+  val credentialsManagerEnabled = "spark.hbase.connector.security.credentials.enabled"
+  val expireTimeFraction = "spark.hbase.connector.security.credentials.expireTimeFraction"
+  val refreshTimeFraction = "spark.hbase.connector.security.credentials.refreshTimeFraction"
+  val refreshDurationMins = "spark.hbase.connector.security.credentials.refreshDurationMins"
+
   var conf: Configuration = _
   var BulkGetSize = "spark.hbase.connector.bulkGetSize"
   var defaultBulkGetSize = 100
