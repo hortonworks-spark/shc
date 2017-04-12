@@ -17,7 +17,8 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import java.io.{DataInputStream, ByteArrayInputStream}
+import java.io.{ByteArrayInputStream, DataInputStream}
+import java.security.PrivilegedExceptionAction
 import java.util.concurrent.{Executors, TimeUnit}
 import java.util.Date
 
@@ -30,6 +31,7 @@ import org.apache.hadoop.hbase.security.token.{AuthenticationTokenIdentifier, To
 import org.apache.hadoop.io.DataOutputBuffer
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.hadoop.security.token.{Token, TokenIdentifier}
+
 import org.apache.spark.util.{ThreadUtils, Utils}
 import org.apache.spark.SparkEnv
 import org.apache.spark.sql.execution.datasources.hbase.SHCCredentialsManager._
@@ -70,6 +72,18 @@ final class SHCCredentialsManager private() extends Logging {
     }
     tokenUpdateExecutor.scheduleAtFixedRate(
       tokenUpdateRunnable, nextRefresh, nextRefresh, TimeUnit.MILLISECONDS)
+  }
+
+  private val (principal, keytab) = if (credentialsManagerEnabled) {
+    val p = sparkConf.get(SparkHBaseConf.principal, sparkConf.get("spark.yarn.principal", null))
+    val k = sparkConf.get(SparkHBaseConf.keytab, sparkConf.get("spark.yarn.keytab", null))
+    require(p != null, s"neither ${SparkHBaseConf.principal} nor spark.yarn.principal " +
+      s"is configured, this should be configured to make token renewal work")
+    require(k != null, s"neither ${SparkHBaseConf.keytab} nor spark.yarn.keytab " +
+      s"is configured, this should be configured to make token renewal work")
+    (p, k)
+  } else {
+    (null, null)
   }
 
   /**
@@ -118,11 +132,6 @@ final class SHCCredentialsManager private() extends Logging {
         s"for cluster $identifier")
     }
 
-    // TODO: the code below and the commented variable 'token' above will be rewritten or uncommented in the following PR.
-    /* val credentials = new Credentials()
-    credentials.addToken(token.getService, token)
-    UserGroupInformation.getCurrentUser.addCredentials(credentials)
-    */
     serializedToken
   }
 
@@ -177,12 +186,20 @@ final class SHCCredentialsManager private() extends Logging {
   }
 
   private def getNewToken(conf: Configuration): TokenInfo = {
-    val token = TokenUtil.obtainToken(conf)
-    val tokenIdentifier = token.decodeIdentifier()
-    val expireTime = tokenIdentifier.getExpirationDate
-    val issueTime = tokenIdentifier.getIssueDate
-    val refreshTime = getRefreshTime(issueTime, expireTime)
-    new TokenInfo(expireTime, issueTime, refreshTime, conf, token, serializeToken(token))
+    val kerberosUgi = UserGroupInformation.loginUserFromKeytabAndReturnUGI(principal, keytab)
+    val tokenInfo = kerberosUgi.doAs(new PrivilegedExceptionAction[TokenInfo] {
+      override def run(): TokenInfo = {
+        val token = TokenUtil.obtainToken(conf)
+        val tokenIdentifier = token.decodeIdentifier()
+        val expireTime = tokenIdentifier.getExpirationDate
+        val issueTime = tokenIdentifier.getIssueDate
+        val refreshTime = getRefreshTime(issueTime, expireTime)
+        new TokenInfo(expireTime, issueTime, refreshTime, conf, token, serializeToken(token))
+      }
+    })
+
+    UserGroupInformation.getCurrentUser.addToken(tokenInfo.token.getService, tokenInfo.token)
+    tokenInfo
   }
 
   private def clusterIdentifier(conf: Configuration): String = {

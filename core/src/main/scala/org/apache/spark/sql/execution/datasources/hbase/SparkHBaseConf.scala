@@ -27,6 +27,8 @@ object SparkHBaseConf {
   val expireTimeFraction = "spark.hbase.connector.security.credentials.expireTimeFraction"
   val refreshTimeFraction = "spark.hbase.connector.security.credentials.refreshTimeFraction"
   val refreshDurationMins = "spark.hbase.connector.security.credentials.refreshDurationMins"
+  val principal = "spark.hbase.connector.security.credentials"
+  val keytab = "spark.hbase.connector.security.keytab"
 
   var conf: Configuration = _
   var BulkGetSize = "spark.hbase.connector.bulkGetSize"
