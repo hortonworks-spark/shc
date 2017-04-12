@@ -17,7 +17,8 @@
 
 package org.apache.spark.sql.execution.datasources.hbase
 
-import java.io.{DataInputStream, ByteArrayInputStream}
+import java.io.{ByteArrayInputStream, DataInputStream}
+import java.security.PrivilegedExceptionAction
 import java.util.concurrent.{Executors, TimeUnit}
 import java.util.Date
 
@@ -30,6 +31,7 @@ import org.apache.hadoop.hbase.security.token.{AuthenticationTokenIdentifier, To
 import org.apache.hadoop.io.DataOutputBuffer
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.hadoop.security.token.{Token, TokenIdentifier}
+
 import org.apache.spark.util.{ThreadUtils, Utils}
 import org.apache.spark.SparkEnv
 import org.apache.spark.sql.execution.datasources.hbase.SHCCredentialsManager._
@@ -47,6 +49,15 @@ final class SHCCredentialsManager private() extends Logging {
   private val expireTimeFraction = sparkConf.getDouble(SparkHBaseConf.expireTimeFraction, 0.95)
   private val refreshTimeFraction = sparkConf.getDouble(SparkHBaseConf.refreshTimeFraction, 0.6)
   private val refreshDurationMins = sparkConf.getInt(SparkHBaseConf.refreshDurationMins, 10)
+
+  private val principal = sparkConf.get(SparkHBaseConf.principal,
+    sparkConf.get("spark.yarn.principal"))
+  private val keytab = sparkConf.get(SparkHBaseConf.keytab,
+    sparkConf.get("spark.yarn.keytab"))
+  require(principal != null, s"neither ${SparkHBaseConf.principal} nor spark.yarn.principal " +
+    s"is configured, this should be configured to make token renewal work")
+  require(keytab != null, s"neither ${SparkHBaseConf.keytab} nor spark.yarn.keytab " +
+    s"is configured, this should be configured to make token renewal work")
 
   private val tokensMap = new mutable.HashMap[String, TokenInfo]
 
@@ -177,12 +188,17 @@ final class SHCCredentialsManager private() extends Logging {
   }
 
   private def getNewToken(conf: Configuration): TokenInfo = {
-    val token = TokenUtil.obtainToken(conf)
-    val tokenIdentifier = token.decodeIdentifier()
-    val expireTime = tokenIdentifier.getExpirationDate
-    val issueTime = tokenIdentifier.getIssueDate
-    val refreshTime = getRefreshTime(issueTime, expireTime)
-    new TokenInfo(expireTime, issueTime, refreshTime, conf, token, serializeToken(token))
+    val kerberosUgi = UserGroupInformation.loginUserFromKeytabAndReturnUGI(principal, keytab)
+    kerberosUgi.doAs(new PrivilegedExceptionAction[TokenInfo] {
+      override def run(): TokenInfo = {
+        val token = TokenUtil.obtainToken(conf)
+        val tokenIdentifier = token.decodeIdentifier()
+        val expireTime = tokenIdentifier.getExpirationDate
+        val issueTime = tokenIdentifier.getIssueDate
+        val refreshTime = getRefreshTime(issueTime, expireTime)
+        new TokenInfo(expireTime, issueTime, refreshTime, conf, token, serializeToken(token))
+      }
+    })
   }
 
   private def clusterIdentifier(conf: Configuration): String = {
