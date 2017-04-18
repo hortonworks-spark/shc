@@ -17,10 +17,10 @@
 
 package org.apache.spark.sql.execution.datasources.hbase.examples
 
-import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
 
-case class JRecord(
+case class LRecord(
     col0: String,
     col1: Boolean,
     col2: Double,
@@ -31,10 +31,10 @@ case class JRecord(
     col7: String,
     col8: Byte)
 
-object JRecord {
-  def apply(i: Int): JRecord = {
+object LRecord {
+  def apply(i: Int): LRecord = {
     val s = s"""row${"%03d".format(i)}"""
-    JRecord(s,
+    LRecord(s,
       i % 2 == 0,
       i.toDouble,
       i.toFloat,
@@ -46,7 +46,8 @@ object JRecord {
   }
 }
 
-object JoinTablesFrom2Clusters {
+// long running job to access 2 HBase clusters
+object LRJobAccessing2Clusters {
   val cat1 = s"""{
                 |"table":{"namespace":"default", "name":"shcExampleTable1", "tableCoder":"PrimitiveType"},
                 |"rowkey":"key",
@@ -82,7 +83,7 @@ object JoinTablesFrom2Clusters {
 
   def main(args: Array[String]): Unit = {
     if (args.length < 2) {
-      System.err.println("Usage: JoinTablesFrom2Clusters <configurationFile1> <configurationFile2>")
+      System.err.println("Usage: LRJobAccessing2Clusters <configurationFile1> <configurationFile2>")
       System.exit(1)
     }
 
@@ -91,7 +92,7 @@ object JoinTablesFrom2Clusters {
     val conf2 = args(1)
 
     val spark = SparkSession.builder()
-      .appName("JoinTablesFrom2Clusters")
+      .appName("LRJobAccessing2Clusters")
       .getOrCreate()
 
     val sc = spark.sparkContext
@@ -107,7 +108,7 @@ object JoinTablesFrom2Clusters {
         .load()
     }
 
-    def saveData(cat: String, conf: String, data: Seq[JRecord]) = {
+    def saveData(cat: String, conf: String, data: Seq[LRecord]) = {
       sc.parallelize(data).toDF.write
         .options(Map(HBaseTableCatalog.tableCatalog -> cat,
           HBaseRelation.HBASE_CONFIGFILE -> conf, HBaseTableCatalog.newTable -> "5"))
@@ -115,26 +116,28 @@ object JoinTablesFrom2Clusters {
         .save()
     }
 
-    // data saved into cluster 1
-    val data1 = (0 to 120).map { i =>
-      JRecord(i)
-    }
-    saveData(cat1, conf1, data1)
+    val timeEnd = System.currentTimeMillis() + (25 * 60 * 60 * 1000) // 25h later
+    while (System.currentTimeMillis() < timeEnd) {
+      // data saved into cluster 1
+      val data1 = (0 to 120).map { i =>
+        LRecord(i)
+      }
+      saveData(cat1, conf1, data1)
 
-    // data saved into cluster 2
-    val data2 = (100 to 200).map { i =>
-      JRecord(i)
-    }
-    saveData(cat2, conf2, data2)
+      // data saved into cluster 2
+      val data2 = (100 to 200).map { i =>
+        LRecord(i)
+      }
+      saveData(cat2, conf2, data2)
 
-    val df1 = withCatalog(cat1, conf1)
-    val df2 = withCatalog(cat2, conf2)
-    val s1 = df1.filter($"col0" <= "row120" && $"col0" > "row090").select("col0", "col2")
-    val s2 = df2.filter($"col0" <= "row150" && $"col0" > "row100").select("col0", "col5")
-    val result =  s1.join(s2, Seq("col0")).cache
+      val df1 = withCatalog(cat1, conf1)
+      val df2 = withCatalog(cat2, conf2)
+      val s1 = df1.filter($"col0" <= "row120" && $"col0" > "row090").select("col0", "col2")
+      val s2 = df2.filter($"col0" <= "row150" && $"col0" > "row100").select("col0", "col5")
+      val result = s1.join(s2, Seq("col0"))
 
-    result.show()  // should be row101 to row120, as following:
-    /*+------+-----+----+
+      result.show() // should be row101 to row120, as following:
+      /*+------+-----+----+
       |  col0| col2|col5|
       +------+-----+----+
       |row120|120.0| 120|
@@ -159,8 +162,8 @@ object JoinTablesFrom2Clusters {
       |row119|119.0| 119|
       +------+-----+----+ */
 
-    println(result.count()) // should be 20
-
+      println(result.count()) // should be 20
+    }
     sc.stop()
   }
 }
