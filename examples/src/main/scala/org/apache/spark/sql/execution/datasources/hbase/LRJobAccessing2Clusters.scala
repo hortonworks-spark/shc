@@ -163,6 +163,8 @@ object LRJobAccessing2Clusters {
       +------+-----+----+ */
 
       println(result.count()) // should be 20
+
+      Thread.sleep(60 * 1000) // sleep 1 min
     }
     sc.stop()
   }

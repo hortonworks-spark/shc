@@ -68,18 +68,17 @@ object LRJobForDataSources {
         .load()
     }
 
-    sql("DROP TABLE IF EXISTS shcHiveTable")
-    sql("CREATE TABLE shcHiveTable(key INT, col1 BOOLEAN, col2 DOUBLE, col3 FLOAT)")
-
     val timeEnd = System.currentTimeMillis() + (25 * 60 * 60 * 1000) // 25h later
     while (System.currentTimeMillis() < timeEnd) {
       // Part 1: write data into Hive table and read data from it, which accesses HDFS
-      for (i <- 1 to 40) {
+      sql("DROP TABLE IF EXISTS shcHiveTable")
+      sql("CREATE TABLE shcHiveTable(key INT, col1 BOOLEAN, col2 DOUBLE, col3 FLOAT)")
+      for (i <- 1 to 20) {
         sql(s"INSERT INTO shcHiveTable VALUES ($i, ${i % 2 == 0}, ${i.toDouble}, ${i.toFloat})")
         sql("SELECT COUNT(*) FROM shcHiveTable").show()
       }
 
-      // Part2: create HBase table, write data into it, read data from it
+      // Part 2: create HBase table, write data into it, read data from it
       val data = (0 to 40).map { i =>
         LRRecord(i)
       }
@@ -98,6 +97,8 @@ object LRJobForDataSources {
       df.createOrReplaceTempView("table1")
       val c = sqlContext.sql("select count(col1) from table1 where col0 < '20'")
       c.show()
+
+      Thread.sleep(60 * 1000) // sleep 1 min
     }
 
     spark.stop()
