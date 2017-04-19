@@ -50,7 +50,7 @@ object LRJobForDataSources {
 
   def main(args: Array[String]) {
     val spark = SparkSession.builder()
-      .appName("LRJobHBaseSources")
+      .appName("LRJobForDataSources")
       .enableHiveSupport()
       .getOrCreate()
 
@@ -73,7 +73,7 @@ object LRJobForDataSources {
       // Part 1: write data into Hive table and read data from it, which accesses HDFS
       sql("DROP TABLE IF EXISTS shcHiveTable")
       sql("CREATE TABLE shcHiveTable(key INT, col1 BOOLEAN, col2 DOUBLE, col3 FLOAT)")
-      for (i <- 1 to 20) {
+      for (i <- 1 to 10) {
         sql(s"INSERT INTO shcHiveTable VALUES ($i, ${i % 2 == 0}, ${i.toDouble}, ${i.toFloat})")
         sql("SELECT COUNT(*) FROM shcHiveTable").show()
       }
