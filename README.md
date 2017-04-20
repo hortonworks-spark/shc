@@ -31,11 +31,11 @@ Both are exposed to users by specifying WHERE CLAUSE, e.g., where column > x and
 ## 
 Creatable DataSource  The libary support both read/write from/to HBase.
 
-###Compile
+### Compile
 
     mvn package -DskipTests
 
-###Running Tests and Examples
+### Running Tests and Examples
 Run test
 
     mvn clean package test
@@ -55,7 +55,7 @@ Running Spark applications with this connector, HBase jars of version 1.1.2 will
 
     ./bin/spark-submit  --class your.application.class --master yarn-client --num-executors 2 --driver-memory 512m --executor-memory 512m --executor-cores 1 --packages com.hortonworks:shc:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --jars /usr/hdp/current/phoenix-client/phoenix-server.jar --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
 
-##Application Usage
+## Application Usage
 The following illustrates the basic procedure on how to use the connector. For more details and advanced use case, such as Avro and composite key support, please refer to the examples in the repository.
 
 ### Defined the HBase catalog
@@ -133,11 +133,24 @@ Users can include the package as the dependency in your SBT file as well. The fo
 
 ## Running in secure cluster
 
+There are two ways to run your applications in secure clusters. One is to use Spark internal HBaseCredentialProvider, the other is to
+use SHCCredentialsManager.
+
+Spark internal HBaseCredentialProvider only supports use cases which access a single secure HBase cluster. If your applications need to
+access multiple secure HBase clusters, please use SHCCredentialsManager instead. Also, HBaseCredentialProvider can not retrieve or renew
+HBase tokens, so it can not support long running applications running beyond the lifetimes of HBase tokens. Users can set _spark.yarn.security.credentials.hbase.enabled_
+to false/true to disable/enable HBaseCredentialProvider, which is enabled by default.
+
+SHCCredentialsManager supports a single secure HBase cluster as well as multiple secure HBase clusters. It will retrieve new HBase tokens when current
+HBase tokens are going to be expired, so it can support long running applications.
+
+### Using Spark internal HBaseCredentialProvider
+
 For running in a Kerberos enabled cluster, the user has to include HBase related jars into the classpath as the HBase token
 retrieval and renewal is done by Spark, and is independent of the connector. In other words, the user needs to initiate the
 environment in the normal way, either through kinit or by providing principal/keytab.  The following examples show how to run
-in a secure cluster with both yarn-client and yarn-cluster mode. Note that SPARK_CLASSPATH has to be set for both modes, and
-the example jar is just a placeholder for Spark.
+in a secure cluster with both yarn-client and yarn-cluster mode. **Note that** if your Spark includes the patch of _["SPARK-20059: Use the correct classloader for HBaseCredentialProvider"](https://github.com/apache/spark/pull/17388)_,
+you do not need to set _SPARK_CLASSPATH_. Otherwise, _SPARK_CLASSPATH_ has to be set for both modes, and the example jar is just a placeholder for Spark.
 
     export SPARK_CLASSPATH=/usr/hdp/current/hbase-client/lib/hbase-common.jar:/usr/hdp/current/hbase-client/lib/hbase-client.jar:/usr/hdp/current/hbase-client/lib/hbase-server.jar:/usr/hdp/current/hbase-client/lib/hbase-protocol.jar:/usr/hdp/current/hbase-client/lib/guava-12.0.1.jar
 
@@ -159,6 +172,20 @@ or
     javax.security.sasl.SaslException: GSS initiate failed [Caused by GSSException: No valid credentials provided (Mechanism level: Failed to find any Kerberos tgt)]
     
 Include the hbase-site.xml under SPARK_CONF_DIR (/etc/spark/conf) on the host where the spark job is submitted from, by creating a symbolic link towards your main hbase-site.xml (in order to be synchronous with your platform updates).
+
+### Using SHCCredentialsManager
+
+For normal Spark applications which complete running before HBase tokens expire, the only thing users need to do is to set _spark.yarn.security.credentials.hbase.enabled_ to false. _**Note**: actually it's fine to do nothing here as both Spark internal HBaseCredentialProvider and SHCCredentialsManager support normal applications_.
+
+For long running applications, users need to config principal and keytab as below before running their applications.
+
+    spark.yarn.principal   ambari-qa-c1@EXAMPLE.COM
+    spark.yarn.keytab      /etc/security/keytabs/smokeuser.headless.keytab
+
+or
+
+    spark.hbase.connector.security.credentials  ambari-qa-c1@EXAMPLE.COM
+    spark.hbase.connector.security.keytab  /etc/security/keytabs/smokeuser.headless.keytab
 
 ## Others
 ### Example. Support of Avro schemas:
