@@ -28,11 +28,11 @@ Both are exposed to users by specifying WHERE CLAUSE, e.g., where column > x and
 ## 
 Creatable DataSource  The libary support both read/write from/to HBase.
 
-###Compile
+### Compile
 
     mvn package -DskipTests
 
-###Running Tests and Examples
+### Running Tests and Examples
 Run test
 
     mvn clean package test
@@ -52,7 +52,7 @@ The following illustrates how to run your application in real hbase cluster. You
 
     ./bin/spark-submit  --class your.application.class --master yarn-client     --num-executors 2     --driver-memory 512m     --executor-memory 512m     --executor-cores 1 --packages com.hortonworks:shc:1.0.0-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/ --jars /usr/hdp/current/phoenix-client/phoenix-server.jar --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
 
-##Application Usage
+## Application Usage
 The following illustrates the basic procedure on how to use the connector. For more details and advanced use case, such as Avro and composite key support, please refer to the examples in the repository.
 
 ### Defined the HBase catalog
