@@ -133,8 +133,8 @@ Users can include the package as the dependency in your SBT file as well. The fo
 For running in a Kerberos enabled cluster, the user has to include HBase related jars into the classpath as the HBase token
 retrieval and renewal is done by Spark, and is independent of the connector. In other words, the user needs to initiate the
 environment in the normal way, either through kinit or by providing principal/keytab.  The following examples show how to run
-in a secure cluster with both yarn-client and yarn-cluster mode. Note that SPARK_CLASSPATH has to be set for both modes, and
-the example jar is just a placeholder for Spark.
+in a secure cluster with both yarn-client and yarn-cluster mode. If your Spark does not contain [SPARK-20059](https://github.com/apache/spark/pull/17388)
+then you need to set SPARK_CLASSPATH for both modes, and the example jar is just a placeholder for Spark.
 
     export SPARK_CLASSPATH=/usr/hdp/current/hbase-client/lib/hbase-common.jar:/usr/hdp/current/hbase-client/lib/hbase-client.jar:/usr/hdp/current/hbase-client/lib/hbase-server.jar:/usr/hdp/current/hbase-client/lib/hbase-protocol.jar:/usr/hdp/current/hbase-client/lib/guava-12.0.1.jar
 
