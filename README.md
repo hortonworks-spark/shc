@@ -136,8 +136,8 @@ Users can include the package as the dependency in your SBT file as well. The fo
 For running in a Kerberos enabled cluster, the user has to include HBase related jars into the classpath as the HBase token
 retrieval and renewal is done by Spark, and is independent of the connector. In other words, the user needs to initiate the
 environment in the normal way, either through kinit or by providing principal/keytab.  The following examples show how to run
-in a secure cluster with both yarn-client and yarn-cluster mode. **Note that** if your Spark includes the patch of _["SPARK-20059: Use the correct classloader for HBaseCredentialProvider"](https://github.com/apache/spark/pull/17388)_
-or the Spark version is 2.1.1+, you do not need to set _SPARK_CLASSPATH_. Otherwise, _SPARK_CLASSPATH_ has to be set for both modes, and the example jar is just a placeholder for Spark.
+in a secure cluster with both yarn-client and yarn-cluster mode. If your Spark does not contain [SPARK-20059](https://github.com/apache/spark/pull/17388), which is in Apache Spark 2.1.1+,
+then you need to set SPARK_CLASSPATH for both modes, and the example jar is just a placeholder for Spark.
 
     export SPARK_CLASSPATH=/usr/hdp/current/hbase-client/lib/hbase-common.jar:/usr/hdp/current/hbase-client/lib/hbase-client.jar:/usr/hdp/current/hbase-client/lib/hbase-server.jar:/usr/hdp/current/hbase-client/lib/hbase-protocol.jar:/usr/hdp/current/hbase-client/lib/guava-12.0.1.jar
 
@@ -163,10 +163,7 @@ Include the hbase-site.xml under SPARK_CONF_DIR (/etc/spark/conf) on the host wh
 ### Using SHCCredentialsManager
 
 Spark only supports use cases which access a single secure HBase cluster. If your applications need to access multiple secure HBase clusters, users need to use SHCCredentialsManager instead.
-SHCCredentialsManager supports a single secure HBase cluster as well as multiple secure HBase clusters. 
-
-For normal Spark applications which complete running before HBase tokens expire, the only thing users need to do is to set _spark.yarn.security.credentials.hbase.enabled_ to false.
-_**Note**: actually it's fine to do nothing here as both Spark and SHCCredentialsManager support normal applications_.
+SHCCredentialsManager supports a single secure HBase cluster as well as multiple secure HBase clusters. It is enabled by default, but users can set _spark.hbase.connector.security.credentials.enabled_ to false to disable it.
 
 For long running applications, users need to config principal and keytab as below before running their applications.
 
