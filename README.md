@@ -135,8 +135,9 @@ Users can include the package as the dependency in your SBT file as well. The fo
 
 For running in a Kerberos enabled cluster, the user has to include HBase related jars into the classpath as the HBase token
 retrieval and renewal is done by Spark, and is independent of the connector. In other words, the user needs to initiate the
-environment in the normal way, either through kinit or by providing principal/keytab.  The following examples show how to run
-in a secure cluster with both yarn-client and yarn-cluster mode. Note that SPARK_CLASSPATH has to be set for both modes.
+environment in the normal way, either through kinit or by providing principal/keytab. The following examples show how to run
+in a secure cluster with both yarn-client and yarn-cluster mode. Note that if your Spark does not contain [SPARK-20059](https://github.com/apache/spark/pull/17388),
+which is in Apache Spark 2.1.1+, you need to set SPARK_CLASSPATH for both modes.
 
     export SPARK_CLASSPATH=/usr/hdp/current/hbase-client/lib/hbase-common.jar:/usr/hdp/current/hbase-client/lib/hbase-client.jar:/usr/hdp/current/hbase-client/lib/hbase-server.jar:/usr/hdp/current/hbase-client/lib/hbase-protocol.jar:/usr/hdp/current/hbase-client/lib/guava-12.0.1.jar
 
@@ -158,6 +159,22 @@ or
     javax.security.sasl.SaslException: GSS initiate failed [Caused by GSSException: No valid credentials provided (Mechanism level: Failed to find any Kerberos tgt)]
     
 Include the hbase-site.xml under SPARK_CONF_DIR (/etc/spark/conf) on the host where the spark job is submitted from, by creating a symbolic link towards your main hbase-site.xml (in order to be synchronous with your platform updates).
+
+### Using SHCCredentialsManager
+
+Spark only supports use cases which access a single secure HBase cluster. If your applications need to access multiple secure HBase clusters, users need to use SHCCredentialsManager instead.
+SHCCredentialsManager supports a single secure HBase cluster as well as multiple secure HBase clusters. It is disabled by default, but users can set _spark.hbase.connector.security.credentials.enabled_ to true to enable it.
+Also, users need to config principal and keytab as below before running their applications.
+
+     spark.hbase.connector.security.credentials.enabled true
+     spark.yarn.principal   ambari-qa-c1@EXAMPLE.COM
+     spark.yarn.keytab      /etc/security/keytabs/smokeuser.headless.keytab
+
+ or
+
+     spark.hbase.connector.security.credentials.enabled true
+     spark.hbase.connector.security.credentials  ambari-qa-c1@EXAMPLE.COM
+     spark.hbase.connector.security.keytab  /etc/security/keytabs/smokeuser.headless.keytab
 
 ## Others
 ### Example. Support of Avro schemas:
