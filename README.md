@@ -167,14 +167,14 @@ SHCCredentialsManager supports a single secure HBase cluster as well as multiple
 Also, users need to config principal and keytab as below before running their applications.
 
      spark.hbase.connector.security.credentials.enabled true
-     spark.yarn.principal   ambari-qa-c1@EXAMPLE.COM
-     spark.yarn.keytab      /etc/security/keytabs/smokeuser.headless.keytab
+     spark.hbase.connector.security.credentials  ambari-qa-c1@EXAMPLE.COM
+     spark.hbase.connector.security.keytab  /etc/security/keytabs/smokeuser.headless.keytab
 
  or
 
      spark.hbase.connector.security.credentials.enabled true
-     spark.hbase.connector.security.credentials  ambari-qa-c1@EXAMPLE.COM
-     spark.hbase.connector.security.keytab  /etc/security/keytabs/smokeuser.headless.keytab
+     spark.yarn.principal   ambari-qa-c1@EXAMPLE.COM
+     spark.yarn.keytab      /etc/security/keytabs/smokeuser.headless.keytab
 
 ## Others
 ### Example. Support of Avro schemas:
