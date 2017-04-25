@@ -56,7 +56,7 @@ final class SHCCredentialsManager private() extends Logging {
   private val nextRefresh = TimeUnit.MINUTES.toMillis(refreshDurationMins)
 
   private val credentialsManagerEnabled = {
-    val isEnabled = sparkConf.getBoolean(SparkHBaseConf.credentialsManagerEnabled, true) &&
+    val isEnabled = sparkConf.getBoolean(SparkHBaseConf.credentialsManagerEnabled, false) &&
       UserGroupInformation.isSecurityEnabled
     logInfo(s"SHCCredentialsManager was${if (isEnabled) "" else " not"} enabled.")
     isEnabled
