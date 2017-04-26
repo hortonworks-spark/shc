@@ -83,13 +83,14 @@ object LRJobAccessing2Clusters {
 
   def main(args: Array[String]): Unit = {
     if (args.length < 2) {
-      System.err.println("Usage: LRJobAccessing2Clusters <configurationFile1> <configurationFile2>")
+      System.err.println("Usage: LRJobAccessing2Clusters <configurationFile1> <configurationFile2> [sleepTime]")
       System.exit(1)
     }
 
     // configuration file of HBase cluster
     val conf1 = args(0)
     val conf2 = args(1)
+    val sleepTime = if (args.length > 2) args(2).toLong else 2 * 60 * 1000 // sleep 2 min by default
 
     val spark = SparkSession.builder()
       .appName("LRJobAccessing2Clusters")
@@ -164,7 +165,7 @@ object LRJobAccessing2Clusters {
 
       println(result.count()) // should be 20
 
-      Thread.sleep(60 * 1000) // sleep 1 min
+      Thread.sleep(sleepTime)
     }
     sc.stop()
   }
