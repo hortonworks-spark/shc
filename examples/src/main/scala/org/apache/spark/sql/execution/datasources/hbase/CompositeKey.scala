@@ -18,8 +18,7 @@
 package org.apache.spark.sql.execution.datasources.hbase.examples
 
 import org.apache.spark.sql.execution.datasources.hbase._
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.sql.{SparkSession, SQLContext, DataFrame}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 case class HBaseCompositeRecord(
     col00: String,
