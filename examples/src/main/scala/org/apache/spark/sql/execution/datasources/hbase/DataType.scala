@@ -17,8 +17,7 @@
 
 package org.apache.spark.sql.execution.datasources.hbase.examples
 
-import org.apache.spark.sql.{SparkSession, DataFrame, SQLContext}
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.{SparkSession, DataFrame}
 import org.apache.spark.sql.execution.datasources.hbase._
 
 case class IntKeyRecord(
