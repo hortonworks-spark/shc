@@ -1,8 +1,8 @@
 # Apache Spark - Apache HBase Connector
 
-The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apache.org/) Connector is a library to support Spark accessing HBase table as external data source or sink. With it, user can operate HBase with Spark-SQL on data frame level.
+The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apache.org/) Connector is a library to support Spark accessing HBase table as external data source or sink. With it, user can operate HBase with Spark-SQL on data frame,DataSet level.
 
-With the data frame support, the lib leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc.
+With the data frame and DataSet support, the lib leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc.
 
 _**Note**: Master branch matches Spark 2.1.x. com.hortonworks:shc-core:1.1.0-2.1-s_2.11 and com.hortonworks:shc-examples:1.1.0-2.1-s_2.11 have not been uploaded to Hortonworks public repo, but will be there soon_.
 
@@ -15,7 +15,7 @@ Java primitive types is supported. In the future, other data types will be suppo
 Note that if user want dataframe to only handle byte array, the binary type can be specified. Then user can get the catalyst row with each column as a byte array. User can further deserialize it with customized deserializer, or operate on the RDD of the data frame directly.
 
 ## Data locality
-When the spark work node co-located with hbase region servers, data locality is achieved by identifying the region server location, and co-locate the executor with the region server. Each executor will only perform Scan/BulkGet on the part of the data that co-locates on the same host. 
+When the spark worker nodes are co-located with hbase region servers, data locality is achieved by identifying the region server location, and co-locate the executor with the region server. Each executor will only perform Scan/BulkGet on the part of the data that co-locates on the same host. 
 
 ## Predicate pushdown
 The lib use existing standard HBase filter provided by HBase and does not operate on the coprocessor. 
@@ -29,7 +29,7 @@ Note that the WHERE conditions need to be defined carefully. Otherwise, the resu
 Both are exposed to users by specifying WHERE CLAUSE, e.g., where column > x and column < y for scan and where column = x for get. All the operations are performed in the executors, and driver only constructs these operations. Internally we will convert them to scan or get or combination of both, which return Iterator[Row] to catalyst engine. 
 
 ## 
-Creatable DataSource  The libary support both read/write from/to HBase.
+CreateTable DataSource is a library that supports both read/write from/to HBase.
 
 ### Compile
 
@@ -115,7 +115,7 @@ Given a data frame with specified schema, above will create an HBase table with 
     // Load the dataframe
     val df = withCatalog(catalog)
     //SQL example
-    df.registerTempTable("table")
+    df.createOrReplaceTempView("table")
     sqlContext.sql("select count(col1) from table").show
 
 ## Configuring Spark-package
