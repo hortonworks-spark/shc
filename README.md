@@ -4,8 +4,6 @@ The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apa
 
 With the DataFrame and DataSet support, the lib leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc.
 
-_**Note**: Master branch matches Spark 2.1.x. com.hortonworks:shc-core:1.1.0-2.1-s_2.11 and com.hortonworks:shc-examples:1.1.0-2.1-s_2.11 have not been uploaded to Hortonworks public repo, but will be there soon_.
-
 ## Catalog
 For each table, a catalog has to be provided,  which includes the row key, and the columns with data type with predefined column families, and defines the mapping between hbase column and table schema. The catalog is user defined json format.
 
