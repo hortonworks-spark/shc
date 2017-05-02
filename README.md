@@ -1,8 +1,8 @@
 # Apache Spark - Apache HBase Connector
 
-The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apache.org/) Connector is a library to support Spark accessing HBase table as external data source or sink. With it, user can operate HBase with Spark-SQL on data frame,DataSet level.
+The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apache.org/) Connector is a library to support Spark accessing HBase table as external data source or sink. With it, user can operate HBase with Spark-SQL on DataFrame and DataSet level.
 
-With the data frame and DataSet support, the lib leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc.
+With the DataFrame and DataSet support, the lib leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc.
 
 _**Note**: Master branch matches Spark 2.1.x. com.hortonworks:shc-core:1.1.0-2.1-s_2.11 and com.hortonworks:shc-examples:1.1.0-2.1-s_2.11 have not been uploaded to Hortonworks public repo, but will be there soon_.
 
@@ -12,7 +12,7 @@ For each table, a catalog has to be provided,  which includes the row key, and t
 ## Datatype conversion
 Java primitive types is supported. In the future, other data types will be supported, which relies on user specified serdes. There are three internal serdes supported in SHC: Avro, Phoenix, PrimitiveType. User can specify which serde they want to use by defining 'tableCoder' in their catalog. For this, please refer to examples and unit tests. Take Avro as an example. User defined serdes will be responsible to convert byte array to Avro object, and connector will be responsible to convert Avro object to catalyst supported data types. When user define a new serde, they need to make it 'implement' the trait 'SHCDataType'.
 
-Note that if user want dataframe to only handle byte array, the binary type can be specified. Then user can get the catalyst row with each column as a byte array. User can further deserialize it with customized deserializer, or operate on the RDD of the data frame directly.
+Note that if user want DataFrame to only handle byte array, the binary type can be specified. Then user can get the catalyst row with each column as a byte array. User can further deserialize it with customized deserializer, or operate on the RDD of the DataFrame directly.
 
 ## Data locality
 When the spark worker nodes are co-located with hbase region servers, data locality is achieved by identifying the region server location, and co-locate the executor with the region server. Each executor will only perform Scan/BulkGet on the part of the data that co-locates on the same host. 
@@ -28,8 +28,8 @@ Note that the WHERE conditions need to be defined carefully. Otherwise, the resu
 ## Scanning and BulkGet
 Both are exposed to users by specifying WHERE CLAUSE, e.g., where column > x and column < y for scan and where column = x for get. All the operations are performed in the executors, and driver only constructs these operations. Internally we will convert them to scan or get or combination of both, which return Iterator[Row] to catalyst engine. 
 
-## 
-CreateTable DataSource is a library that supports both read/write from/to HBase.
+## Creatable DataSource  
+The libary support both read/write from/to HBase. 
 
 ### Compile
 
@@ -85,9 +85,9 @@ The above defines a schema for a HBase table with name as table1, row key as key
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .save()
       
-Given a data frame with specified schema, above will create an HBase table with 5 regions and save the data frame inside. Note that if HBaseTableCatalog.newTable is not specified, the table has to be pre-created.
+Given a DataFrame with specified schema, above will create an HBase table with 5 regions and save the DataFrame inside. Note that if HBaseTableCatalog.newTable is not specified, the table has to be pre-created.
 
-### Perform data frame operation on top of HBase table
+### Perform DataFrame operation on top of HBase table
 
     def withCatalog(cat: String): DataFrame = {
       sqlContext
