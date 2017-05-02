@@ -1,10 +1,8 @@
 # Apache Spark - Apache HBase Connector
 
-The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apache.org/) Connector is a library to support Spark accessing HBase table as external data source or sink. With it, user can operate HBase with Spark-SQL on data frame level.
+The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apache.org/) Connector is a library to support Spark accessing HBase table as external data source or sink. With it, user can operate HBase with Spark-SQL on DataFrame and DataSet level.
 
-With the data frame support, the lib leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc.
-
-_**Note**: Master branch matches Spark 2.1.x. com.hortonworks:shc-core:1.1.0-2.1-s_2.11 and com.hortonworks:shc-examples:1.1.0-2.1-s_2.11 have not been uploaded to Hortonworks public repo, but will be there soon_.
+With the DataFrame and DataSet support, the library leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc.
 
 ## Catalog
 For each table, a catalog has to be provided,  which includes the row key, and the columns with data type with predefined column families, and defines the mapping between hbase column and table schema. The catalog is user defined json format.
@@ -12,13 +10,13 @@ For each table, a catalog has to be provided,  which includes the row key, and t
 ## Datatype conversion
 Java primitive types is supported. In the future, other data types will be supported, which relies on user specified serdes. There are three internal serdes supported in SHC: Avro, Phoenix, PrimitiveType. User can specify which serde they want to use by defining 'tableCoder' in their catalog. For this, please refer to examples and unit tests. Take Avro as an example. User defined serdes will be responsible to convert byte array to Avro object, and connector will be responsible to convert Avro object to catalyst supported data types. When user define a new serde, they need to make it 'implement' the trait 'SHCDataType'.
 
-Note that if user want dataframe to only handle byte array, the binary type can be specified. Then user can get the catalyst row with each column as a byte array. User can further deserialize it with customized deserializer, or operate on the RDD of the data frame directly.
+Note that if user want DataFrame to only handle byte array, the binary type can be specified. Then user can get the catalyst row with each column as a byte array. User can further deserialize it with customized deserializer, or operate on the RDD of the DataFrame directly.
 
 ## Data locality
-When the spark work node co-located with hbase region servers, data locality is achieved by identifying the region server location, and co-locate the executor with the region server. Each executor will only perform Scan/BulkGet on the part of the data that co-locates on the same host. 
+When the spark worker nodes are co-located with hbase region servers, data locality is achieved by identifying the region server location, and co-locate the executor with the region server. Each executor will only perform Scan/BulkGet on the part of the data that co-locates on the same host. 
 
 ## Predicate pushdown
-The lib use existing standard HBase filter provided by HBase and does not operate on the coprocessor. 
+The library uses existing standard HBase filter provided by HBase and does not operate on the coprocessor. 
 
 ## Partition Pruning
 By extracting the row key from the predicates, we split the scan/BulkGet into multiple non-overlapping regions, only the region servers that have the requested data will perform scan/BulkGet. Currently, the partition pruning is performed on the first dimension of the row keys.
@@ -28,8 +26,8 @@ Note that the WHERE conditions need to be defined carefully. Otherwise, the resu
 ## Scanning and BulkGet
 Both are exposed to users by specifying WHERE CLAUSE, e.g., where column > x and column < y for scan and where column = x for get. All the operations are performed in the executors, and driver only constructs these operations. Internally we will convert them to scan or get or combination of both, which return Iterator[Row] to catalyst engine. 
 
-## 
-Creatable DataSource  The libary support both read/write from/to HBase.
+## Creatable DataSource  
+The libary support both read/write from/to HBase. 
 
 ### Compile
 
@@ -43,17 +41,18 @@ Run test
 Run indiviudal test
 
     mvn -DwildcardSuites=org.apache.spark.sql.DefaultSourceSuite test
+
 Run SHC examples
 
     ./bin/spark-submit --verbose --class org.apache.spark.sql.execution.datasources.hbase.examples.HBaseSource --master yarn-cluster --packages com.hortonworks:shc-core:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --files /usr/hdp/current/hbase-client/conf/hbase-site.xml shc-examples-1.1.0-2.1-s_2.11-SNAPSHOT.jar
 
 The following illustrates how to run your application in real hbase cluster. You need to provide the hbase-site.xml. It may subject to change based on your specific cluster configuration.
 
-    ./bin/spark-submit  --class your.application.class --master yarn-client --num-executors 2 --driver-memory 512m --executor-memory 512m --executor-cores 1 --packages com.hortonworks:shc-core:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
+    ./bin/spark-submit  --class your.application.class --master yarn-client  --packages com.hortonworks:shc-core:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
 
 Running Spark applications with this connector, HBase jars of version 1.1.2 will be pulled by default. If Phoenix is enabled on HBase cluster, you need to use "--jars" to pass "phoenix-server.jar". For example:
 
-    ./bin/spark-submit  --class your.application.class --master yarn-client --num-executors 2 --driver-memory 512m --executor-memory 512m --executor-cores 1 --packages com.hortonworks:shc-core:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --jars /usr/hdp/current/phoenix-client/phoenix-server.jar --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
+    ./bin/spark-submit  --class your.application.class --master yarn-client  --packages com.hortonworks:shc-core:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --jars /usr/hdp/current/phoenix-client/phoenix-server.jar --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
 
 ## Application Usage
 The following illustrates the basic procedure on how to use the connector. For more details and advanced use case, such as Avro and composite key support, please refer to the examples in the repository.
@@ -85,9 +84,9 @@ The above defines a schema for a HBase table with name as table1, row key as key
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .save()
       
-Given a data frame with specified schema, above will create an HBase table with 5 regions and save the data frame inside. Note that if HBaseTableCatalog.newTable is not specified, the table has to be pre-created.
+Given a DataFrame with specified schema, above will create an HBase table with 5 regions and save the DataFrame inside. Note that if HBaseTableCatalog.newTable is not specified, the table has to be pre-created.
 
-### Perform data frame operation on top of HBase table
+### Perform DataFrame operation on top of HBase table
 
     def withCatalog(cat: String): DataFrame = {
       sqlContext
@@ -115,7 +114,7 @@ Given a data frame with specified schema, above will create an HBase table with 
     // Load the dataframe
     val df = withCatalog(catalog)
     //SQL example
-    df.registerTempTable("table")
+    df.createOrReplaceTempView("table")
     sqlContext.sql("select count(col1) from table").show
 
 ## Configuring Spark-package
@@ -127,9 +126,9 @@ spark-shell, pyspark, or spark-submit
 
     $SPARK_HOME/bin/spark-shell --packages com.hortonworks:shc-core:1.1.0-2.1-s_2.11
 
-Users can include the package as the dependency in your SBT file as well. The format is the spark-package-name:version
+Users can include the package as the dependency in your SBT file as well. The format is the spark-package-name:version in build.sbt file.
 
-    spDependencies += “com.hortonworks/shc-core:1.1.0-2.1-s_2.11”
+    libraryDependencies += “com.hortonworks/shc-core:1.1.0-2.1-s_2.11”
 
 ## Running in secure cluster
 
@@ -143,9 +142,9 @@ Suppose hrt_qa is a headless account, user can use following command for kinit:
 
     kinit -k -t /tmp/hrt_qa.headless.keytab hrt_qa
 
-    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-client --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc-core:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
+    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-client --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc-core:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ /To/your/application/jar
 
-    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-cluster --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc-core:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
+    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-cluster --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc-core:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ /To/your/application/jar
 
 If the solution above does not work and you encounter errors like :
 
@@ -225,7 +224,7 @@ The connector fully supports all the avro schemas. Users can use either a comple
     df.write.options(Map("schema1"->schema, HBaseTableCatalog.tableCatalog->catalog)).format("org.apache.spark.sql.execution.datasources.hbase").save()
           
 
-Above illustrates our next step, which includes composite key support, complex data types, support of customerized sedes and avro. Note that although all the major pieces are included in the current code base, but it may not be functioning now.
+Above illustrates our next step, which includes composite key support, complex data types, support of customerized serde and avro. Note that although all the major pieces are included in the current code base, but it may not be functioning now.
 
 
 ## Trademarks
