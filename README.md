@@ -127,9 +127,9 @@ spark-shell, pyspark, or spark-submit
 
     $SPARK_HOME/bin/spark-shell --packages com.hortonworks:shc-core:1.1.0-2.1-s_2.11
 
-Users can include the package as the dependency in your SBT file as well. The format is the spark-package-name:version
+Users can include the package as the dependency in your SBT file as well. The format is the spark-package-name:version in build.sbt file.
 
-    spDependencies += “com.hortonworks/shc-core:1.1.0-2.1-s_2.11”
+    libraryDependencies += “com.hortonworks/shc-core:1.1.0-2.1-s_2.11”
 
 ## Running in secure cluster
 
@@ -225,7 +225,7 @@ The connector fully supports all the avro schemas. Users can use either a comple
     df.write.options(Map("schema1"->schema, HBaseTableCatalog.tableCatalog->catalog)).format("org.apache.spark.sql.execution.datasources.hbase").save()
           
 
-Above illustrates our next step, which includes composite key support, complex data types, support of customerized sedes and avro. Note that although all the major pieces are included in the current code base, but it may not be functioning now.
+Above illustrates our next step, which includes composite key support, complex data types, support of customerized serde and avro. Note that although all the major pieces are included in the current code base, but it may not be functioning now.
 
 
 ## Trademarks
