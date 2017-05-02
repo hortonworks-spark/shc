@@ -120,6 +120,8 @@ Given a DataFrame with specified schema, above will create an HBase table with 5
 ## Configuring Spark-package
 Users can use the Spark-on-HBase connector as a standard Spark package. To include the package in your Spark application use:
 
+_**Note**: com.hortonworks:shc-core:1.1.0-2.1-s_2.11 has not been uploaded to [spark-packages.org](https://spark-packages.org/package/hortonworks-spark/shc), but will be there soon._
+
 spark-shell, pyspark, or spark-submit
 
     $SPARK_HOME/bin/spark-shell --packages com.hortonworks:shc-core:1.1.0-2.1-s_2.11
