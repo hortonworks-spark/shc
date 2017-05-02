@@ -2,7 +2,7 @@
 
 The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apache.org/) Connector is a library to support Spark accessing HBase table as external data source or sink. With it, user can operate HBase with Spark-SQL on DataFrame and DataSet level.
 
-With the DataFrame and DataSet support, the lib leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc.
+With the DataFrame and DataSet support, the library leverages all the optimization techniques in catalyst, and achieves data locality, partition pruning, predicate pushdown, Scanning and BulkGet, etc.
 
 ## Catalog
 For each table, a catalog has to be provided,  which includes the row key, and the columns with data type with predefined column families, and defines the mapping between hbase column and table schema. The catalog is user defined json format.
@@ -16,7 +16,7 @@ Note that if user want DataFrame to only handle byte array, the binary type can 
 When the spark worker nodes are co-located with hbase region servers, data locality is achieved by identifying the region server location, and co-locate the executor with the region server. Each executor will only perform Scan/BulkGet on the part of the data that co-locates on the same host. 
 
 ## Predicate pushdown
-The lib use existing standard HBase filter provided by HBase and does not operate on the coprocessor. 
+The library uses existing standard HBase filter provided by HBase and does not operate on the coprocessor. 
 
 ## Partition Pruning
 By extracting the row key from the predicates, we split the scan/BulkGet into multiple non-overlapping regions, only the region servers that have the requested data will perform scan/BulkGet. Currently, the partition pruning is performed on the first dimension of the row keys.
@@ -41,6 +41,7 @@ Run test
 Run indiviudal test
 
     mvn -DwildcardSuites=org.apache.spark.sql.DefaultSourceSuite test
+
 Run SHC examples
 
     ./bin/spark-submit --verbose --class org.apache.spark.sql.execution.datasources.hbase.examples.HBaseSource --master yarn-cluster --packages com.hortonworks:shc-core:1.1.0-2.1-s_2.11 --repositories http://repo.hortonworks.com/content/groups/public/ --files /usr/hdp/current/hbase-client/conf/hbase-site.xml shc-examples-1.1.0-2.1-s_2.11-SNAPSHOT.jar
