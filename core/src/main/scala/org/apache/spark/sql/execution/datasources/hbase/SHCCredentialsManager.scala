@@ -207,8 +207,8 @@ final class SHCCredentialsManager private() extends Logging {
       conf.get("hbase.zookeeper.quorum") != null &&
       conf.get("hbase.zookeeper.property.clientPort") != null)
 
-    conf.get("zookeeper.znode.parent") + "#"
-      conf.get("hbase.zookeeper.quorum") + "#"
+    conf.get("zookeeper.znode.parent") + "#" +
+      conf.get("hbase.zookeeper.quorum") + "#" +
       conf.get("hbase.zookeeper.property.clientPort")
   }
 }
