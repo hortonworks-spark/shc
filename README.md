@@ -42,15 +42,15 @@ Run indiviudal test
     mvn -DwildcardSuites=org.apache.spark.sql.DefaultSourceSuite test
 Run SHC examples
 
-    ./bin/spark-submit --verbose --class org.apache.spark.sql.execution.datasources.hbase.examples.HBaseSource --master yarn-cluster --packages com.hortonworks:shc:1.0.0-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/ --files /usr/hdp/current/hbase-client/conf/hbase-site.xml shc-examples-1.0.1-1.6-s_2.10-SNAPSHOT.jar
+    ./bin/spark-submit --verbose --class org.apache.spark.sql.execution.datasources.hbase.examples.HBaseSource --master yarn-cluster --packages com.hortonworks:shc-core:1.1.1-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/ --files /usr/hdp/current/hbase-client/conf/hbase-site.xml shc-examples-1.1.1-1.6-s_2.10-SNAPSHOT.jar
 
 The following illustrates how to run your application in real hbase cluster. You need to provide the hbase-site.xml. It may subject to change based on your specific cluster configuration.
 
-    ./bin/spark-submit  --class your.application.class --master yarn-client     --num-executors 2     --driver-memory 512m     --executor-memory 512m     --executor-cores 1 --packages com.hortonworks:shc:1.0.0-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/  --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
+    ./bin/spark-submit  --class your.application.class --master yarn-client     --num-executors 2     --driver-memory 512m     --executor-memory 512m     --executor-cores 1 --packages com.hortonworks:shc-core:1.1.1-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/  --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
 
 **Note**: Running Spark applications with this connector, HBase jars of version 1.1.2 will be pulled by default. If Phoenix is enabled on HBase cluster, you need to use "--jars" to pass "phoenix-server.jar". For example:
 
-    ./bin/spark-submit  --class your.application.class --master yarn-client     --num-executors 2     --driver-memory 512m     --executor-memory 512m     --executor-cores 1 --packages com.hortonworks:shc:1.0.0-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/ --jars /usr/hdp/current/phoenix-client/phoenix-server.jar --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
+    ./bin/spark-submit  --class your.application.class --master yarn-client     --num-executors 2     --driver-memory 512m     --executor-memory 512m     --executor-cores 1 --packages com.hortonworks:shc-core:1.1.1-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/ --jars /usr/hdp/current/phoenix-client/phoenix-server.jar --files /etc/hbase/conf/hbase-site.xml /To/your/application/jar
 
 ## Application Usage
 The following illustrates the basic procedure on how to use the connector. For more details and advanced use case, such as Avro and composite key support, please refer to the examples in the repository.
@@ -118,15 +118,15 @@ Given a data frame with specified schema, above will create an HBase table with 
 ## Configuring Spark-package
 Users can use the Spark-on-HBase connector as a standard Spark package. To include the package in your Spark application use:
 
-_**Note**: com.hortonworks:shc:1.0.0-1.6-s_2.10 has not been uploaded to [spark-packages.org](https://spark-packages.org/package/hortonworks-spark/shc), but will be there soon._
+_**Note**: com.hortonworks:shc-core:1.1.1-1.6-s_2.10 has not been uploaded to [spark-packages.org](https://spark-packages.org/package/hortonworks-spark/shc), but will be there soon._
 
 spark-shell, pyspark, or spark-submit
 
-    $SPARK_HOME/bin/spark-shell --packages com.hortonworks:shc:1.0.0-1.6-s_2.10
+    $SPARK_HOME/bin/spark-shell --packages com.hortonworks:shc-core:1.1.1-1.6-s_2.10
 
 Users can include the package as the dependency in your SBT file as well. The format is the spark-package-name:version
 
-    spDependencies += “com.hortonworks/shc:1.0.0-1.6-s_2.10”
+    spDependencies += “com.hortonworks/shc-core:1.1.1-1.6-s_2.10”
 
 ## Running in secure cluster
 
@@ -140,9 +140,9 @@ Suppose hrt_qa is a headless account, user can use following command for kinit:
 
     kinit -k -t /tmp/hrt_qa.headless.keytab hrt_qa
 
-    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-client --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc:1.0.0-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/ --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
+    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-client --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc-core:1.1.1-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/ --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
 
-    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-cluster --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc:1.0.0-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/ --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
+    /usr/hdp/current/spark-client/bin/spark-submit --class your.application.class --master yarn-cluster --files /etc/hbase/conf/hbase-site.xml --packages com.hortonworks:shc-core:1.1.1-1.6-s_2.10 --repositories http://repo.hortonworks.com/content/groups/public/ --num-executors 4 --driver-memory 512m --executor-memory 512m --executor-cores 1 /To/your/application/jar
 
 If the solution above does not work and you encounter errors like :
 
