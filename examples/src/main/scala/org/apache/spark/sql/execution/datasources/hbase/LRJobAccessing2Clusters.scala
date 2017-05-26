@@ -137,11 +137,10 @@ object LRJobAccessing2Clusters {
       val s2 = df2.filter($"col0" <= "row150" && $"col0" > "row100").select("col0", "col5")
       val result = s1.join(s2, Seq("col0"))
 
-      result.show() // should be row101 to row120, as following:
+      result.sort($"col0".asc, $"col2", $"col5").show()  // should be row101 to row120, as following:
       /*+------+-----+----+
       |  col0| col2|col5|
       +------+-----+----+
-      |row120|120.0| 120|
       |row101|101.0| 101|
       |row102|102.0| 102|
       |row103|103.0| 103|
@@ -161,9 +160,8 @@ object LRJobAccessing2Clusters {
       |row117|117.0| 117|
       |row118|118.0| 118|
       |row119|119.0| 119|
+      |row120|120.0| 120|
       +------+-----+----+ */
-
-      println(result.count()) // should be 20
 
       Thread.sleep(sleepTime)
     }
