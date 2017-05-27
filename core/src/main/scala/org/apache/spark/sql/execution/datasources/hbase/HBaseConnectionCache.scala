@@ -28,6 +28,8 @@ import org.apache.hadoop.hbase.{HConstants, TableName}
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.ipc.RpcControllerFactory
 import org.apache.hadoop.hbase.security.{User, UserProvider}
+import org.apache.hadoop.security.Credentials
+import org.apache.spark.SparkEnv
 
 private[spark] object HBaseConnectionCache extends Logging {
 
@@ -35,6 +37,8 @@ private[spark] object HBaseConnectionCache extends Logging {
   private[hbase] val connectionMap = new mutable.HashMap[HBaseConnectionKey, SmartConnection]()
 
   private val cacheStat = HBaseConnectionCacheStat(0, 0, 0)
+
+  private val credentialProvider = new SHCCredentialProvider()
 
   // in milliseconds
   private final val DEFAULT_TIME_OUT: Long = SparkHBaseConf.connectionCloseDelay
@@ -53,7 +57,7 @@ private[spark] object HBaseConnectionCache extends Logging {
   housekeepingThread.setDaemon(true)
   housekeepingThread.start()
 
-  // Thread.sleep can be spuriously woken up, this ensure we sleep for atleast the
+  // Thread.sleep can be spuriously woken up, this ensure we sleep for at least the
   // 'duration' specified
   private[hbase] def sleep(duration: Long, allowInterrupt: Boolean = false, allowClosed: Boolean = false): Unit = {
     val startTime = System.currentTimeMillis()
@@ -129,10 +133,24 @@ private[spark] object HBaseConnectionCache extends Logging {
       if (closed.get()) return null
       val sc = connectionMap.getOrElseUpdate(key, {
         cacheStat.incrementActualConnectionsCreated(1)
-        new SmartConnection(conn)
+        if (credentialProvider.credentialsRequired(key.c)) {
+          val creds = new Credentials()
+          val expirationDate = credentialProvider.obtainCredentials(key.c, SparkEnv.get.conf, creds)
+          new SmartConnection(conn, creds, getReissueTime(expirationDate))
+        } else {
+          new SmartConnection(conn)
+        }
       })
       cacheStat.incrementTotalRequests(1)
       sc.refCount += 1
+      if((sc.credentials != null) && (sc.refCount != 1) ) {
+        if(System.currentTimeMillis() > sc.credReissueDate) {
+          val creds = new Credentials()
+          val expirationDate = credentialProvider.obtainCredentials(key.c, SparkEnv.get.conf, creds)
+          sc.credentials = creds
+          sc.credReissueDate = getReissueTime(expirationDate)
+        }
+      }
       sc
     }
   }
@@ -148,10 +166,24 @@ private[spark] object HBaseConnectionCache extends Logging {
       housekeepingThread.interrupt()
     }
   }
+
+  private def getReissueTime(expirationDate: Option[Long]): Long = {
+    val currTime = System.currentTimeMillis()
+    val timeInterval = expirationDate.getOrElse(Long.MaxValue) - currTime
+    if (timeInterval < 0) {
+      throw new IllegalArgumentException("Invalid token expiration date: " + expirationDate)
+    } else {
+      (timeInterval * 0.75 + currTime).toLong
+    }
+  }
 }
 
-private[hbase] class SmartConnection (
-    val connection: Connection, var refCount: Int = 0, var timestamp: Long = 0) extends Closeable {
+private[hbase] class SmartConnection(
+    val connection: Connection,
+    var credentials: Credentials = null,
+    var credReissueDate: Long = 0,
+    var refCount: Int = 0,
+    var timestamp: Long = 0) extends Closeable {
   def getTable(tableName: TableName): Table = connection.getTable(tableName)
   def getRegionLocator(tableName: TableName): RegionLocator = connection.getRegionLocator(tableName)
   def isClosed: Boolean = connection.isClosed
@@ -166,14 +198,14 @@ private[hbase] class SmartConnection (
 }
 
 /**
-  * Denotes a unique key to an HBase Connection instance.
-  * Please refer to 'org.apache.hadoop.hbase.client.HConnectionKey'.
-  *
-  * In essence, this class captures the properties in Configuration
-  * that may be used in the process of establishing a connection.
-  *
-  */
-class HBaseConnectionKey(c: Configuration) extends Logging {
+ * Denotes a unique key to an HBase Connection instance.
+ * Please refer to 'org.apache.hadoop.hbase.client.HConnectionKey'.
+ *
+ * In essence, this class captures the properties in Configuration
+ * that may be used in the process of establishing a connection.
+ *
+ */
+class HBaseConnectionKey(val c: Configuration) extends Logging {
   import HBaseConnectionKey.CONNECTION_PROPERTIES
 
   val (username, properties) = {
