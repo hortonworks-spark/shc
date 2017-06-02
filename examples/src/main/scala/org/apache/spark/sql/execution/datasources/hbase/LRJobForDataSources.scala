@@ -49,7 +49,13 @@ object LRJobForDataSources {
           |}""".stripMargin
 
   def main(args: Array[String]) {
-    val sleepTime = if (args.length > 0) args(0).toLong else 2 * 60 * 1000 // sleep 2 min by default
+    if (args.length < 1) {
+      System.err.println("Usage: LRJobAccessing2Clusters <hiveTableName> [sleepTime]")
+      System.exit(1)
+    }
+
+    val hiveTableName = args(0)
+    val sleepTime = if (args.length > 1) args(1).toLong else 2 * 60 * 1000 // sleep 2 min by default
 
     val spark = SparkSession.builder()
       .appName("LRJobForDataSources")
@@ -73,12 +79,12 @@ object LRJobForDataSources {
     val timeEnd = System.currentTimeMillis() + (25 * 60 * 60 * 1000) // 25h later
     while (System.currentTimeMillis() < timeEnd) {
       // Part 1: write data into Hive table and read data from it, which accesses HDFS
-      sql("DROP TABLE IF EXISTS shcHiveTable")
-      sql("CREATE TABLE shcHiveTable(key INT, col1 BOOLEAN, col2 DOUBLE, col3 FLOAT)")
+      sql(s"DROP TABLE IF EXISTS $hiveTableName")
+      sql(s"CREATE TABLE $hiveTableName(key INT, col1 BOOLEAN, col2 DOUBLE, col3 FLOAT)")
       for (i <- 1 to 3) {
-        sql(s"INSERT INTO shcHiveTable VALUES ($i, ${i % 2 == 0}, ${i.toDouble}, ${i.toFloat})")
+        sql(s"INSERT INTO $hiveTableName VALUES ($i, ${i % 2 == 0}, ${i.toDouble}, ${i.toFloat})")
       }
-      val df1 = sql("SELECT * FROM shcHiveTable")
+      val df1 = sql(s"SELECT * FROM $hiveTableName")
       df1.show()
 
       // Part 2: create HBase table, write data into it, read data from it
