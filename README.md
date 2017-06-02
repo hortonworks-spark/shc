@@ -175,7 +175,7 @@ Also, users need to config principal and keytab as below before running their ap
 
 ## Others
 ### Example. Support of Avro schemas:
-The connector fully supports all the avro schemas. Users can use either a complete record schema or partial field schema as data type in their catalog.
+The connector fully supports all the avro schemas. Users can use either a complete record schema or partial field schema as data type in their catalog (refer [here](https://github.com/hortonworks-spark/shc/wiki/2.-Native-Avro-Support) for more detailed information).
     
     val schema_array = s"""{"type": "array", "items": ["string","null"]}""".stripMargin
     val schema_record =
