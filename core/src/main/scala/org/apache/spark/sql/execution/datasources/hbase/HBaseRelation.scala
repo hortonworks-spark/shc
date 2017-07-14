@@ -127,6 +127,9 @@ case class HBaseRelation(
       true
     } catch {
       case e: NamespaceNotFoundException => false
+      case NonFatal(e) =>
+        logError("Unexpected error", e)
+        false
     }
     if (!isNameSpaceExist) {
       admin.createNamespace(NamespaceDescriptor.create(catalog.namespace).build)
