@@ -57,7 +57,7 @@ private[sql] class DefaultSource extends RelationProvider with CreatableRelation
     parameters: Map[String, String],
     data: DataFrame): BaseRelation = {
     val relation = HBaseRelation(parameters, Some(data.schema))(sqlContext)
-    relation.createTable()
+    relation.createTableIfNotExist()
     relation.insert(data, false)
     relation
   }
@@ -117,56 +117,53 @@ case class HBaseRelation(
 
   val serializedToken = SHCCredentialsManager.manager.getTokenForCluster(hbaseConf)
 
-  def createTable() {
-    if (catalog.numReg > 3) {
-      val cfs = catalog.getColumnFamilies
-      val connection = HBaseConnectionCache.getConnection(hbaseConf)
-      // Initialize hBase table if necessary
-      val admin = connection.getAdmin
-
-      val isNameSpaceExist = try {
-        admin.getNamespaceDescriptor(catalog.namespace)
-        true
-      } catch {
-        case e: NamespaceNotFoundException => false
-      }
-      if (!isNameSpaceExist) {
-        admin.createNamespace(NamespaceDescriptor.create(catalog.namespace).build)
-      }
-
-      val tName = TableName.valueOf(s"${catalog.namespace}:${catalog.name}")
-      // The names of tables which are created by the Examples has prefix "shcExample"
-      if (admin.isTableAvailable(tName)
-          && tName.toString.startsWith(s"${catalog.namespace}:shcExample")){
-        admin.disableTable(tName)
-        admin.deleteTable(tName)
-      }
-      if (!admin.isTableAvailable(tName)) {
-        val tableDesc = new HTableDescriptor(tName)
-        cfs.foreach { x =>
-         val cf = new HColumnDescriptor(x.getBytes())
-          logDebug(s"add family $x to ${catalog.name}")
-          tableDesc.addFamily(cf)
-        }
-
-        val startKey = catalog.shcTableCoder.toBytes("aaaaaaa")
-        val endKey = catalog.shcTableCoder.toBytes("zzzzzzz")
-        val splitKeys = Bytes.split(startKey, endKey, catalog.numReg - 3)
-        admin.createTable(tableDesc, splitKeys)
-        val r = connection.getRegionLocator(tName).getAllRegionLocations
-        while(r == null || r.size() == 0) {
-          logDebug(s"region not allocated")
-          Thread.sleep(1000)
-        }
-        logDebug(s"region allocated $r")
-
-      }
-      admin.close()
-      connection.close()
+  def createTableIfNotExist() {
+    val cfs = catalog.getColumnFamilies
+    val connection = HBaseConnectionCache.getConnection(hbaseConf)
+    // Initialize hBase table if necessary
+    val admin = connection.getAdmin
+    val isNameSpaceExist = try {
+      admin.getNamespaceDescriptor(catalog.namespace)
+      true
+    } catch {
+      case e: NamespaceNotFoundException => false
     }
-    else {
-        throw new InvalidRegionNumberException("Number of regions specified for new table must be greater than 3.")
+    if (!isNameSpaceExist) {
+      admin.createNamespace(NamespaceDescriptor.create(catalog.namespace).build)
     }
+    val tName = TableName.valueOf(s"${catalog.namespace}:${catalog.name}")
+    // The names of tables which are created by the Examples has prefix "shcExample"
+    if (admin.isTableAvailable(tName)
+      && tName.toString.startsWith(s"${catalog.namespace}:shcExample")){
+      admin.disableTable(tName)
+      admin.deleteTable(tName)
+    }
+
+    if (!admin.isTableAvailable(tName)) {
+      if (catalog.numReg <= 3) {
+        throw new InvalidRegionNumberException("Creating a new table should " +
+          "specify the number of regions which must be greater than 3.")
+      }
+      val tableDesc = new HTableDescriptor(tName)
+      cfs.foreach { x =>
+        val cf = new HColumnDescriptor(x.getBytes())
+        logDebug(s"add family $x to ${catalog.name}")
+        tableDesc.addFamily(cf)
+      }
+      val startKey = catalog.shcTableCoder.toBytes("aaaaaaa")
+      val endKey = catalog.shcTableCoder.toBytes("zzzzzzz")
+      val splitKeys = Bytes.split(startKey, endKey, catalog.numReg - 3)
+      admin.createTable(tableDesc, splitKeys)
+      val r = connection.getRegionLocator(tName).getAllRegionLocations
+      while(r == null || r.size() == 0) {
+        logDebug(s"region not allocated")
+        Thread.sleep(1000)
+      }
+      logDebug(s"region allocated $r")
+    }
+
+    admin.close()
+    connection.close()
   }
 
   /**

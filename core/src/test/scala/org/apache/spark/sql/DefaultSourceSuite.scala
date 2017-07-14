@@ -356,4 +356,24 @@ class DefaultSourceSuite extends SHC with Logging {
     assert(keys.contains("row100"))
     assert(keys.contains("row57"))
   }
+
+  test("No need to specify 'HBaseTableCatalog.newTable' option when saving data into an existing table") {
+    val sql = sqlContext
+    import sql.implicits._
+
+    val df1 = withCatalog(catalog)
+    assert(df1.count() == 101)
+
+    // add three more records to the existing table "table1" which has 101 records
+    val data = (256 to 258).map { i =>
+      HBaseRecord(i, "extra")
+    }
+    sc.parallelize(data).toDF.write.options(
+      Map(HBaseTableCatalog.tableCatalog -> catalog))
+      .format("org.apache.spark.sql.execution.datasources.hbase")
+      .save()
+
+    val df2 = withCatalog(catalog)
+    assert(df2.count() == 104)
+  }
 }
