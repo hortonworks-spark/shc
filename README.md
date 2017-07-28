@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/hortonworks-spark/shc-llap.svg?branch=master)](https://travis-ci.org/hortonworks-spark/shc)
+
 # Apache Spark - Apache HBase Connector
 
 The [Apache Spark](https://spark.apache.org/) - [Apache HBase](https://hbase.apache.org/) Connector is a library to support Spark accessing HBase table as external data source or sink. With it, user can operate HBase with Spark-SQL on DataFrame and DataSet level.
