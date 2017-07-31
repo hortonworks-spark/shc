@@ -183,7 +183,9 @@ case class HBaseRelation(
     // This is a workaround for SPARK-21549. After it is fixed, the snippet can be removed.
     val jobConfig = job.getConfiguration
     val tempDir = Utils.createTempDir()
-    jobConfig.set("mapreduce.output.fileoutputformat.outputdir", tempDir.getPath + "/outputDataset")
+    if (jobConfig.get("mapreduce.output.fileoutputformat.outputdir") == null) {
+      jobConfig.set("mapreduce.output.fileoutputformat.outputdir", tempDir.getPath + "/outputDataset")
+    }
 
     var count = 0
     val rkFields = catalog.getRowKey
