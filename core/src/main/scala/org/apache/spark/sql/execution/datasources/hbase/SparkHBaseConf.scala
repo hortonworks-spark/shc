@@ -13,6 +13,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * File modified by Hortonworks, Inc. Modifications are also licensed under
+ * the Apache Software License, Version 2.0.
  */
 
 package org.apache.spark.sql.execution.datasources.hbase
