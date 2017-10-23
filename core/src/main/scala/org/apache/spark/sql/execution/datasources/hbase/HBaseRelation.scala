@@ -155,6 +155,7 @@ case class HBaseRelation(
       cfs.foreach { x =>
         val cf = new HColumnDescriptor(x.getBytes())
         logDebug(s"add family $x to ${catalog.name}")
+        cf.setMaxVersions(catalog.maxVersions)
         tableDesc.addFamily(cf)
       }
       val startKey = catalog.shcTableCoder.toBytes("aaaaaaa")
@@ -322,6 +323,7 @@ object HBaseRelation {
   val TIMESTAMP = "timestamp"
   val MIN_STAMP = "minStamp"
   val MAX_STAMP = "maxStamp"
+  val MARGE_TO_LATEST = "latest"
   val MAX_VERSIONS = "maxVersions"
   val HBASE_CONFIGURATION = "hbaseConfiguration"
   // HBase configuration file such as HBase-site.xml, core-site.xml

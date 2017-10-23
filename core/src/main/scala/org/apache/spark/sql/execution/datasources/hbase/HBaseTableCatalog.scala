@@ -167,7 +167,9 @@ case class HBaseTableCatalog(
     sMap: SchemaMap,
     tCoder: String,
     coderSet: Set[String],
-    val numReg: Int) extends Logging {
+    val numReg: Int,
+    maxVersions: Int,
+    latest: Boolean) extends Logging {
   def toDataType = StructType(sMap.toFields)
   def getField(name: String) = sMap.getField(name)
   def getRowKey: Seq[Field] = row.fields
@@ -262,6 +264,8 @@ object HBaseTableCatalog {
     val tableMeta = map.get(table).get.asInstanceOf[Map[String, _]]
     val nSpace = tableMeta.get(nameSpace).getOrElse("default").asInstanceOf[String]
     val tName = tableMeta.get(tableName).get.asInstanceOf[String]
+    val maxVersions = parameters.get(HBaseRelation.MAX_VERSIONS).map(_.toInt).getOrElse(Int.MaxValue)
+    val latest = parameters.get(HBaseRelation.MARGE_TO_LATEST).map(_.toBoolean).getOrElse(true)
 
     // Since the catalog version 2.0, SHC supports Phoenix as coder.
     // If the catalog version specified by users is equal or later than 2.0, tableCoder must be specified.
@@ -293,7 +297,7 @@ object HBaseTableCatalog {
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)
     val rKey = RowKey(map.get(rowKey).get.asInstanceOf[String])
 
-    HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), tCoder, coderSet, numReg)
+    HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), tCoder, coderSet, numReg, maxVersions, latest)
   }
 
   /**
