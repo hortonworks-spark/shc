@@ -80,7 +80,7 @@ class MaxVersionsSuite extends SHC with Logging {
 
     // Test specific last two versions
     val twoVersions: DataFrame = sqlContext.read
-      .options(Map(HBaseTableCatalog.tableCatalog->catalog, HBaseRelation.MAX_VERSIONS -> "2", HBaseRelation.MARGE_TO_LATEST -> "false"))
+      .options(Map(HBaseTableCatalog.tableCatalog->catalog, HBaseRelation.MAX_VERSIONS -> "2", HBaseRelation.MERGE_TO_LATEST -> "false"))
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .load()
 
@@ -96,7 +96,7 @@ class MaxVersionsSuite extends SHC with Logging {
 
     //we cannot take more then three because we create table with that size
     val threeVersions: DataFrame = sqlContext.read
-      .options(Map(HBaseTableCatalog.tableCatalog->catalog, HBaseRelation.MAX_VERSIONS -> "4", HBaseRelation.MARGE_TO_LATEST -> "false"))
+      .options(Map(HBaseTableCatalog.tableCatalog->catalog, HBaseRelation.MAX_VERSIONS -> "4", HBaseRelation.MERGE_TO_LATEST -> "false"))
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .load()
 

@@ -79,8 +79,8 @@ case class HBaseRelation(
   val timestamp = parameters.get(HBaseRelation.TIMESTAMP).map(_.toLong)
   val minStamp = parameters.get(HBaseRelation.MIN_STAMP).map(_.toLong)
   val maxStamp = parameters.get(HBaseRelation.MAX_STAMP).map(_.toLong)
-  val maxVersions = parameters.get(HBaseRelation.MAX_VERSIONS).map(_.toInt)//.getOrElse(Int.MaxValue)
-  val margeToLatest = parameters.get(HBaseRelation.MARGE_TO_LATEST).map(_.toBoolean).getOrElse(true)
+  val maxVersions = parameters.get(HBaseRelation.MAX_VERSIONS).map(_.toInt)
+  val mergeToLatest = parameters.get(HBaseRelation.MERGE_TO_LATEST).map(_.toBoolean).getOrElse(true)
 
   val catalog = HBaseTableCatalog(parameters)
 
@@ -324,7 +324,7 @@ object HBaseRelation {
   val TIMESTAMP = "timestamp"
   val MIN_STAMP = "minStamp"
   val MAX_STAMP = "maxStamp"
-  val MARGE_TO_LATEST = "latest"
+  val MERGE_TO_LATEST = "mergeToLatest"
   val MAX_VERSIONS = "maxVersions"
   val HBASE_CONFIGURATION = "hbaseConfiguration"
   // HBase configuration file such as HBase-site.xml, core-site.xml

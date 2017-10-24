@@ -374,7 +374,7 @@ private[hbase] class HBaseTableScanRDD(
     } ++ gIt
 
     ShutdownHookManager.addShutdownHook { () => HBaseConnectionCache.close() }
-    if(relation.margeToLatest) {
+    if(relation.mergeToLatest) {
       toRowIterator(rIt)
     } else {
       toFlattenRowIterator(rIt)
