@@ -294,7 +294,6 @@ private[hbase] class HBaseTableScanRDD(
         case _ => new Scan
       }
     }
-    scan.setMaxVersions(relation.catalog.maxVersions)
     handleTimeSemantics(scan)
 
     // set fetch size
@@ -327,7 +326,6 @@ private[hbase] class HBaseTableScanRDD(
             relation.catalog.shcTableCoder.toBytes(c.col))
         }
         filter.foreach(g.setFilter(_))
-        g.setMaxVersions(relation.catalog.maxVersions)
         gets.add(g)
       }
       val tmp = tbr.get(gets)
@@ -376,7 +374,7 @@ private[hbase] class HBaseTableScanRDD(
     } ++ gIt
 
     ShutdownHookManager.addShutdownHook { () => HBaseConnectionCache.close() }
-    if(relation.catalog.latest) {
+    if(relation.margeToLatest) {
       toRowIterator(rIt)
     } else {
       toFlattenRowIterator(rIt)

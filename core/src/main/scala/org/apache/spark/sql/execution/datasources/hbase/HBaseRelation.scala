@@ -79,7 +79,8 @@ case class HBaseRelation(
   val timestamp = parameters.get(HBaseRelation.TIMESTAMP).map(_.toLong)
   val minStamp = parameters.get(HBaseRelation.MIN_STAMP).map(_.toLong)
   val maxStamp = parameters.get(HBaseRelation.MAX_STAMP).map(_.toLong)
-  val maxVersions = parameters.get(HBaseRelation.MAX_VERSIONS).map(_.toInt)
+  val maxVersions = parameters.get(HBaseRelation.MAX_VERSIONS).map(_.toInt)//.getOrElse(Int.MaxValue)
+  val margeToLatest = parameters.get(HBaseRelation.MARGE_TO_LATEST).map(_.toBoolean).getOrElse(true)
 
   val catalog = HBaseTableCatalog(parameters)
 
@@ -155,7 +156,7 @@ case class HBaseRelation(
       cfs.foreach { x =>
         val cf = new HColumnDescriptor(x.getBytes())
         logDebug(s"add family $x to ${catalog.name}")
-        cf.setMaxVersions(catalog.maxVersions)
+        maxVersions.foreach(v => cf.setMaxVersions(v))
         tableDesc.addFamily(cf)
       }
       val startKey = catalog.shcTableCoder.toBytes("aaaaaaa")
