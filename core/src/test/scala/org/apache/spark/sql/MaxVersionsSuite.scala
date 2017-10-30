@@ -22,13 +22,19 @@ package org.apache.spark.sql
 
 import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
-import org.apache.spark.sql.sources.PrunedFilteredScan
 
 
 class MaxVersionsSuite extends SHC with Logging {
 
   val sql = sqlContext
   import sql.implicits._
+
+  def withCatalog(cat: String, options: Map[String,String]): DataFrame = {
+    sqlContext.read
+      .options(options ++ Map(HBaseTableCatalog.tableCatalog -> catalog))
+      .format("org.apache.spark.sql.execution.datasources.hbase")
+      .load()
+  }
 
   def persistDataInHBase(cat: String, data: Seq[HBaseRecord], timestamp: Long): Unit = {
     sc.parallelize(data).toDF.write
@@ -60,14 +66,10 @@ class MaxVersionsSuite extends SHC with Logging {
     persistDataInHBase(catalog, newestData, newestMs)
 
     // Test specific last two versions
-    val twoVersions: DataFrame = sqlContext.read
-      .options(Map(
-        HBaseTableCatalog.tableCatalog->catalog,
+    val twoVersions: DataFrame = withCatalog(catalog, Map(
         HBaseRelation.MAX_VERSIONS -> "2",
         HBaseRelation.MERGE_TO_LATEST -> "false"
       ))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .load()
 
     //count is made on HBase directly and return number of unique rows
     assert(twoVersions.count() == 3)
@@ -80,14 +82,10 @@ class MaxVersionsSuite extends SHC with Logging {
     assert(rows.count(_.getString(7).contains("latest")) == 2)
 
     //we cannot take more then three because we create table with that size
-    val threeVersions: DataFrame = sqlContext.read
-      .options(Map(
-        HBaseTableCatalog.tableCatalog->catalog,
+    val threeVersions: DataFrame = withCatalog(catalog, Map(
         HBaseRelation.MAX_VERSIONS -> "4",
         HBaseRelation.MERGE_TO_LATEST -> "false"
       ))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .load()
 
     val threeRows = threeVersions.take(10)
     assert(threeRows.size == 9)
@@ -97,12 +95,7 @@ class MaxVersionsSuite extends SHC with Logging {
     assert(threeRows.count(_.getString(7).contains("latest")) == 2)
 
     // Test specific only last versions
-    val lastVersions: DataFrame = sqlContext.read
-      .options(Map(
-        HBaseTableCatalog.tableCatalog->catalog
-      ))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .load()
+    val lastVersions: DataFrame = withCatalog(catalog, Map.empty)
 
     val lastRows = lastVersions.take(10)
     assert(lastRows.size == 3)
