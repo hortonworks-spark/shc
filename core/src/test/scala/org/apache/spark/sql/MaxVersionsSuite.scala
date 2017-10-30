@@ -26,8 +26,6 @@ import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTab
 
 class MaxVersionsSuite extends SHC with Logging {
 
-  val sql = sqlContext
-  import sql.implicits._
 
   def withCatalog(cat: String, options: Map[String,String]): DataFrame = {
     sqlContext.read
@@ -37,6 +35,8 @@ class MaxVersionsSuite extends SHC with Logging {
   }
 
   def persistDataInHBase(cat: String, data: Seq[HBaseRecord], timestamp: Long): Unit = {
+    val sql = sqlContext
+    import sql.implicits._
     sc.parallelize(data).toDF.write
       .options(Map(
         HBaseTableCatalog.tableCatalog -> cat,
