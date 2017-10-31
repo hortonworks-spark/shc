@@ -24,26 +24,31 @@ import org.apache.spark.sql.execution.datasources.hbase._
 
 class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
 
+  private def fromBytes(src: HBaseType, dt: DataType): Any  = dt match {
+    case BooleanType => toBoolean(src)
+    case ByteType => src(0)
+    case DoubleType => Bytes.toDouble(src)
+    case FloatType => Bytes.toFloat(src)
+    case IntegerType => Bytes.toInt(src)
+    case LongType => Bytes.toLong(src)
+    case ShortType => Bytes.toShort(src)
+    case StringType => toUTF8String(src, src.length)
+    case BinaryType => src
+    // this block MapType in future if connector want to support it
+    case m: MapType => fromBytes(src, m.valueType)
+    case _ => throw new UnsupportedOperationException(s"unsupported data type ${f.get.dt}")
+  }
+
   def fromBytes(src: HBaseType): Any = {
     if (f.isDefined) {
-      f.get.dt match {
-        case BooleanType => toBoolean(src)
-        case ByteType => src(0)
-        case DoubleType => Bytes.toDouble(src)
-        case FloatType => Bytes.toFloat(src)
-        case IntegerType => Bytes.toInt(src)
-        case LongType => Bytes.toLong(src)
-        case ShortType => Bytes.toShort(src)
-        case StringType => toUTF8String(src, src.length)
-        case BinaryType => src
-        case _ => throw new UnsupportedOperationException(s"unsupported data type ${f.get.dt}")
-      }
+      fromBytes(src, f.get.dt)
     } else {
       throw new UnsupportedOperationException(
         "PrimitiveType coder: without field metadata, " +
           "'fromBytes' conversion can not be supported")
     }
   }
+
 
   def toBytes(input: Any): Array[Byte] = {
     input match {
