@@ -231,6 +231,10 @@ private[hbase] class HBaseTableScanRDD(
     iterator
   }
 
+  /**
+    * Convert result in to list of rows aggregated by timestamp and flat this list into one iterator of rows
+    * This solution stand for fetching more than one version
+    */
   private def toFlattenRowIterator(
       it: Iterator[Result]): Iterator[Row] = {
 
