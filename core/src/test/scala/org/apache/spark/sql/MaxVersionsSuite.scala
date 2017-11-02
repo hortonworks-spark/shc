@@ -23,9 +23,7 @@ package org.apache.spark.sql
 import org.apache.spark.Logging
 import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
 
-
 class MaxVersionsSuite extends SHC with Logging {
-
 
   def withCatalog(cat: String, options: Map[String,String]): DataFrame = {
     sqlContext.read
@@ -101,8 +99,5 @@ class MaxVersionsSuite extends SHC with Logging {
     assert(lastRows.size == 3)
     assert(lastRows.count(_.getString(7).contains("new")) == 1)
     assert(lastRows.count(_.getString(7).contains("latest")) == 2)
-
-
   }
-
 }
