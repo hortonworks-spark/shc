@@ -268,7 +268,7 @@ private[hbase] class HBaseTableScanRDD(
           rows = buildRows(indexedFields, r)
           if(rows.isEmpty) { 
             // If 'requiredColumns' is empty, 'indexedFields' will be empty, which leads to empty 'rows'.
-            // This happens when users' query doesn't require Spark/SHC to return any real data from HBase tables,
+            // This happens when users' query doesn't require Spark/SHC to return any real data from HBase tables,
             // e.g. dataframe.count()
             Row.fromSeq(Seq.empty)
           } else {
