@@ -116,6 +116,42 @@ private[hbase] class HBaseTableScanRDD(
     Row.fromSeq(fields.map(unioned.get(_).getOrElse(null)))
   }
 
+  // TODO: It is a big performance overhead, as for each row, there is a hashmap lookup.
+  def buildRows(fields: Seq[Field], result: Result): Set[Row] = {
+    val r = result.getRow
+    val keySeq: Map[Field, Any] = {
+      if (relation.isComposite()) {
+        relation.catalog.shcTableCoder
+          .decodeCompositeRowKey(r, relation.catalog.getRowKey)
+      } else {
+        val f = relation.catalog.getRowKey.head
+        Seq((f, SHCDataTypeFactory.create(f).fromBytes(r))).toMap
+      }
+    }
+
+    val valueSeq: Seq[Map[Long, (Field, Any)]] = fields.filter(!_.isRowKey).map { x =>
+      import scala.collection.JavaConverters.asScalaBufferConverter
+      val dataType = SHCDataTypeFactory.create(x)
+      val kvs = result.getColumnCells(
+        relation.catalog.shcTableCoder.toBytes(x.cf),
+        relation.catalog.shcTableCoder.toBytes(x.col)).asScala
+
+      kvs.map(kv => {
+        val v = CellUtil.cloneValue(kv)
+        (kv.getTimestamp, x -> dataType.fromBytes(v))
+      }).toMap.withDefaultValue(x -> null)
+    }
+
+    val ts = valueSeq.foldLeft(Set.empty[Long])((acc, map) => acc ++ map.keySet)
+    // we are loosing duplicate here, because we didn't support passing version (timestamp) to the row
+    ts.map(version => {
+      keySeq ++ valueSeq.map(_.apply(version)).toMap
+    }).map { unioned =>
+      // return the row ordered by the requested order
+      Row.fromSeq(fields.map(unioned.get(_).getOrElse(null)))
+    }
+  }
+
   private def toResultIterator(result: GetResource): Iterator[Result] = {
     val iterator = new Iterator[Result] {
       var idx = 0
@@ -190,6 +226,57 @@ private[hbase] class HBaseTableScanRDD(
         rowCount += 1
         val r = it.next()
         buildRow(indexedFields, r)
+      }
+    }
+    iterator
+  }
+
+  /**
+   * Convert result in to list of rows aggregated by timestamp and flat this list into one iterator of rows
+   * This solution stand for fetching more than one version
+   */
+  private def toFlattenRowIterator(
+      it: Iterator[Result]): Iterator[Row] = {
+
+    val iterator = new Iterator[Row] {
+      val start = System.currentTimeMillis()
+      var rowCount: Int = 0
+      var rows: Set[Row] = Set.empty[Row]
+      val indexedFields = relation.getIndexedProjections(requiredColumns).map(_._1)
+
+      override def hasNext: Boolean = {
+        if(!rows.isEmpty || it.hasNext) {
+          true
+        }
+        else {
+          val end = System.currentTimeMillis()
+          logInfo(s"returned ${rowCount} rows from hbase in ${end - start} ms")
+          false
+        }
+      }
+
+      private def nextRow(): Row = {
+        val row = rows.head
+        rows = rows.tail
+        row
+      }
+
+      override def next(): Row = {
+        rowCount += 1
+        if(rows.isEmpty) {
+          val r = it.next()
+          rows = buildRows(indexedFields, r)
+          if(rows.isEmpty) { 
+            // If 'requiredColumns' is empty, 'indexedFields' will be empty, which leads to empty 'rows'.
+            // This happens when users' query doesn't require Spark/SHC to return any real data from HBase tables,
+            // e.g. dataframe.count()
+            Row.fromSeq(Seq.empty)
+          } else {
+            nextRow()
+          }
+        } else {
+          nextRow()
+        }
       }
     }
     iterator
@@ -293,7 +380,11 @@ private[hbase] class HBaseTableScanRDD(
     } ++ gIt
 
     ShutdownHookManager.addShutdownHook { () => HBaseConnectionCache.close() }
-    toRowIterator(rIt)
+    if(relation.mergeToLatest) {
+      toRowIterator(rIt)
+    } else {
+      toFlattenRowIterator(rIt)
+    }
   }
 
   private def handleTimeSemantics(query: Query): Unit = {
