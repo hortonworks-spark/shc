@@ -143,11 +143,11 @@ private[hbase] class HBaseTableScanRDD(
     }
 
     val ts = valueSeq.foldLeft(Set.empty[Long])((acc, map) => acc ++ map.keySet)
-    //we are loosing duplicate here, because we didn't support passing version (timestamp) to the row
+    // we are loosing duplicate here, because we didn't support passing version (timestamp) to the row
     ts.map(version => {
       keySeq ++ valueSeq.map(_.apply(version)).toMap
     }).map { unioned =>
-      // Return the row ordered by the requested order
+      // return the row ordered by the requested order
       Row.fromSeq(fields.map(unioned.get(_).getOrElse(null)))
     }
   }
@@ -232,9 +232,9 @@ private[hbase] class HBaseTableScanRDD(
   }
 
   /**
-    * Convert result in to list of rows aggregated by timestamp and flat this list into one iterator of rows
-    * This solution stand for fetching more than one version
-    */
+   * Convert result in to list of rows aggregated by timestamp and flat this list into one iterator of rows
+   * This solution stand for fetching more than one version
+   */
   private def toFlattenRowIterator(
       it: Iterator[Result]): Iterator[Row] = {
 
@@ -269,7 +269,7 @@ private[hbase] class HBaseTableScanRDD(
           if(rows.isEmpty) { 
             // If 'requiredColumns' is empty, 'indexedFields' will be empty, which leads to empty 'rows'.
             // This happens when users' query doesn't require Spark/SHC to return any real data from HBase tables,
-            // e.g. dataframe.count().
+            // e.g. dataframe.count()
             Row.fromSeq(Seq.empty)
           } else {
             nextRow()
