@@ -80,6 +80,7 @@ case class HBaseRelation(
   val minStamp = parameters.get(HBaseRelation.MIN_STAMP).map(_.toLong)
   val maxStamp = parameters.get(HBaseRelation.MAX_STAMP).map(_.toLong)
   val maxVersions = parameters.get(HBaseRelation.MAX_VERSIONS).map(_.toInt)
+  val mergeToLatest = parameters.get(HBaseRelation.MERGE_TO_LATEST).map(_.toBoolean).getOrElse(true)
 
   val catalog = HBaseTableCatalog(parameters)
 
@@ -155,6 +156,7 @@ case class HBaseRelation(
       cfs.foreach { x =>
         val cf = new HColumnDescriptor(x.getBytes())
         logDebug(s"add family $x to ${catalog.name}")
+        maxVersions.foreach(v => cf.setMaxVersions(v))
         tableDesc.addFamily(cf)
       }
       val startKey = catalog.shcTableCoder.toBytes("aaaaaaa")
@@ -322,6 +324,7 @@ object HBaseRelation {
   val TIMESTAMP = "timestamp"
   val MIN_STAMP = "minStamp"
   val MAX_STAMP = "maxStamp"
+  val MERGE_TO_LATEST = "mergeToLatest"
   val MAX_VERSIONS = "maxVersions"
   val HBASE_CONFIGURATION = "hbaseConfiguration"
   // HBase configuration file such as HBase-site.xml, core-site.xml
