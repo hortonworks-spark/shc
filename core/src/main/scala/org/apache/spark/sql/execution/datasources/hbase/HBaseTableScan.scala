@@ -266,11 +266,10 @@ private[hbase] class HBaseTableScanRDD(
         if(rows.isEmpty) {
           val r = it.next()
           rows = buildRows(indexedFields, r)
-          if(rows.isEmpty) {
-            // This is happened when it performed dataframe.count() (e.g. assert(twoVersions.count() == 3) in the test case).
-            // When performing users' queries, SHC gets the requiredColumns from Spark catalyst engine.
-            // However, when performing count() action, the requiredColumns given by Spark is empty (requiredColumns.length==0).
-            // Actually, that makes sense since what users want is the number of unique rows not the columns' values.
+          if(rows.isEmpty) { 
+            // If 'requiredColumns' is empty, 'indexedFields' will be empty, which leads to empty 'rows'.
+            // This happens when users' query doesn't require Spark/SHC to return any real data from HBase tables,
+            // e.g. dataframe.count().
             Row.fromSeq(Seq.empty)
           } else {
             nextRow()
