@@ -25,20 +25,24 @@ import org.apache.spark.sql.execution.datasources.hbase._
 
 class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
 
+  private def fromBytes(src: HBaseType, dt: DataType): Any  = dt match {
+    case BooleanType => toBoolean(src)
+    case ByteType => src(0)
+    case DoubleType => Bytes.toDouble(src)
+    case FloatType => Bytes.toFloat(src)
+    case IntegerType => Bytes.toInt(src)
+    case LongType => Bytes.toLong(src)
+    case ShortType => Bytes.toShort(src)
+    case StringType => toUTF8String(src, src.length)
+    case BinaryType => src
+  // this block MapType in future if connector want to support it
+    case m: MapType => fromBytes(src, m.valueType)
+    case _ => SparkSqlSerializer.deserialize[Any](src)
+  }
+
   def fromBytes(src: HBaseType): Any = {
     if (f.isDefined) {
-      f.get.dt match {
-        case BooleanType => toBoolean(src)
-        case ByteType => src(0)
-        case DoubleType => Bytes.toDouble(src)
-        case FloatType => Bytes.toFloat(src)
-        case IntegerType => Bytes.toInt(src)
-        case LongType => Bytes.toLong(src)
-        case ShortType => Bytes.toShort(src)
-        case StringType => toUTF8String(src, src.length)
-        case BinaryType => src
-        case _ => SparkSqlSerializer.deserialize[Any](src)
-      }
+      fromBytes(src, f.get.dt)
     } else {
       throw new UnsupportedOperationException(
         "PrimitiveType coder: without field metadata, " +

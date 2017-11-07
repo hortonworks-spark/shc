@@ -91,7 +91,7 @@ case class Field(
 
   // converter from avro to catalyst structure
   lazy val avroToCatalyst: Option[Any => Any] = {
-    schema.map(SchemaConverters.createConverterToSQL(_))
+    schema.map(SchemaConverters.createConverterToSQL)
   }
 
   // converter from catalyst to avro
@@ -99,11 +99,11 @@ case class Field(
     SchemaConverters.createConverterToAvro(dt, colName, "recordNamespace")
   }
 
-  val dt =
+  val dt: DataType =
     if (avroSchema.isDefined)
-      schema.map{ x => SchemaConverters.toSqlType(x).dataType }.get
+      schema.map(SchemaConverters.toSqlType(_).dataType).get
     else
-      sType.map(DataTypeParser.parse(_)).get
+      sType.map(DataTypeParser.parse).get
 
   val length: Int = {
     if (len == -1) {
@@ -177,7 +177,9 @@ case class HBaseTableCatalog(
     sMap.fields.map(_.cf).filter(_ != HBaseTableCatalog.rowKey).toSeq.distinct
   }
 
-  val shcTableCoder = SHCDataTypeFactory.create(tCoder)
+  //this is required to read fromBytes column families and qualifiers
+  val stringField = Field("","","",tCoder,Some("string"))
+  val shcTableCoder = SHCDataTypeFactory.create(stringField)
 
   def initRowKey() = {
     val fields = sMap.fields.filter(_.cf == HBaseTableCatalog.rowKey)
