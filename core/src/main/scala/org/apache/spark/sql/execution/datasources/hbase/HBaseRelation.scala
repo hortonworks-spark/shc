@@ -175,7 +175,15 @@ case class HBaseRelation(
     connection.close()
   }
 
-  private def convertToPut(rkIdxedFields: Seq[(Int, Field)], colsIdxedFields: Array[(Int, Field)])(row: Row) = {
+  private def convertToPut(rkFields: Seq[Field])(row: Row) = {
+    val rkIdxedFields: Seq[(Int, Field)] = rkFields.map{ case x =>
+      (schema.fieldIndex(x.colName), x)
+    }
+    val colsIdxedFields = schema
+      .fieldNames
+      .partition( x => rkFields.map(_.colName).contains(x))
+      ._2.map(x => (schema.fieldIndex(x), catalog.getField(x)))
+
     val coder = catalog.shcTableCoder
     // construct bytes for row key
     val rBytes =
@@ -229,18 +237,11 @@ case class HBaseRelation(
     }
 
     val rkFields = catalog.getRowKey
-    val rkIdxedFields: Seq[(Int, Field)] = rkFields.map{ case x =>
-      (schema.fieldIndex(x.colName), x)
-    }
-    val colsIdxedFields = schema
-      .fieldNames
-      .partition( x => rkFields.map(_.colName).contains(x))
-      ._2.map(x => (schema.fieldIndex(x), catalog.getField(x)))
     val rdd = data.rdd //df.queryExecution.toRdd
 
     rdd.mapPartitions(iter => {
       SHCCredentialsManager.processShcToken(serializedToken)
-      iter.map(convertToPut(rkIdxedFields, colsIdxedFields))
+      iter.map(convertToPut(rkFields))
     }).saveAsNewAPIHadoopDataset(jobConfig)
   }
 

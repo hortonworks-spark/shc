@@ -78,6 +78,33 @@ class DefaultSourceSuite extends SHC with Logging {
     HBaseRelation(Map(HBaseTableCatalog.tableCatalog->cat),None)(sqlContext)
   }
 
+  def persistDataInHBase(cat: String, data: Seq[HBaseRecord]): Unit = {
+    val sql = sqlContext
+    import sql.implicits._
+    sc.parallelize(data).toDF.write
+      .options(Map(
+        HBaseTableCatalog.newTable -> "5",
+        HBaseTableCatalog.tableCatalog -> cat
+      ))
+      .format("org.apache.spark.sql.execution.datasources.hbase")
+      .save()
+  }
+
+  test("inserting data with null values") {
+    val withNullData = (1 to 2).map(HBaseRecord(_, "").copy(col7 = null))
+    val withoutNullData = (3 to 4).map(HBaseRecord(_, "not null"))
+
+    persistDataInHBase(catalog, withNullData ++ withoutNullData)
+
+    val data: DataFrame = withCatalog(catalog)
+
+    assert(data.count() == 4)
+
+    val rows = data.take(10)
+    assert(rows.count(_.getString(7) == null) == 2)
+    assert(rows.count(_.getString(7) != null) == 2)
+  }
+
   test("populate table") {
     //createTable(tableName, columnFamilies)
     val sql = sqlContext
