@@ -20,8 +20,11 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.datasources.hbase.Logging
 import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
+
+import scala.reflect.ClassTag
 
 case class HBaseRecordExtended(
                         col0: String,
@@ -49,7 +52,7 @@ object HBaseRecordExtended {
       i.toByte,
       s"StringExtended$i: $t")
   }
-  def catalog = s"""{
+  val catalog = s"""{
                    |"table":{"namespace":"default", "name":"table1"},
                    |"rowkey":"key",
                    |"columns":{
@@ -72,20 +75,20 @@ object HBaseRecordExtended {
 class DynamicColumnSuite extends SHC with Logging {
 
   val cat = s"""{
-                   |"table":{"namespace":"default", "name":"table1"},
-                   |"rowkey":"key",
-                   |"columns":{
-                   |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
-                   |"col1":{"cf":"cf1", "col":"col1", "type":"boolean"},
-                   |"col2":{"cf":"cf2", "col":"col2", "type":"double"},
-                   |"col3":{"cf":"cf3", "col":"(.*)", "type":"map<string,float>"},
-                   |"col4":{"cf":"cf4", "col":"col4", "type":"int"},
-                   |"col5":{"cf":"cf5", "col":"col5", "type":"bigint"},
-                   |"col6":{"cf":"cf6", "col":"col6", "type":"smallint"},
-                   |"col7":{"cf":"cf7", "col":"col7_(.*)", "type":"map<string,string>"},
-                   |"col8":{"cf":"cf8", "col":"col8", "type":"tinyint"}
-                   |}
-                   |}""".stripMargin
+                 |"table":{"namespace":"default", "name":"table1"},
+                 |"rowkey":"key",
+                 |"columns":{
+                 |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
+                 |"col1":{"cf":"cf1", "col":"col1", "type":"boolean"},
+                 |"col2":{"cf":"cf2", "col":"col2", "type":"map<long, double>"},
+                 |"col3":{"cf":"cf3", "col":"col3", "type":"float"},
+                 |"col4":{"cf":"cf4", "col":"", "type":"map<string, int>"},
+                 |"col5":{"cf":"cf5", "col":"col5", "type":"bigint"},
+                 |"col6":{"cf":"cf6", "col":"col6", "type":"smallint"},
+                 |"col7":{"cf":"cf7", "col":"", "type":"map<string, map<long, string>>"},
+                 |"col8":{"cf":"cf8", "col":"col8", "type":"tinyint"}
+                 |}
+                 |}""".stripMargin
 
   def withCatalog(cat: String, opt: Map[String, String]): DataFrame = {
     sqlContext
@@ -97,26 +100,37 @@ class DynamicColumnSuite extends SHC with Logging {
       .load()
   }
 
+  def writeData[T: ClassTag](data: Seq[T])(implicit newProductEncoder: Encoder[T], rddToDatasetHolder: RDD[T] => DatasetHolder[T]) = {
+    sc.parallelize(data).toDF.write
+      .options(Map(
+        HBaseTableCatalog.tableCatalog -> HBaseRecordExtended.catalog,
+        HBaseTableCatalog.newTable -> "5",
+        HBaseRelation.MAX_VERSIONS -> "3"
+      ))
+      .format("org.apache.spark.sql.execution.datasources.hbase")
+      .save()
+  }
+
   test("retrieve rows without schema with default type") {
     val sql = sqlContext
     import sql.implicits._
 
+    sc.parallelize(data).toDF.write
 
-    val data = (0 to 2).map { i =>
+
+    def data = (0 to 2).map { i =>
       HBaseRecordExtended(i, "schema less")
     }
 
-    sc.parallelize(data).toDF.write
-      .options(Map(
-        HBaseTableCatalog.tableCatalog -> HBaseRecordExtended.catalog,
-        HBaseTableCatalog.newTable -> "5"
-      ))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .save()
+    writeData(data)
+    writeData(data.map(_.copy(col1 = false, col2 = 1.1, col4 = 1, col7 = "")))
 
     // Test
 
-    val result = withCatalog(cat, Map(HBaseRelation.RESTRICITVE -> "false"))
+    val result = withCatalog(cat, Map(
+      HBaseRelation.RESTRICITVE -> "false",
+      HBaseRelation.MAX_VERSIONS -> "3"
+    ))
 
 
     val rows = result.take(10)
@@ -125,7 +139,10 @@ class DynamicColumnSuite extends SHC with Logging {
     assert(rows.size == 3)
     println(rows.mkString(" | "))
     assert(rows(0).size == 9)
-    assert(rows(0).getMap[String,String](7).size == 2)
+    assert(rows(0).getBoolean(1) == false)
+    assert(rows(0).getMap[Long, Double](2).size == 2)
+    assert(rows(0).getMap[String, Int](4).head._2 == 1)
+    assert(rows(0).getMap[String,Map[Long, String]](7).size == 2)
 
   }
 
