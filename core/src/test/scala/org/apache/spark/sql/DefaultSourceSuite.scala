@@ -66,10 +66,10 @@ object HBaseRecord {
 
 class DefaultSourceSuite extends SHC with Logging {
 
-  def withCatalog(cat: String): DataFrame = {
+  def withCatalog(cat: String, options: Map[String, String] = Map.empty): DataFrame = {
     sqlContext
       .read
-      .options(Map(HBaseTableCatalog.tableCatalog->cat))
+      .options(Map(HBaseTableCatalog.tableCatalog->cat) ++ options)
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .load()
   }
@@ -78,14 +78,14 @@ class DefaultSourceSuite extends SHC with Logging {
     HBaseRelation(Map(HBaseTableCatalog.tableCatalog->cat),None)(sqlContext)
   }
 
-  def persistDataInHBase(cat: String, data: Seq[HBaseRecord]): Unit = {
+  def persistDataInHBase(cat: String, data: Seq[HBaseRecord], options: Map[String, String] = Map.empty): Unit = {
     val sql = sqlContext
     import sql.implicits._
     sc.parallelize(data).toDF.write
       .options(Map(
         HBaseTableCatalog.newTable -> "5",
         HBaseTableCatalog.tableCatalog -> cat
-      ))
+      ) ++ options)
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .save()
   }
@@ -113,10 +113,7 @@ class DefaultSourceSuite extends SHC with Logging {
     val data = (0 to 255).map { i =>
       HBaseRecord(i, "extra")
     }
-    sc.parallelize(data).toDF.write.options(
-      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5"))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .save()
+    persistDataInHBase(catalog, data)
   }
 
   test("empty column") {
@@ -313,27 +310,16 @@ class DefaultSourceSuite extends SHC with Logging {
       HBaseRecord(i, "new")
     }
 
-    sc.parallelize(oldData).toDF.write.options(
-      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5", HBaseRelation.TIMESTAMP -> oldMs.toString))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .save()
-    sc.parallelize(newData).toDF.write.options(
-      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5"))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .save()
+
+    persistDataInHBase(catalog, oldData, Map(HBaseRelation.TIMESTAMP -> oldMs.toString))
+    persistDataInHBase(catalog, newData)
 
     // Test specific timestamp -- Full scan, Timestamp
-    val individualTimestamp = sqlContext.read
-      .options(Map(HBaseTableCatalog.tableCatalog->catalog, HBaseRelation.TIMESTAMP -> oldMs.toString))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .load();
+    val individualTimestamp = withCatalog(catalog, Map(HBaseRelation.TIMESTAMP -> oldMs.toString))
     assert(individualTimestamp.count() == 101)
 
     // Test getting everything -- Full Scan, No range
-    val everything = sqlContext.read
-      .options(Map(HBaseTableCatalog.tableCatalog->catalog))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .load()
+    val everything = withCatalog(catalog)
     assert(everything.count() == 256)
     // Test getting everything -- Pruned Scan, TimeRange
     val element50 = everything.where(col("col0") === lit("row050")).select("col7").collect()(0)(0)
@@ -342,20 +328,14 @@ class DefaultSourceSuite extends SHC with Logging {
     assert(element200 == "String200: new")
 
     // Test Getting old stuff -- Full Scan, TimeRange
-    val oldRange = sqlContext.read
-      .options(Map(HBaseTableCatalog.tableCatalog->catalog, HBaseRelation.MIN_STAMP -> "0", HBaseRelation.MAX_STAMP -> (oldMs + 100).toString))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .load()
+    val oldRange = withCatalog(catalog, Map(HBaseRelation.MIN_STAMP -> "0", HBaseRelation.MAX_STAMP -> (oldMs + 100).toString))
     assert(oldRange.count() == 101)
     // Test Getting old stuff -- Pruned Scan, TimeRange
     val oldElement50 = oldRange.where(col("col0") === lit("row050")).select("col7").collect()(0)(0)
     assert(oldElement50 == "String50: old")
 
     // Test Getting middle stuff -- Full Scan, TimeRange
-    val middleRange = sqlContext.read
-      .options(Map(HBaseTableCatalog.tableCatalog->catalog, HBaseRelation.MIN_STAMP -> "0", HBaseRelation.MAX_STAMP -> (startMs + 100).toString))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .load()
+    val middleRange = withCatalog(catalog, Map(HBaseRelation.MIN_STAMP -> "0", HBaseRelation.MAX_STAMP -> (startMs + 100).toString))
     assert(middleRange.count() == 256)
     // Test Getting middle stuff -- Pruned Scan, TimeRange
     val middleElement200 = middleRange.where(col("col0") === lit("row200")).select("col7").collect()(0)(0)
@@ -373,10 +353,7 @@ class DefaultSourceSuite extends SHC with Logging {
     htu.deleteTable(tableName)
     createTable(tableName, columnFamilies)
 
-    sc.parallelize(data).toDF.write.options(
-      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5"))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .save()
+    persistDataInHBase(catalog, data)
 
     val keys = withCatalog(catalog).select("col0").distinct().collect().map(a => a.getString(0))
     // There was an issue with the keys being truncated during buildrow.
@@ -398,10 +375,7 @@ class DefaultSourceSuite extends SHC with Logging {
     val data = (256 to 258).map { i =>
       HBaseRecord(i, "extra")
     }
-    sc.parallelize(data).toDF.write.options(
-      Map(HBaseTableCatalog.tableCatalog -> catalog))
-      .format("org.apache.spark.sql.execution.datasources.hbase")
-      .save()
+    persistDataInHBase(catalog, data)
 
     val df2 = withCatalog(catalog)
     assert(df2.count() == 104)
