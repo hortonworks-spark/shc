@@ -24,10 +24,8 @@ import java.io._
 
 import scala.util.control.NonFatal
 import scala.xml.XML
-
 import org.json4s.DefaultFormats
 import org.json4s.jackson.JsonMethods._
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.Put
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
@@ -39,7 +37,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Row, SQLContext, SaveMode}
-import org.apache.spark.sql.execution.datasources.hbase.types.SHCDataTypeFactory
+import org.apache.spark.sql.execution.datasources.hbase.types.{SHCDataType, SHCDataTypeFactory}
 import org.apache.spark.util.Utils
 
 /**
@@ -176,50 +174,6 @@ case class HBaseRelation(
     connection.close()
   }
 
-  private def convertToPut(rkFields: Seq[Field])(row: Row) = {
-    val rkIdxedFields: Seq[(Int, Field)] = rkFields.map{ case x =>
-      (schema.fieldIndex(x.colName), x)
-    }
-    val colsIdxedFields = schema
-      .fieldNames
-      .partition( x => rkFields.map(_.colName).contains(x))
-      ._2.map(x => (schema.fieldIndex(x), catalog.getField(x)))
-
-    val coder = catalog.shcTableCoder
-    // construct bytes for row key
-    val rBytes =
-      if (isComposite()) {
-        val rowBytes = coder.encodeCompositeRowKey(rkIdxedFields, row)
-
-        val rLen = rowBytes.foldLeft(0) { case (x, y) =>
-          x + y.length
-        }
-        val rBytes = new Array[Byte](rLen)
-        var offset = 0
-        rowBytes.foreach { x =>
-          System.arraycopy(x, 0, rBytes, offset, x.length)
-          offset += x.length
-        }
-        rBytes
-      } else {
-        val rBytes = rkIdxedFields.map { case (x, y) =>
-          SHCDataTypeFactory.create(y).toBytes(row(x))
-        }
-        rBytes(0)
-      }
-    val put = timestamp.fold(new Put(rBytes))(new Put(rBytes, _))
-    colsIdxedFields.foreach { case (x, y) =>
-      val value = row(x)
-      if(value != null) {
-        put.addColumn(
-          coder.toBytes(y.cf),
-          coder.toBytes(y.col),
-          SHCDataTypeFactory.create(y).toBytes(value))
-      }
-    }
-    (new ImmutableBytesWritable, put)
-  }
-
   /**
    *
    * @param data DataFrame to write to hbase
@@ -237,13 +191,78 @@ case class HBaseRelation(
       jobConfig.set("mapreduce.output.fileoutputformat.outputdir", tempDir.getPath + "/outputDataset")
     }
 
-    val rkFields = catalog.getRowKey
     val rdd = data.rdd //df.queryExecution.toRdd
 
     rdd.mapPartitions(iter => {
       SHCCredentialsManager.processShcToken(serializedToken)
-      iter.map(convertToPut(rkFields))
+      iter.map(convertToPut(catalog.getRowKey))
     }).saveAsNewAPIHadoopDataset(jobConfig)
+  }
+
+  private def convertToPut(rkFields: Seq[Field] )(row: Row): (ImmutableBytesWritable, Put) = {
+    val rkIdxedFields = rkFields.map{ case x =>
+      (schema.fieldIndex(x.colName), x)
+    }
+    val colsIdxedFields = schema
+      .fieldNames
+      .partition( x => rkFields.map(_.colName).contains(x))
+      ._2.map(x => (schema.fieldIndex(x), catalog.getField(x)))
+    val coder: SHCDataType = catalog.shcTableCoder
+
+    // construct bytes for row key
+    val rBytes: Array[Byte] =
+      if (isComposite()) {
+        val rowBytes = coder.encodeCompositeRowKey(rkIdxedFields, row)
+
+        val rLen = rowBytes.foldLeft(0) { case (x, y) =>
+          x + y.length
+        }
+        val rBytes = new Array[Byte](rLen)
+        var offset = 0
+        rowBytes.foreach { x =>
+          System.arraycopy(x, 0, rBytes, offset, x.length)
+          offset += x.length
+        }
+        rBytes
+      } else {
+        rkIdxedFields.map { case (x, y) =>
+          SHCDataTypeFactory.create(y).toBytes(row(x))
+        }.head
+      }
+
+    // add timestamp if defined for whole table
+    val put: Put = timestamp.fold(new Put(rBytes))(new Put(rBytes, _))
+
+    colsIdxedFields.foreach { case (index, field) =>
+      val dataType = SHCDataTypeFactory.create(field)
+      def addColumnWithTime(col: String)(ts: Long, value: Any) =
+        put.addColumn(coder.toBytes(field.cf), coder.toBytes(col), ts, dataType.toBytes(value) )
+      def addColumn(col: String, value: Any) =
+        put.addColumn(coder.toBytes(field.cf), coder.toBytes(col), dataType.toBytes(value) )
+
+      field.dt match {
+        case MapType(keyType, valueType, _) =>
+          keyType match {
+            case StringType =>
+              valueType match {
+                case MapType(LongType, _, _) =>
+                  row(index).asInstanceOf[Map[String, Map[Long, Any]]]
+                    .foreach{ case (col, versions) =>
+                      versions.foreach((addColumnWithTime(col) _).tupled)
+                    }
+                case _ =>
+                  row(index).asInstanceOf[Map[String, Any]]
+                    .foreach((addColumn _).tupled)
+              }
+            case LongType =>
+              row(index).asInstanceOf[Map[Long, Any]]
+                .foreach((addColumnWithTime(field.col) _).tupled)
+          }
+        case _ =>
+          addColumn(field.col, row(index))
+      }
+    }
+    (new ImmutableBytesWritable, put)
   }
 
   def rows = catalog.row
