@@ -94,9 +94,10 @@ class DefaultSourceSuite extends SHC with Logging {
     val withNullData = (1 to 2).map(HBaseRecord(_, "").copy(col7 = null))
     val withoutNullData = (3 to 4).map(HBaseRecord(_, "not null"))
 
-    persistDataInHBase(catalog, withNullData ++ withoutNullData)
+    val testCatalog = defineCatalog("testInsertNull")
+    persistDataInHBase(testCatalog, withNullData ++ withoutNullData)
 
-    val data: DataFrame = withCatalog(catalog)
+    val data: DataFrame = withCatalog(testCatalog)
 
     assert(data.count() == 4)
 
