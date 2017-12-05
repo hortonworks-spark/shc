@@ -90,22 +90,6 @@ class DefaultSourceSuite extends SHC with Logging {
       .save()
   }
 
-  test("inserting data with null values") {
-    val withNullData = (1 to 2).map(HBaseRecord(_, "").copy(col7 = null))
-    val withoutNullData = (3 to 4).map(HBaseRecord(_, "not null"))
-
-    val testCatalog = defineCatalog("testInsertNull")
-    persistDataInHBase(testCatalog, withNullData ++ withoutNullData)
-
-    val data: DataFrame = withCatalog(testCatalog)
-
-    assert(data.count() == 4)
-
-    val rows = data.take(10)
-    assert(rows.count(_.getString(7) == null) == 2)
-    assert(rows.count(_.getString(7) != null) == 2)
-  }
-
   test("populate table") {
     //createTable(tableName, columnFamilies)
     val sql = sqlContext
@@ -380,5 +364,21 @@ class DefaultSourceSuite extends SHC with Logging {
 
     val df2 = withCatalog(catalog)
     assert(df2.count() == 104)
+  }
+
+  test("inserting data with null values") {
+    val withNullData = (1 to 2).map(HBaseRecord(_, "").copy(col7 = null))
+    val withoutNullData = (3 to 4).map(HBaseRecord(_, "not null"))
+
+    val testCatalog = defineCatalog("testInsertNull")
+    persistDataInHBase(testCatalog, withNullData ++ withoutNullData)
+
+    val data: DataFrame = withCatalog(testCatalog)
+
+    assert(data.count() == 4)
+
+    val rows = data.take(10)
+    assert(rows.count(_.getString(7) == null) == 2)
+    assert(rows.count(_.getString(7) != null) == 2)
   }
 }

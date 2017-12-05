@@ -54,9 +54,9 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
   // private[spark] var columnFamilyStr = Bytes.toString(columnFamily)
 
   def defineCatalog(tName: String) = s"""{
-                                              |"table":{"namespace":"default", "name":"$tName"},
-                                              |"rowkey":"key",
-                                              |"columns":{
+                                         |"table":{"namespace":"default", "name":"$tName"},
+                                         |"rowkey":"key",
+                                         |"columns":{
                                               |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
                                               |"col1":{"cf":"cf1", "col":"col1", "type":"boolean"},
                                               |"col2":{"cf":"cf2", "col":"col2", "type":"double"},
@@ -66,10 +66,10 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
                                               |"col6":{"cf":"cf6", "col":"col6", "type":"smallint"},
                                               |"col7":{"cf":"cf7", "col":"col7", "type":"string"},
                                               |"col8":{"cf":"cf8", "col":"col8", "type":"tinyint"}
-                                              |}
-                                              |}""".stripMargin
+                                            |}
+                                         |}""".stripMargin
 
-  @deprecated(since = "04.12.2017", message = "use `defineCatalog` instead")
+  @deprecated(since = "04.12.2017(dd/mm/year)", message = "use `defineCatalog` instead")
   def catalog = defineCatalog(tableName)
 
   override def beforeAll() {
