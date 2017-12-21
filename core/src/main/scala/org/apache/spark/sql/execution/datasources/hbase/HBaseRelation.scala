@@ -235,11 +235,12 @@ case class HBaseRelation(
 
     colsIdxedFields.foreach { case (index, field) =>
       val dataType = SHCDataTypeFactory.create(field)
-      def addColumnWithTime(col: String)(ts: Long, value: Any) =
-        put.addColumn(coder.toBytes(field.cf), coder.toBytes(col), ts, dataType.toBytes(value) )
-      def addColumn(col: String, value: Any) =
-        put.addColumn(coder.toBytes(field.cf), coder.toBytes(col), dataType.toBytes(value) )
-
+      def addColumnWithTime(col: String)(ts: Long, value: Any) = if(value != null) {
+        put.addColumn(coder.toBytes(field.cf), coder.toBytes(col), ts, dataType.toBytes(value))
+      }
+      def addColumn(col: String, value: Any) = if(value != null) {
+        put.addColumn(coder.toBytes(field.cf), coder.toBytes(col), dataType.toBytes(value))
+      }
       field.dt match {
         case MapType(keyType, valueType, _) =>
           keyType match {
