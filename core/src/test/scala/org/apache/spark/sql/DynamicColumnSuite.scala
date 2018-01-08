@@ -69,6 +69,16 @@ object HBaseRecordExtended {
                    |}
                    |}""".stripMargin
 
+  val catalogcf7 = s"""{
+                   |"table":{"namespace":"default", "name":"table1"},
+                   |"rowkey":"key",
+                   |"columns":{
+                   |"col0":{"cf":"rowkey", "col":"key", "type":"string"},
+                   |"col1":{"cf":"cf7", "col":"col7_1", "type":"string"},
+                   |"col2":{"cf":"cf7", "col":"col7_2", "type":"string"}
+                   |}
+                   |}""".stripMargin
+
 }
 
 case class HBaseRecordDynamic(
@@ -155,7 +165,7 @@ class DynamicColumnSuite extends SHC with Logging {
     // Test
 
     val result = withCatalog(HBaseRecordDynamic.catalog, Map(
-      HBaseRelation.RESTRICITVE -> "false",
+      HBaseRelation.RESTRICTIVE -> HBaseRelation.Restrictive.none,
       HBaseRelation.MAX_VERSIONS -> "3"
     ))
 
@@ -189,7 +199,7 @@ class DynamicColumnSuite extends SHC with Logging {
     // Test
 
     val result = withCatalog(HBaseRecordExtended.catalog, Map(
-      HBaseRelation.RESTRICITVE -> "false",
+      HBaseRelation.RESTRICTIVE -> HBaseRelation.Restrictive.none,
       HBaseRelation.MAX_VERSIONS -> "3"
     ))
 
@@ -202,6 +212,38 @@ class DynamicColumnSuite extends SHC with Logging {
     println(rows.mkString(" | "))
 
     assert(rows(0).size == 10)
+
+  }
+
+  test("read rows for the families declared in catalog") {
+    val sql = sqlContext
+    import sql.implicits._
+
+    sc.parallelize(data).toDF.write
+
+
+    def data = (3 to 5).map { i =>
+      HBaseRecordDynamic(i, "schema less")
+    }
+
+    writeData(data, HBaseRecordDynamic.catalog)
+
+    // Test
+
+    val result = withCatalog(HBaseRecordExtended.catalogcf7, Map(
+      HBaseRelation.RESTRICTIVE -> HBaseRelation.Restrictive.family,
+      HBaseRelation.MAX_VERSIONS -> "3"
+    ))
+
+
+    val rows = result.take(10)
+
+
+    assert(rows.size == 6)
+
+    println(rows.mkString(" | "))
+
+    assert(rows(0).size == 3)
 
   }
 

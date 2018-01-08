@@ -403,13 +403,18 @@ private[hbase] class HBaseTableScanRDD(
 
     // set fetch size
     // scan.setCaching(scannerFetchSize)
-    if(relation.restrictive) {
+    if(relation.restrictive == HBaseRelation.Restrictive.column) {
       columns.foreach { c =>
         scan.addColumn(
           relation.catalog.shcTableCoder.toBytes(c.cf),
           relation.catalog.shcTableCoder.toBytes(c.col))
       }
+    } else if (relation.restrictive == HBaseRelation.Restrictive.family) {
+      columns.foreach { c =>
+        scan.addFamily(relation.catalog.shcTableCoder.toBytes(c.cf))
+      }
     }
+
     val size = sparkConf.getInt(SparkHBaseConf.CachingSize, SparkHBaseConf.defaultCachingSize)
     scan.setCaching(size)
     filter.foreach(scan.setFilter(_))

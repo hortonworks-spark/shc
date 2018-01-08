@@ -79,7 +79,7 @@ case class HBaseRelation(
   val maxStamp = parameters.get(HBaseRelation.MAX_STAMP).map(_.toLong)
   val maxVersions = parameters.get(HBaseRelation.MAX_VERSIONS).map(_.toInt)
   val mergeToLatest = parameters.get(HBaseRelation.MERGE_TO_LATEST).map(_.toBoolean).getOrElse(true)
-  val restrictive = parameters.get(HBaseRelation.RESTRICITVE).map(_.toBoolean).getOrElse(true)
+  val restrictive = parameters.getOrElse(HBaseRelation.RESTRICTIVE, HBaseRelation.Restrictive.column)
 
   val catalog = HBaseTableCatalog(parameters)
 
@@ -345,7 +345,13 @@ class SerializableConfiguration(@transient var value: Configuration) extends Ser
 
 object HBaseRelation {
 
-  val RESTRICITVE = "restrictive"
+  object Restrictive {
+    val none = "NONE"
+    val family = "FAMILY"
+    val column = "COLUMN"
+  }
+
+  val RESTRICTIVE = "restrictive"
   val TIMESTAMP = "timestamp"
   val MIN_STAMP = "minStamp"
   val MAX_STAMP = "maxStamp"
