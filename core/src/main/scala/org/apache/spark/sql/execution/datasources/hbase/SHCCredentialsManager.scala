@@ -188,7 +188,7 @@ final class SHCCredentialsManager private() extends Logging {
     val kerberosUgi = UserGroupInformation.loginUserFromKeytabAndReturnUGI(principal, keytab)
     val tokenInfo = kerberosUgi.doAs(new PrivilegedExceptionAction[TokenInfo] {
       override def run(): TokenInfo = {
-        val token = TokenUtil.obtainToken(conf)
+        val token = TokenUtil.obtainToken(HBaseConnectionCache.getConnection(conf).connection)
         val tokenIdentifier = token.decodeIdentifier()
         val expireTime = tokenIdentifier.getExpirationDate
         val issueTime = tokenIdentifier.getIssueDate
