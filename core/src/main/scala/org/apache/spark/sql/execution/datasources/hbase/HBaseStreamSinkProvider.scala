@@ -5,19 +5,18 @@ import org.apache.spark.sql.sources.{DataSourceRegister, StreamSinkProvider}
 import org.apache.spark.sql.streaming.OutputMode
 import org.apache.spark.sql.{DataFrame, SQLContext}
 
-class HBaseStreamSink(options: Map[String, String]) extends Sink with Logging {
+class HBaseStreamSink(parameters: Map[String, String])
+    extends Sink
+    with Logging {
 
   val defaultFormat = "org.apache.spark.sql.execution.datasources.hbase"
   // String with HBaseTableCatalog.tableCatalog
   private val hBaseCatalog =
-    options.get("hbasecatalog").map(_.toString).getOrElse("")
+    parameters.get(HBaseTableCatalog.tableCatalog).map(_.toString).getOrElse("")
 
   if (hBaseCatalog.isEmpty)
     throw new IllegalArgumentException(
-      "hbasecatalog - variable must be specified in option")
-
-  private val newTableCount =
-    options.get("newtablecount").map(_.toString).getOrElse("5")
+      "HBaseTableCatalog.tableCatalog - must be specified in option")
 
   override def addBatch(batchId: Long, data: DataFrame): Unit = synchronized {
 
@@ -25,9 +24,9 @@ class HBaseStreamSink(options: Map[String, String]) extends Sink with Logging {
       * converting to an RDD allows us to do magic.
       */
     val df = data.sparkSession.createDataFrame(data.rdd, data.schema)
+
     df.write
-      .options(Map(HBaseTableCatalog.tableCatalog -> hBaseCatalog,
-                   HBaseTableCatalog.newTable -> newTableCount))
+      .options(parameters)
       .format(defaultFormat)
       .save()
   }
@@ -40,7 +39,7 @@ class HBaseStreamSink(options: Map[String, String]) extends Sink with Logging {
   *    writeStream.  *
   *    format("org.apache.spark.sql.execution.datasources.hbase.HBaseStreamSinkProvider").
   *    option("checkpointLocation", checkPointProdPath).
-  *    option("hbasecatalog", catalog).
+  *    options(Map("schema_array"->schema_array,"schema_record"->schema_record, HBaseTableCatalog.tableCatalog->catalog)).
   *    outputMode(OutputMode.Update()).
   *    trigger(Trigger.ProcessingTime(30.seconds)).
   *    start
