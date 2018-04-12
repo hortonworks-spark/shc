@@ -12,6 +12,8 @@ class HBaseStreamSink(parameters: Map[String, String])
     extends Sink
     with Logging {
 
+  @volatile private var latestBatchId = -1L
+
   private val defaultFormat = "org.apache.spark.sql.execution.datasources.hbase"
 
   private val hbaseOptionPrefix = "hbase."
@@ -32,16 +34,20 @@ class HBaseStreamSink(parameters: Map[String, String])
       "hbase.catalog - must be specified in option")
 
   override def addBatch(batchId: Long, data: DataFrame): Unit = synchronized {
+    if (batchId <= latestBatchId) {
+      logInfo(s"Skipping already committed batch $batchId")
+    } else {
 
-    /** As per SPARK-16020 arbitrary transformations are not supported, but
-      * converting to an RDD allows us to do magic.
-      */
-    val df = data.sparkSession.createDataFrame(data.rdd, data.schema)
+      /** As per SPARK-16020 arbitrary transformations are not supported, but
+        * converting to an RDD allows us to do magic.
+        */
+      val df = data.sparkSession.createDataFrame(data.rdd, data.schema)
 
-    df.write
-      .options(hbaseSettings)
-      .format(defaultFormat)
-      .save()
+      df.write
+        .options(hbaseSettings)
+        .format(defaultFormat)
+        .save()
+    }
   }
 }
 
@@ -52,7 +58,7 @@ class HBaseStreamSink(parameters: Map[String, String])
   *    writeStream.
   *    format("hbase").
   *    option("checkpointLocation", checkPointProdPath).
-  *    options(Map("hbase.schema_array"->schema_array,"hbase.schema_record"->schema_record, hbase..catalog->catalog)).
+  *    options(Map("hbase.schema_array"->schema_array,"hbase.schema_record"->schema_record, hbase.catalog->catalog)).
   *    outputMode(OutputMode.Update()).
   *    trigger(Trigger.ProcessingTime(30.seconds)).
   *    start
