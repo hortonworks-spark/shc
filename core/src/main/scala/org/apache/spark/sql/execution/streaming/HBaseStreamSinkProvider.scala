@@ -1,50 +1,45 @@
 package org.apache.spark.sql.execution.streaming
 
-import org.apache.spark.sql.execution.datasources.hbase.{
-  HBaseTableCatalog,
-  Logging
-}
+import java.util.Locale
+
+import org.apache.spark.sql.catalyst.CatalystTypeConverters
+import org.apache.spark.sql.execution.datasources.hbase.Logging
 import org.apache.spark.sql.sources.{DataSourceRegister, StreamSinkProvider}
 import org.apache.spark.sql.streaming.OutputMode
-import org.apache.spark.sql.{DataFrame, SQLContext}
+import org.apache.spark.sql.{DataFrame, Row, SQLContext}
 
-class HBaseStreamSink(parameters: Map[String, String])
+class HBaseStreamSink(sqlContext: SQLContext,
+                      parameters: Map[String, String],
+                      partitionColumns: Seq[String],
+                      outputMode: OutputMode)
     extends Sink
     with Logging {
 
   @volatile private var latestBatchId = -1L
 
   private val defaultFormat = "org.apache.spark.sql.execution.datasources.hbase"
+  private val prefix = "hbase."
 
-  private val hbaseOptionPrefix = "hbase."
-
-  private val hbaseSettings = parameters.filterKeys(
-    _.toLowerCase matches hbaseOptionPrefix + "*") map {
-    case (k, v) => (k.replace(hbaseOptionPrefix, ""), v)
-  }
-
-  private val hBaseCatalog =
-    hbaseSettings
-      .get(HBaseTableCatalog.tableCatalog)
-      .map(_.toString)
-      .getOrElse("")
-
-  if (hBaseCatalog.isEmpty)
-    throw new IllegalArgumentException(
-      "hbase.catalog - must be specified in option")
+  private val specifiedHBaseParams = parameters
+    .keySet
+    .filter(_.toLowerCase(Locale.ROOT).startsWith(prefix))
+    .map { k => k.drop(prefix.length).toString -> parameters(k) }
+    .toMap
 
   override def addBatch(batchId: Long, data: DataFrame): Unit = synchronized {
     if (batchId <= latestBatchId) {
       logInfo(s"Skipping already committed batch $batchId")
     } else {
+      // use a local variable to make sure the map closure doesn't capture the whole DataFrame
+      val schema = data.schema
+      val res = data.queryExecution.toRdd.mapPartitions { rows =>
+        val converter = CatalystTypeConverters.createToScalaConverter(schema)
+        rows.map(converter(_).asInstanceOf[Row])
+      }
 
-      /** As per SPARK-16020 arbitrary transformations are not supported, but
-        * converting to an RDD allows us to do magic.
-        */
-      val df = data.sparkSession.createDataFrame(data.rdd, data.schema)
-
+      val df = sqlContext.sparkSession.createDataFrame(res, schema)
       df.write
-        .options(hbaseSettings)
+        .options(specifiedHBaseParams)
         .format(defaultFormat)
         .save()
     }
@@ -71,7 +66,7 @@ class HBaseStreamSinkProvider
                  parameters: Map[String, String],
                  partitionColumns: Seq[String],
                  outputMode: OutputMode): Sink = {
-    new HBaseStreamSink(parameters)
+    new HBaseStreamSink(sqlContext, parameters, partitionColumns, outputMode)
   }
 
   def shortName(): String = "hbase"
