@@ -306,6 +306,9 @@ object SchemaConverters {
             field.name,
             recordNamespace))
         (item: Any) => {
+          if (item == null) {
+            null
+          } else {
             println(s"SEB, item: $item")
             val record = new Record(schema)
             val convertersIterator = fieldConverters.iterator
