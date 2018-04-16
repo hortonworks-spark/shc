@@ -309,7 +309,6 @@ object SchemaConverters {
           if (item == null) {
             null
           } else {
-            println(s"SEB, item: $item")
             val record = new Record(schema)
             val convertersIterator = fieldConverters.iterator
             val fieldNamesIterator = dataType.asInstanceOf[StructType].fieldNames.iterator
