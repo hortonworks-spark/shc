@@ -248,7 +248,7 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
     println(s"sqlRec1: $sqlRec1")
   }
 	
-test("avro to schema field order setup") {
+test("avro not dependent on schema field order") {
     val schemaString  =
       s"""{"namespace": "example.avro",
          |   "type": "record", "name": "User",
@@ -277,12 +277,12 @@ test("avro to schema field order setup") {
     user2.put("bool", false)
 
     val sqlUser1 = SchemaConverters.createConverterToSQL(avroDatasetSchema)(user1)
-    println(sqlUser1)
+    println(s"user1 from sql: $sqlUser1")
     val schema = SchemaConverters.toSqlType(avroDatasetSchema)
     println(s"\nSqlschema: $schema")
     val avroUser1 = SchemaConverters.createConverterToAvro(schema.dataType, avroSchema,"avro", "example.avro")(sqlUser1)
     val avroByte = AvroSerde.serialize(avroUser1, avroSchema)
     val avroUser11 = AvroSerde.deserialize(avroByte, avroSchema)
-    println(s"$avroUser1")
+    println(s"user1 deserialized: $avroUser1")
   }
 }
