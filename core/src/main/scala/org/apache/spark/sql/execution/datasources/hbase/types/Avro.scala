@@ -55,7 +55,7 @@ class Avro(f:Option[Field] = None) extends SHCDataType {
   def toBytes(input: Any): Array[Byte] = {
     // Here we assume the top level type is structType
     if (f.isDefined) {
-      val record = f.get.catalystToAvro(input,f.get.exeSchema.get)
+      val record = f.get.catalystToAvro(input)
       AvroSerde.serialize(record, f.get.exeSchema.get) 
     } else {
       throw new UnsupportedOperationException(
@@ -306,25 +306,15 @@ object SchemaConverters {
             field.name,
             recordNamespace))
         (item: Any) => {
-          if (item == null) {
-            null
-          } else {
-            // TODO: I don't understand yet why ... Not sure it's because this PR
-            var data = item
-            if (item.isInstanceOf[Seq[Any]]) 
-              data = item.asInstanceOf[Seq[Any]](0)
-            println(s"SEB, item: $data")
+            println(s"SEB, item: $item")
             val record = new Record(schema)
             val convertersIterator = fieldConverters.iterator
             val fieldNamesIterator = dataType.asInstanceOf[StructType].fieldNames.iterator
-            // val row = item.asInstanceOf[Row]
-            val rowIterator = data.asInstanceOf[Row].toSeq.iterator
+            val rowIterator = item.asInstanceOf[Row].toSeq.iterator
 
-            // Parse in the dataset order
+            // Parse in the dataset order, Record doesn't depend on the order, only the schema does
             while (convertersIterator.hasNext) {
               val converter = convertersIterator.next()
-              // val currentFieldName = fieldNamesIterator.next()
-              // record.put(currentFieldName, converter(row.get(structType.getFieldIndex(currentFieldName).get)))
               record.put(fieldNamesIterator.next(), converter(rowIterator.next()))
             }
             record
