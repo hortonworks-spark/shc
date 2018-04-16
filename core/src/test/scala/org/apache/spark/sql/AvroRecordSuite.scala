@@ -54,7 +54,7 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
     println(sqlUser1)
     val schema = SchemaConverters.toSqlType(avroSchema)
     println(s"\nSqlschema: $schema")
-    val avroUser1 = SchemaConverters.createConverterToAvro(schema.dataType, "avro", "example.avro")(sqlUser1)
+    val avroUser1 = SchemaConverters.createConverterToAvro(schema.dataType, avroSchema,"avro", "example.avro")(sqlUser1)
     val avroByte = AvroSerde.serialize(avroUser1, avroSchema)
     val avroUser11 = AvroSerde.deserialize(avroByte, avroSchema)
     println(s"$avroUser1")
@@ -77,7 +77,7 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
     println(sqlConv)
     val sqlSchema = SchemaConverters.toSqlType(avroSchema)
     println(s"\nSqlschema: $sqlSchema")
-    val avroData = SchemaConverters.createConverterToAvro(sqlSchema.dataType, "avro", "example.avro")(sqlConv)
+    val avroData = SchemaConverters.createConverterToAvro(sqlSchema.dataType, avroSchema,"avro", "example.avro")(sqlConv)
     val avroBytes = AvroSerde.serialize(avroData, avroSchema)
     val desData = AvroSerde.deserialize(avroBytes, avroSchema)
     println(s"$desData")
@@ -107,7 +107,7 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
 	println(sqlConv)
 	val sqlSchema = SchemaConverters.toSqlType(avroSchema)
 	println(s"\nSqlschema: $sqlSchema")
-	val avroData = SchemaConverters.createConverterToAvro(sqlSchema.dataType, "avro", "example.avro")(sqlConv)
+	val avroData = SchemaConverters.createConverterToAvro(sqlSchema.dataType, avroSchema,"avro", "example.avro")(sqlConv)
 	val avroBytes = AvroSerde.serialize(avroData, avroSchema)
 	val desData = AvroSerde.deserialize(avroBytes, avroSchema)
 	println(s"$desData")
@@ -238,7 +238,7 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
     val sqlRec = SchemaConverters.createConverterToSQL(avroComplex)(avroRec)
     println(s"\nsqlRec: $sqlRec")
 
-    val avroRec1 = SchemaConverters.createConverterToAvro(schema.dataType, "test_schema", "example.avro")(sqlRec)
+    val avroRec1 = SchemaConverters.createConverterToAvro(schema.dataType, avroComplex,"test_schema", "example.avro")(sqlRec)
     println(s"\navroRec1: $avroRec1")
     val avroByte = AvroSerde.serialize(avroRec1, avroComplex)
     println("\nserialize")
@@ -246,5 +246,43 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
     println(s"\navroRec11: $avroRec11")
     val sqlRec1 = SchemaConverters.createConverterToSQL(avroComplex)(avroRec11)
     println(s"sqlRec1: $sqlRec1")
+  }
+	
+test("avro to schema field order setup") {
+    val schemaString  =
+      s"""{"namespace": "example.avro",
+         |   "type": "record", "name": "User",
+         |    "fields": [ {"name": "name", "type": "string"},
+         |      {"name": "bool",  "type": "boolean"} ] }""".stripMargin
+    val avroSchema: Schema = {
+      val p = new Schema.Parser
+      p.parse(schemaString)
+    }
+    val schemaDatasetString  =
+      s"""{"namespace": "example.avro",
+         |   "type": "record", "name": "User",
+         |    "fields": [ {"name": "bool", "type": "boolean"},
+         |      {"name": "name",  "type": "string"} ] }""".stripMargin
+    val avroDatasetSchema: Schema = {
+      val p = new Schema.Parser
+      p.parse(schemaDatasetString)
+    }
+
+    val user1 = new GenericData.Record(avroDatasetSchema)
+    user1.put("name", "Alyssa")
+    user1.put("bool", true)
+
+    val user2 = new GenericData.Record(avroDatasetSchema)
+    user2.put("name", "Ben")
+    user2.put("bool", false)
+
+    val sqlUser1 = SchemaConverters.createConverterToSQL(avroDatasetSchema)(user1)
+    println(sqlUser1)
+    val schema = SchemaConverters.toSqlType(avroDatasetSchema)
+    println(s"\nSqlschema: $schema")
+    val avroUser1 = SchemaConverters.createConverterToAvro(schema.dataType, avroSchema,"avro", "example.avro")(sqlUser1)
+    val avroByte = AvroSerde.serialize(avroUser1, avroSchema)
+    val avroUser11 = AvroSerde.deserialize(avroByte, avroSchema)
+    println(s"$avroUser1")
   }
 }
