@@ -302,19 +302,23 @@ object SchemaConverters {
         val fieldConverters = structType.fields.map(field =>
           createConverterToAvro(
             field.dataType,
-            avroType.getField(field.name).schema(),
+            schema.getField(field.name).schema(),
             field.name,
             recordNamespace))
         (item: Any) => {
           if (item == null) {
             null
           } else {
-            println(s"SEB, item: $item")
+            // TODO: I don't understand yet why ... Not sure it's because this PR
+            var data = item
+            if (item.isInstanceOf[Seq]) 
+              data = item(0)
+            println(s"SEB, item: $data")
             val record = new Record(schema)
             val convertersIterator = fieldConverters.iterator
             val fieldNamesIterator = dataType.asInstanceOf[StructType].fieldNames.iterator
             // val row = item.asInstanceOf[Row]
-            val rowIterator = item.asInstanceOf[Row].toSeq.iterator
+            val rowIterator = data.asInstanceOf[Row].toSeq.iterator
 
             // Parse in the dataset order
             while (convertersIterator.hasNext) {
