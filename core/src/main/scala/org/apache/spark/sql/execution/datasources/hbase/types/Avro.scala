@@ -244,7 +244,7 @@ object SchemaConverters {
   def createConverterToAvro(
       dataType: DataType,
       avroType: Schema,
-      structName: String,
+      currentFieldName: String,
       recordNamespace: String): (Any) => Any = {
 
     dataType match {
@@ -258,8 +258,11 @@ object SchemaConverters {
       case TimestampType => (item: Any) =>
         if (item == null) null else item.asInstanceOf[Timestamp].getTime
       case ArrayType(elementType, _) =>
-        val fieldname = dataType.asInstanceOf[StructType].fieldNames(0)
-        val elementConverter = createConverterToAvro(elementType,avroType.getField(fieldname).schema().getElementType, structName, recordNamespace)
+        val elementConverter = createConverterToAvro(
+          elementType,
+          avroType.getField(currentFieldName).schema().getElementType, 
+          avroType.getField(currentFieldName).schema().getElementType.getName, 
+          recordNamespace)
         (item: Any) => {
           if (item == null) {
             null
@@ -276,8 +279,11 @@ object SchemaConverters {
           }
         }
       case MapType(StringType, valueType, _) =>
-        val fieldname = dataType.asInstanceOf[StructType].fieldNames(0)
-        val valueConverter = createConverterToAvro(valueType,avroType.getField(fieldname).schema().getValueType, structName, recordNamespace)
+        val valueConverter = createConverterToAvro(
+          valueType,
+          avroType.getField(fieldname).schema().getValueType,
+          avroType.getField(fieldname).schema().getValueType.getName, 
+          recordNamespace)
         (item: Any) => {
           if (item == null) {
             null
