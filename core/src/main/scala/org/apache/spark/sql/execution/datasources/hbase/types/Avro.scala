@@ -258,7 +258,8 @@ object SchemaConverters {
       case TimestampType => (item: Any) =>
         if (item == null) null else item.asInstanceOf[Timestamp].getTime
       case ArrayType(elementType, _) =>
-        val elementConverter = createConverterToAvro(elementType,avroType.getField(structName).schema().getElementType, structName, recordNamespace)
+        val fieldname = dataType.asInstanceOf[StructType].fieldNames(0)
+        val elementConverter = createConverterToAvro(elementType,avroType.getField(fieldname).schema().getElementType, structName, recordNamespace)
         (item: Any) => {
           if (item == null) {
             null
@@ -275,7 +276,8 @@ object SchemaConverters {
           }
         }
       case MapType(StringType, valueType, _) =>
-        val valueConverter = createConverterToAvro(valueType,avroType.getField(structName).schema().getElementType, structName, recordNamespace)
+        val fieldname = dataType.asInstanceOf[StructType].fieldNames(0)
+        val valueConverter = createConverterToAvro(valueType,avroType.getField(fieldname).schema().getValueType, structName, recordNamespace)
         (item: Any) => {
           if (item == null) {
             null
