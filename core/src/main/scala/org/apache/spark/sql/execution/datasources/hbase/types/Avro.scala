@@ -311,8 +311,8 @@ object SchemaConverters {
           } else {
             // TODO: I don't understand yet why ... Not sure it's because this PR
             var data = item
-            if (item.isInstanceOf[Seq]) 
-              data = item(0)
+            if (item.isInstanceOf[Seq[Any]]) 
+              data = item.asInstanceOf[Seq[Any]](0)
             println(s"SEB, item: $data")
             val record = new Record(schema)
             val convertersIterator = fieldConverters.iterator
