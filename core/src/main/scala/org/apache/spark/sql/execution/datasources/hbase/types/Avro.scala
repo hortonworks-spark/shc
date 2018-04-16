@@ -309,16 +309,19 @@ object SchemaConverters {
           if (item == null) {
             null
           } else {
+            println(s"SEB, item: $item")
             val record = new Record(schema)
             val convertersIterator = fieldConverters.iterator
             val fieldNamesIterator = dataType.asInstanceOf[StructType].fieldNames.iterator
-            val row = item.asInstanceOf[Row]
+            // val row = item.asInstanceOf[Row]
+            val rowIterator = item.asInstanceOf[Row].toSeq.iterator
 
             // Parse in the dataset order
             while (convertersIterator.hasNext) {
               val converter = convertersIterator.next()
-              val currentFieldName = fieldNamesIterator.next()
-              record.put(currentFieldName, converter(row.get(structType.getFieldIndex(currentFieldName).get)))
+              // val currentFieldName = fieldNamesIterator.next()
+              // record.put(currentFieldName, converter(row.get(structType.getFieldIndex(currentFieldName).get)))
+              record.put(fieldNamesIterator.next(), converter(rowIterator.next()))
             }
             record
           }
