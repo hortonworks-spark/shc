@@ -281,8 +281,8 @@ object SchemaConverters {
       case MapType(StringType, valueType, _) =>
         val valueConverter = createConverterToAvro(
           valueType,
-          avroType.getField(fieldname).schema().getValueType,
-          avroType.getField(fieldname).schema().getValueType.getName, 
+          avroType.getField(currentFieldName).schema().getValueType,
+          avroType.getField(currentFieldName).schema().getValueType.getName, 
           recordNamespace)
         (item: Any) => {
           if (item == null) {
