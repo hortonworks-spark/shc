@@ -298,6 +298,7 @@ object SchemaConverters {
       case structType: StructType =>
         // Avro schema is the user supplied one, not the one generated from the dataset
         val schema: Schema = avroType
+        // Build in the dataset order
         val fieldConverters = structType.fields.map(field =>
           createConverterToAvro(
             field.dataType,
@@ -311,11 +312,13 @@ object SchemaConverters {
             val record = new Record(schema)
             val convertersIterator = fieldConverters.iterator
             val fieldNamesIterator = dataType.asInstanceOf[StructType].fieldNames.iterator
-            val rowIterator = item.asInstanceOf[Row].toSeq.iterator
+            val row = item.asInstanceOf[Row]
 
+            // Parse in the dataset order
             while (convertersIterator.hasNext) {
               val converter = convertersIterator.next()
-              record.put(fieldNamesIterator.next(), converter(rowIterator.next()))
+              val currentFieldName = fieldNamesIterator.next()
+              record.put(currentFieldName, converter(row.get(structType.getFieldIndex(currentFieldName).get)))
             }
             record
           }
