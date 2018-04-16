@@ -55,8 +55,8 @@ class Avro(f:Option[Field] = None) extends SHCDataType {
   def toBytes(input: Any): Array[Byte] = {
     // Here we assume the top level type is structType
     if (f.isDefined) {
-      val record = f.get.catalystToAvro(input)
-      AvroSerde.serialize(record, f.get.schema.get)
+      val record = f.get.catalystToAvro(input,f.get.exeSchema.get)
+      AvroSerde.serialize(record, f.get.exeSchema.get) 
     } else {
       throw new UnsupportedOperationException(
         "Avro coder: Without field metadata, 'toBytes' conversion can not be supported")
@@ -243,6 +243,7 @@ object SchemaConverters {
   // writing Avro records out to disk.
   def createConverterToAvro(
       dataType: DataType,
+      avroType: Schema,
       structName: String,
       recordNamespace: String): (Any) => Any = {
 
@@ -257,7 +258,7 @@ object SchemaConverters {
       case TimestampType => (item: Any) =>
         if (item == null) null else item.asInstanceOf[Timestamp].getTime
       case ArrayType(elementType, _) =>
-        val elementConverter = createConverterToAvro(elementType, structName, recordNamespace)
+        val elementConverter = createConverterToAvro(elementType,avroType.getField(structName).schema(), structName, recordNamespace)
         (item: Any) => {
           if (item == null) {
             null
@@ -274,7 +275,7 @@ object SchemaConverters {
           }
         }
       case MapType(StringType, valueType, _) =>
-        val valueConverter = createConverterToAvro(valueType, structName, recordNamespace)
+        val valueConverter = createConverterToAvro(valueType,avroType.getField(structName).schema(), structName, recordNamespace)
         (item: Any) => {
           if (item == null) {
             null
@@ -287,11 +288,14 @@ object SchemaConverters {
           }
         }
       case structType: StructType =>
-        val builder = SchemaBuilder.record(structName).namespace(recordNamespace)
-        val schema: Schema = SchemaConverters.convertSparkStructTypeToAvro(
-          structType, builder, recordNamespace)
+        // Avro schema is the user supplied one, not the one generated from the dataset
+        val schema: Schema = avroType
         val fieldConverters = structType.fields.map(field =>
-          createConverterToAvro(field.dataType, field.name, recordNamespace))
+          createConverterToAvro(
+            field.dataType,
+            avroType.getField(field.name).schema(),
+            field.name,
+            recordNamespace))
         (item: Any) => {
           if (item == null) {
             null
