@@ -315,7 +315,7 @@ object SchemaConverters {
             val fieldNamesIterator = structType.fieldNames.iterator
             val convertersIterator = fieldConverters.iterator
 
-            if (row.schema != null)  {
+            if (row.schema == null)  {
               // Seems to always work on Travis, but fails in my environment
               while (convertersIterator.hasNext) {
                 val converter = convertersIterator.next()
