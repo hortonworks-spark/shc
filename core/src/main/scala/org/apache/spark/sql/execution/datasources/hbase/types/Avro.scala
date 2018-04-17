@@ -310,16 +310,29 @@ object SchemaConverters {
             null
           } else {
             val record = new Record(schema)
-            val convertersIterator = fieldConverters.iterator
-            val fieldNamesIterator = dataType.asInstanceOf[StructType].fieldNames.iterator
             val row = item.asInstanceOf[Row]
-            
-            // Resolve the column by name, don't use the iterator row.toSeq.iterator
-            // which doesn't deliver columns in the expected order
-            while (fieldNamesIterator.hasNext) {
-              val fieldname = fieldNamesIterator.next()
-              val converter = convertersIterator.next()
-              record.put(fieldname, converter(row.get(row.fieldIndex(fieldname))))
+            val rowIterator = row.toSeq.iterator
+            val fieldNamesIterator = structType.fieldNames.iterator
+            val convertersIterator = fieldConverters.iterator
+
+            if (row.schema != null)  {
+              // Seems to always work on Travis, but fails in my environment
+              while (convertersIterator.hasNext) {
+                val converter = convertersIterator.next()
+                record.put(fieldNamesIterator.next(), converter(rowIterator.next()))
+              }
+            } else {
+              // TODO: HELP NEEDED => I don't understand why but using the iterator fails on
+              // HDP 2.6.2 Spark 2.1 SCala 2.11
+
+              // Resolve the column by name, don't use the iterator row.toSeq.iterator
+              // which doesn't deliver columns in the expected order
+              while (fieldNamesIterator.hasNext) {
+                val fieldname = fieldNamesIterator.next()
+                val converter = convertersIterator.next()
+                // println(s"Fieldname: $fieldname, column: " + row.fieldIndex(fieldname))
+                record.put(fieldname, converter(row.get(row.fieldIndex(fieldname))))
+              }
             }
             record
           }
