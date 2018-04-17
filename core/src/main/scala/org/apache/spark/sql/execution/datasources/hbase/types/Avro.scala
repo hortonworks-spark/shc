@@ -312,14 +312,15 @@ object SchemaConverters {
             val record = new Record(schema)
             val convertersIterator = fieldConverters.iterator
             val fieldNamesIterator = dataType.asInstanceOf[StructType].fieldNames.iterator
-            val rowIterator = item.asInstanceOf[Row].toSeq.iterator
-
-            // Parse in the dataset order, Record doesn't depend on the order, only the schema does
-            while (convertersIterator.hasNext) {
+            val row = item.asInstanceOf[Row]
+            
+            // Resolve the column by name, don't use the iterator row.toSeq.iterator
+            // which doesn't deliver columns in the expected order
+            while (fieldNamesIterator.hasNext) {
+              val fieldname = fieldNamesIterator.next()
               val converter = convertersIterator.next()
-              record.put(fieldNamesIterator.next(), converter(rowIterator.next()))
+              record.put(fieldname, converter(row.get(row.fieldIndex(fieldname))))
             }
-            record
           }
         }
     }
