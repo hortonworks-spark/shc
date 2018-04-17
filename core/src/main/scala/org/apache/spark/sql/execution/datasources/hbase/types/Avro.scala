@@ -321,6 +321,7 @@ object SchemaConverters {
               val converter = convertersIterator.next()
               record.put(fieldname, converter(row.get(row.fieldIndex(fieldname))))
             }
+            record
           }
         }
     }
