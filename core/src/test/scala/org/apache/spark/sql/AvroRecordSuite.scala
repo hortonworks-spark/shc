@@ -247,4 +247,42 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
     val sqlRec1 = SchemaConverters.createConverterToSQL(avroComplex)(avroRec11)
     println(s"sqlRec1: $sqlRec1")
   }
+	
+  test("avro not dependent on schema field order") {
+    val schemaString  =
+      s"""{"namespace": "example.avro",
+         |   "type": "record", "name": "User",
+         |    "fields": [ {"name": "name", "type": "string"},
+         |      {"name": "bool",  "type": "boolean"} ] }""".stripMargin
+    val avroSchema: Schema = {
+      val p = new Schema.Parser
+      p.parse(schemaString)
+    }
+    val schemaDatasetString  =
+      s"""{"namespace": "example.avro",
+         |   "type": "record", "name": "User",
+         |    "fields": [ {"name": "bool", "type": "boolean"},
+         |      {"name": "name",  "type": "string"} ] }""".stripMargin
+    val avroDatasetSchema: Schema = {
+      val p = new Schema.Parser
+      p.parse(schemaDatasetString)
+    }
+
+    val user1 = new GenericData.Record(avroDatasetSchema)
+    user1.put("name", "Alyssa")
+    user1.put("bool", true)
+
+    val user2 = new GenericData.Record(avroDatasetSchema)
+    user2.put("name", "Ben")
+    user2.put("bool", false)
+
+    val sqlUser1 = SchemaConverters.createConverterToSQL(avroDatasetSchema)(user1)
+    println(s"user1 from sql: $sqlUser1")
+    val schema = SchemaConverters.toSqlType(avroDatasetSchema)
+    println(s"\nSqlschema: $schema")
+    val avroUser1 = SchemaConverters.createConverterToAvro(schema.dataType, avroSchema,"avro", "example.avro")(sqlUser1)
+    val avroByte = AvroSerde.serialize(avroUser1, avroSchema)
+    val avroUser11 = AvroSerde.deserialize(avroByte, avroSchema)
+    println(s"user1 deserialized: $avroUser1")
+  }
 }
