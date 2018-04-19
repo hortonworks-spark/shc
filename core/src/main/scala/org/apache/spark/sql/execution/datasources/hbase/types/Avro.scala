@@ -56,7 +56,7 @@ class Avro(f:Option[Field] = None) extends SHCDataType {
     // Here we assume the top level type is structType
     if (f.isDefined) {
       val record = f.get.catalystToAvro(input)
-      AvroSerde.serialize(record, f.get.exeSchema.get) 
+      AvroSerde.serialize(record, f.get.exeSchema.get)
     } else {
       throw new UnsupportedOperationException(
         "Avro coder: Without field metadata, 'toBytes' conversion can not be supported")
@@ -260,8 +260,8 @@ object SchemaConverters {
       case ArrayType(elementType, _) =>
         val elementConverter = createConverterToAvro(
           elementType,
-          avroType.getElementType, 
-          avroType.getElementType.getName, 
+          avroType.getElementType,
+          avroType.getElementType.getName,
           recordNamespace)
         (item: Any) => {
           if (item == null) {
@@ -282,7 +282,7 @@ object SchemaConverters {
         val valueConverter = createConverterToAvro(
           valueType,
           avroType.getValueType,
-          avroType.getValueType.getName, 
+          avroType.getValueType.getName,
           recordNamespace)
         (item: Any) => {
           if (item == null) {
@@ -310,16 +310,29 @@ object SchemaConverters {
             null
           } else {
             val record = new Record(schema)
-            val convertersIterator = fieldConverters.iterator
-            val fieldNamesIterator = dataType.asInstanceOf[StructType].fieldNames.iterator
             val row = item.asInstanceOf[Row]
-            
-            // Resolve the column by name, don't use the iterator row.toSeq.iterator
-            // which doesn't deliver columns in the expected order
-            while (fieldNamesIterator.hasNext) {
-              val fieldname = fieldNamesIterator.next()
-              val converter = convertersIterator.next()
-              record.put(fieldname, converter(row.get(row.fieldIndex(fieldname))))
+            val rowIterator = row.toSeq.iterator
+            val fieldNamesIterator = structType.fieldNames.iterator
+            val convertersIterator = fieldConverters.iterator
+
+            if (row.schema == null)  {
+              // Seems to always work on Travis, but fails in my environment
+              while (convertersIterator.hasNext) {
+                val converter = convertersIterator.next()
+                record.put(fieldNamesIterator.next(), converter(rowIterator.next()))
+              }
+            } else {
+              // TODO: HELP NEEDED => I don't understand why but using the iterator fails on
+              // HDP 2.6.2 Spark 2.1 SCala 2.11
+
+              // Resolve the column by name, don't use the iterator row.toSeq.iterator
+              // which doesn't deliver columns in the expected order
+              while (fieldNamesIterator.hasNext) {
+                val fieldname = fieldNamesIterator.next()
+                val converter = convertersIterator.next()
+                // println(s"Fieldname: $fieldname, column: " + row.fieldIndex(fieldname))
+                record.put(fieldname, converter(row.get(row.fieldIndex(fieldname))))
+              }
             }
             record
           }
