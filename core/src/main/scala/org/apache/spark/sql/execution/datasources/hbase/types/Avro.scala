@@ -56,7 +56,7 @@ class Avro(f:Option[Field] = None) extends SHCDataType {
     // Here we assume the top level type is structType
     if (f.isDefined) {
       val record = f.get.catalystToAvro(input)
-      AvroSerde.serialize(record, f.get.schema.get)
+      AvroSerde.serialize(record, f.get.exeSchema.get) 
     } else {
       throw new UnsupportedOperationException(
         "Avro coder: Without field metadata, 'toBytes' conversion can not be supported")
@@ -243,7 +243,8 @@ object SchemaConverters {
   // writing Avro records out to disk.
   def createConverterToAvro(
       dataType: DataType,
-      structName: String,
+      avroType: Schema,
+      currentFieldName: String,
       recordNamespace: String): (Any) => Any = {
 
     dataType match {
@@ -257,7 +258,11 @@ object SchemaConverters {
       case TimestampType => (item: Any) =>
         if (item == null) null else item.asInstanceOf[Timestamp].getTime
       case ArrayType(elementType, _) =>
-        val elementConverter = createConverterToAvro(elementType, structName, recordNamespace)
+        val elementConverter = createConverterToAvro(
+          elementType,
+          avroType.getElementType, 
+          avroType.getElementType.getName, 
+          recordNamespace)
         (item: Any) => {
           if (item == null) {
             null
@@ -274,7 +279,11 @@ object SchemaConverters {
           }
         }
       case MapType(StringType, valueType, _) =>
-        val valueConverter = createConverterToAvro(valueType, structName, recordNamespace)
+        val valueConverter = createConverterToAvro(
+          valueType,
+          avroType.getValueType,
+          avroType.getValueType.getName, 
+          recordNamespace)
         (item: Any) => {
           if (item == null) {
             null
@@ -287,11 +296,15 @@ object SchemaConverters {
           }
         }
       case structType: StructType =>
-        val builder = SchemaBuilder.record(structName).namespace(recordNamespace)
-        val schema: Schema = SchemaConverters.convertSparkStructTypeToAvro(
-          structType, builder, recordNamespace)
+        // Avro schema is the user supplied one, not the one generated from the dataset
+        val schema: Schema = avroType
+        // Build in the dataset order
         val fieldConverters = structType.fields.map(field =>
-          createConverterToAvro(field.dataType, field.name, recordNamespace))
+          createConverterToAvro(
+            field.dataType,
+            schema.getField(field.name).schema(),
+            field.name,
+            recordNamespace))
         (item: Any) => {
           if (item == null) {
             null
@@ -299,11 +312,14 @@ object SchemaConverters {
             val record = new Record(schema)
             val convertersIterator = fieldConverters.iterator
             val fieldNamesIterator = dataType.asInstanceOf[StructType].fieldNames.iterator
-            val rowIterator = item.asInstanceOf[Row].toSeq.iterator
-
-            while (convertersIterator.hasNext) {
+            val row = item.asInstanceOf[Row]
+            
+            // Resolve the column by name, don't use the iterator row.toSeq.iterator
+            // which doesn't deliver columns in the expected order
+            while (fieldNamesIterator.hasNext) {
+              val fieldname = fieldNamesIterator.next()
               val converter = convertersIterator.next()
-              record.put(fieldNamesIterator.next(), converter(rowIterator.next()))
+              record.put(fieldname, converter(row.get(row.fieldIndex(fieldname))))
             }
             record
           }
