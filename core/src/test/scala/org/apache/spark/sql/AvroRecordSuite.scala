@@ -280,7 +280,7 @@ class AvroRecordSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAft
     println(s"user1 from sql: $sqlUser1")
     val schema = SchemaConverters.toSqlType(avroDatasetSchema)
     println(s"\nSqlschema: $schema")
-    val avroUser1 = SchemaConverters.createConverterToAvro(schema.dataType, avroSchema,"avro", "example.avro")(sqlUser1)
+    val avroUser1 = SchemaConverters.createConverterToAvro(schema.dataType,"avro", "example.avro")(sqlUser1)
     val avroByte = AvroSerde.serialize(avroUser1, avroSchema)
     val avroUser11 = AvroSerde.deserialize(avroByte, avroSchema)
     println(s"user1 deserialized: $avroUser1")
