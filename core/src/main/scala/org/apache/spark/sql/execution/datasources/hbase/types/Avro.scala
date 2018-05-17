@@ -298,7 +298,9 @@ object SchemaConverters {
       case structType: StructType =>
         // Avro schema is the user supplied one, not the one generated from the dataset
         val schema: Schema = avroType
-        // Build in the dataset order
+        // Build in the structType order, which has been build for:
+        // schema.map{ x => SchemaConverters.toSqlType(x).dataType }.get
+        // where shema is the Avro schema => it is not the Dataframe field order!
         val fieldConverters = structType.fields.map(field =>
           createConverterToAvro(
             field.dataType,
@@ -316,21 +318,20 @@ object SchemaConverters {
             val convertersIterator = fieldConverters.iterator
 
             if (row.schema == null)  {
-              // Seems to always work on Travis, but fails in my environment
+              // It seems we can be here with a row without schema ...
+
+              // No schema: fields in the Row have to be in the expected order
+              // (defined by the avro schema)
               while (convertersIterator.hasNext) {
                 val converter = convertersIterator.next()
                 record.put(fieldNamesIterator.next(), converter(rowIterator.next()))
               }
             } else {
-              // TODO: HELP NEEDED => I don't understand why but using the iterator fails on
-              // HDP 2.6.2 Spark 2.1 SCala 2.11
-
-              // Resolve the column by name, don't use the iterator row.toSeq.iterator
-              // which doesn't deliver columns in the expected order
+              // The row may come for a Dataframe with a different field order
+              // Take them by name and not by position
               while (fieldNamesIterator.hasNext) {
                 val fieldname = fieldNamesIterator.next()
                 val converter = convertersIterator.next()
-                // println(s"Fieldname: $fieldname, column: " + row.fieldIndex(fieldname))
                 record.put(fieldname, converter(row.get(row.fieldIndex(fieldname))))
               }
             }
