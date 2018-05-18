@@ -159,8 +159,10 @@ case class HBaseRelation(
         maxVersions.foreach(v => cf.setMaxVersions(v))
         tableDesc.addFamily(cf)
       }
-      val startKey = catalog.shcTableCoder.toBytes("aaaaaaa")
-      val endKey = catalog.shcTableCoder.toBytes("zzzzzzz")
+      val startKey = new Array[Byte](7)
+      val endKey = new Array[Byte](7)
+      var i =0
+      for (x <- 7) {startKey(i) = 0.toByte;endKey(i) = 255.toByte; i+=1}
       val splitKeys = Bytes.split(startKey, endKey, catalog.numReg - 3)
       admin.createTable(tableDesc, splitKeys)
       val r = connection.getRegionLocator(tName).getAllRegionLocations
