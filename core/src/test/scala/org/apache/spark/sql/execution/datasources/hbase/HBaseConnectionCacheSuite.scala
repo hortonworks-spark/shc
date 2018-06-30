@@ -26,8 +26,7 @@ import org.scalatest.FunSuite
 import scala.util.Random
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.client.{BufferedMutator, Table, RegionLocator,
-  Connection, BufferedMutatorParams, Admin}
+import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.{HConstants, TableName}
 
 class HBaseConnectionKeyMocker(val confId: Int) extends HBaseConnectionKey(null) {
@@ -64,6 +63,8 @@ class ConnectionMocker extends Connection {
   def getBufferedMutator(tableName: TableName): BufferedMutator = null
 
   def getAdmin: Admin = null
+
+  def getTableBuilder(tableName: TableName, executorService: ExecutorService): TableBuilder = null
 
   def close(): Unit = {
     if (isClosed)

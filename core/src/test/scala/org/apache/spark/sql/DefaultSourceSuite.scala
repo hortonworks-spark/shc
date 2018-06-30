@@ -20,6 +20,7 @@
 
 package org.apache.spark.sql
 
+import org.apache.hadoop.hbase.TableName
 import org.apache.spark.sql.execution.datasources.hbase.Logging
 import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
 import org.apache.spark.sql.functions._
@@ -335,7 +336,7 @@ class DefaultSourceSuite extends SHC with Logging {
     }
 
     // Delete the table because for this test we want to check the different number of values
-    htu.deleteTable(tableName)
+    htu.deleteTable(TableName.valueOf(tableName))
     createTable(tableName, columnFamilies)
 
     persistDataInHBase(catalog, data)
