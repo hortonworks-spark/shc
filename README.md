@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/hortonworks-spark/shc.svg?branch=master)](https://travis-ci.org/hortonworks-spark/shc)
+[![Build Status](https://travis-ci.org/hortonworks-spark/shc.svg?branch=branch-2.4)](https://travis-ci.org/hortonworks-spark/shc)
 
 # Apache Spark - Apache HBase Connector
 
