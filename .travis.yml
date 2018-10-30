@@ -29,4 +29,4 @@ notifications:
   email: false
 
 install:
-  - mvn -q -Pscala-2.11 package install
+  - mvn -q package install
