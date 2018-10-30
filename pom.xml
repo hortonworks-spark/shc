@@ -139,6 +139,7 @@
           </execution>
         </executions>
         <configuration>
+          <scalaCompatVersion>${scala.binary.version}</scalaCompatVersion>
           <scalaVersion>${scala.version}</scalaVersion>
           <recompileMode>incremental</recompileMode>
           <useZincServer>false</useZincServer>
