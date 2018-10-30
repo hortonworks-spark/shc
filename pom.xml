@@ -114,7 +114,7 @@
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
-        <version>3.2.0</version>
+        <version>3.2.2</version>
         <executions>
           <execution>
             <id>scala-compile-first</id>
@@ -172,7 +172,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.3</version>
+        <version>3.7.0</version>
         <configuration>
           <source>1.8</source>
           <target>1.8</target>
@@ -185,19 +185,8 @@
     <profile>
       <id>scala-2.11</id>
       <activation>
-        <property><name>!scala-2.10</name></property>
+        <activeByDefault>true</activeByDefault>
       </activation>
-    </profile>
-    <profile>
-      <id>scala-2.10</id>
-      <activation>
-        <property><name>scala-2.10</name></property>
-      </activation>
-      <properties>
-        <scala.version>2.10.6</scala.version>
-        <scala.macros.version>2.0.1</scala.macros.version>
-        <scala.binary.version>2.10</scala.binary.version>
-      </properties>
     </profile>
   </profiles>
 
