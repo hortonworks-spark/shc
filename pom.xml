@@ -42,7 +42,7 @@
   </distributionManagement>   
 
   <properties>
-    <spark.version>2.4.1-SNAPSHOT</spark.version>
+    <spark.version>2.4.0</spark.version>
     <hbase.version>2.0.2</hbase.version>
     <phoenix.version>5.0.0-HBase-2.0</phoenix.version>
     <test_classpath_file>${project.build.directory}/spark-test-classpath.txt</test_classpath_file>
