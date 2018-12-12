@@ -91,7 +91,9 @@ class DefaultSourceSuite extends SHC with Logging {
       .save()
   }
 
-  test("populate table") {
+  override def beforeAll() {
+    super.beforeAll()
+    println("populate table")
     //createTable(tableName, columnFamilies)
     val sql = sqlContext
     import sql.implicits._
@@ -379,7 +381,7 @@ class DefaultSourceSuite extends SHC with Logging {
     assert(data.count() == 4)
 
     val rows = data.take(10)
-    assert(rows.count(_.getString(7) == null) == 2)
-    assert(rows.count(_.getString(7) != null) == 2)
+    assert(rows.count(_.getString(8) == null) == 2)
+    assert(rows.count(_.getString(8) != null) == 2)
   }
 }

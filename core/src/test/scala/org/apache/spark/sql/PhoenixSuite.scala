@@ -85,7 +85,9 @@ class PhoenixSuite extends SHC with Logging {
       .load()
   }
 
-  test("populate table") {
+  override def beforeAll() {
+    super.beforeAll()
+    println("populate table")
     val sql = sqlContext
     import sql.implicits._
 

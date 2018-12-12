@@ -77,7 +77,9 @@ class CompositeKeySuite extends SHC with Logging {
       .load()
   }
 
-  test("populate table with composite key") {
+  override def beforeAll() {
+    super.beforeAll()
+    println("populate table with composite key")
     //createTable(tableName, columnFamilies)
     val sql = sqlContext
     import sql.implicits._

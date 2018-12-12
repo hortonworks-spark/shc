@@ -148,6 +148,26 @@ case class RowKey(k: String) {
   }
 }
 
+// The hbase timestamp definition
+// ts
+case class Timestamp(k: String) {
+  val key: String = k
+  var fields: Seq[Field] = _
+  var varLength = false
+  def isPresent: Boolean = key != null
+  def length: Int = {
+    val tmp = fields.foldLeft(0) { case (x, y) =>
+      val yLen = if (y.length == -1) {
+        MaxLength
+      } else {
+        y.length
+      }
+      x + yLen
+    }
+    tmp
+  }
+}
+
 // The map between the column presented to Spark and the HBase field
 case class SchemaMap(map: mutable.LinkedHashMap[String, Field]) {
   def toFields = map.map { case (name, field) =>
@@ -164,6 +184,7 @@ case class HBaseTableCatalog(
     val namespace: String,
     val name: String,
     row: RowKey,
+    ts: Timestamp,
     sMap: SchemaMap,
     tCoder: String,
     coderSet: Set[String],
@@ -171,9 +192,10 @@ case class HBaseTableCatalog(
   def toDataType = StructType(sMap.toFields)
   def getField(name: String) = sMap.getField(name)
   def getRowKey: Seq[Field] = row.fields
+  def getTimestamp: Seq[Field] = ts.fields
   def getPrimaryKey= row.keys(0)
   def getColumnFamilies = {
-    sMap.fields.map(_.cf).filter(_ != HBaseTableCatalog.rowKey).toSeq.distinct
+    sMap.fields.map(_.cf).filter(HBaseTableCatalog.isNotReserved).toSeq.distinct
   }
 
   //this is required to read fromBytes column families and qualifiers
@@ -203,6 +225,32 @@ case class HBaseTableCatalog(
   }
   initRowKey()
 
+  def initTimestamp(): Unit = {
+    if (!ts.isPresent) {
+      return
+    }
+    val fields = sMap.fields.filter(_.cf == HBaseTableCatalog.timestamp)
+    ts.fields = fields.find(_.col == ts.key).toSeq
+
+    // If the tCoder is PrimitiveType, We only allowed there is one key at the end
+    // that is determined at runtime.
+    if (tCoder == SparkHBaseConf.PrimitiveType) {
+      if (!ts.fields.reverse.tail.exists(_.length == -1)) {
+        var start = 0
+        ts.fields.foreach { f =>
+          f.start = start
+          start += f.length
+        }
+      } else {
+        throw new Exception("PrimitiveType: only the last dimension of Timestamp is allowed to have " +
+          "varied length. You may want to add 'length' to the dimensions which have " +
+          "varied length or use dimensions which are scala/java primitive data " +
+          "types of fixed length.")
+      }
+    }
+  }
+  initTimestamp()
+
   def validateCatalogDef() = {
     if (!shcTableCoder.isRowKeySupported()) {
       throw new UnsupportedOperationException(s"$tCoder does not support row key, and can not be " +
@@ -219,6 +267,12 @@ case class HBaseTableCatalog(
     // If the row key of the table is composite, check if the coder supports composite key
     if (row.fields.size > 1 && !shcTableCoder.isCompositeKeySupported)
       throw new UnsupportedOperationException(s"$tCoder: Composite key is not supported")
+
+    if (ts.isPresent) {
+      // Check that the timestamp is type long
+      if (!ts.fields.exists(field => field.sType.get.equals("long")))
+        throw new UnsupportedOperationException(s"$tCoder: Only timestamp as long type is supported")
+    }
   }
   validateCatalogDef()
 }
@@ -231,6 +285,8 @@ object HBaseTableCatalog {
   val tableCatalog = "catalog"
   // The row key with format key1:key2 specifying table row key
   val rowKey = "rowkey"
+  // The hbase timestamp field as long
+  val timestamp = "timestamp"
   // The key for hbase table whose value specify namespace and table name
   val table = "table"
   // The namespace of hbase table
@@ -250,6 +306,9 @@ object HBaseTableCatalog {
   val tableCoder = "tableCoder"
   // The version number of catalog
   val cVersion = "version"
+  val reserved = Array(rowKey, timestamp)
+  def isReserved(columnName: String): Boolean = reserved.contains(columnName)
+  def isNotReserved(columnName: String): Boolean = !isReserved(columnName)
   /**
    * User provide table schema definition
    * {"tablename":"name", "rowkey":"key1:key2",
@@ -294,8 +353,9 @@ object HBaseTableCatalog {
     }
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)
     val rKey = RowKey(map.get(rowKey).get.asInstanceOf[String])
+    val ts = Timestamp(map.get(timestamp).orNull.asInstanceOf[String])
 
-    HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), tCoder, coderSet, numReg)
+    HBaseTableCatalog(nSpace, tName, rKey, ts, SchemaMap(schemaMap), tCoder, coderSet, numReg)
   }
 
   /**
@@ -323,9 +383,11 @@ object HBaseTableCatalog {
     val catalog = s"""{
             |"table":{"namespace":"default", "name":"htable"},
             |"rowkey":"key1:key2",
+            |"timestamp":"ts",
             |"columns":{
-              |"col1":{"cf":"rowkey", "col":"key1", "type":"string"},
-              |"col2":{"cf":"rowkey", "col":"key2", "type":"double"},
+              |"col1":{"cf":"rowkey", "col":"key1", "type":"double"},
+              |"col2":{"cf":"rowkey", "col":"key2", "type":"string"},
+              |"colT":{"cf":"timestamp", "col":"ts", "type":"long"},
               |"col3":{"cf":"cf1", "col":"col1", "avro":"schema1"},
               |"col4":{"cf":"cf1", "col":"col2", "type":"binary"},
               |"col5":{"cf":"cf1", "col":"col3", "type":"double"},

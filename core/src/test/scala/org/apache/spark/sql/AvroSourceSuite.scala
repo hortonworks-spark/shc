@@ -102,7 +102,9 @@ class AvroSourceSuite extends SHC with Logging{
       .load()
   }
 
-  test("populate table") {
+  override def beforeAll() {
+    super.beforeAll()
+    println("populate table")
     //createTable(tableName, columnFamilies)
     val sql = sqlContext
     import sql.implicits._

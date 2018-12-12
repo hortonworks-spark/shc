@@ -56,7 +56,7 @@ private[hbase] class HBaseTableScanRDD(
     requiredColumns: Array[String],
     filters: Array[Filter]) extends RDD[Row](relation.sqlContext.sparkContext, Nil) {
   val outputs = StructType(requiredColumns.map(relation.schema(_))).toAttributes
-  val columnFields = relation.splitRowKeyColumns(requiredColumns)._2
+  val columnFields = relation.splitReservedColumns(requiredColumns)._2
   private def sparkConf = SparkEnv.get.conf
   val serializedToken = relation.serializedToken
 
@@ -125,6 +125,15 @@ private[hbase] class HBaseTableScanRDD(
       }
     }
 
+    val tsSeq = {
+      if (relation.catalog.ts.isPresent) {
+        val f = relation.catalog.getTimestamp.head
+        Seq((f, result.rawCells()(0).getTimestamp)).toMap
+      } else {
+        Seq.empty
+      }
+    }
+
     import scala.collection.JavaConverters.mapAsScalaMapConverter
     val scalaMap = result.getMap.asScala
 
@@ -165,7 +174,7 @@ private[hbase] class HBaseTableScanRDD(
       }.toMap
     }
 
-    val unioned = keySeq ++ valuesSeq
+    val unioned = keySeq ++ tsSeq ++ valuesSeq
 
 //     Return the row ordered by the requested order
     val ordered = fields.map(unioned.getOrElse(_, null))
@@ -184,6 +193,15 @@ private[hbase] class HBaseTableScanRDD(
       } else {
         val f = relation.catalog.getRowKey.head
         Seq((f, SHCDataTypeFactory.create(f).fromBytes(r))).toMap
+      }
+    }
+
+    val tsSeq = {
+      if (relation.catalog.ts.isPresent) {
+        val f = relation.catalog.getTimestamp.head
+        Seq((f, result.rawCells()(0).getTimestamp)).toMap
+      } else {
+        Seq.empty
       }
     }
 
@@ -206,7 +224,7 @@ private[hbase] class HBaseTableScanRDD(
       }).toMap
     }
 
-    val unioned = keySeq ++ valuesSeq
+    val unioned = keySeq ++ tsSeq ++ valuesSeq
 
 //     Return the row ordered by the requested order
     val ordered = fields.map(unioned.getOrElse(_, null))
@@ -228,7 +246,16 @@ private[hbase] class HBaseTableScanRDD(
       }
     }
 
-    val valueSeq: Seq[Map[Long, (Field, Any)]] = fields.filter(!_.isRowKey).map { x =>
+    val tsSeq = {
+      if (relation.catalog.ts.isPresent) {
+        val f = relation.catalog.getTimestamp.head
+        Seq((f, result.rawCells()(0).getTimestamp)).toMap
+      } else {
+        Seq.empty
+      }
+    }
+
+    val valueSeq: Seq[Map[Long, (Field, Any)]] = fields.filter(c => HBaseTableCatalog.isNotReserved(c.cf)).map { x =>
       import scala.collection.JavaConverters.asScalaBufferConverter
       val dataType = SHCDataTypeFactory.create(x)
       val kvs = result.getColumnCells(
