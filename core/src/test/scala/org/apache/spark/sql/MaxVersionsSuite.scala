@@ -70,10 +70,10 @@ class MaxVersionsSuite extends SHC with Logging {
 
     val rows = twoVersions.take(10)
     assert(rows.size == 6)
-    assert(rows.count(_.getString(7).contains("ancient")) == 0)
-    assert(rows.count(_.getString(7).contains("old")) == 1)
-    assert(rows.count(_.getString(7).contains("new")) == 3)
-    assert(rows.count(_.getString(7).contains("latest")) == 2)
+    assert(rows.count(_.getString(8).contains("ancient")) == 0)
+    assert(rows.count(_.getString(8).contains("old")) == 1)
+    assert(rows.count(_.getString(8).contains("new")) == 3)
+    assert(rows.count(_.getString(8).contains("latest")) == 2)
 
     //we cannot take more then three because we create table with that size
     val threeVersions: DataFrame = withCatalog(catalog, Map(
@@ -83,17 +83,17 @@ class MaxVersionsSuite extends SHC with Logging {
 
     val threeRows = threeVersions.take(10)
     assert(threeRows.size == 9)
-    assert(threeRows.count(_.getString(7).contains("ancient")) == 1)
-    assert(threeRows.count(_.getString(7).contains("old")) == 3)
-    assert(threeRows.count(_.getString(7).contains("new")) == 3)
-    assert(threeRows.count(_.getString(7).contains("latest")) == 2)
+    assert(threeRows.count(_.getString(8).contains("ancient")) == 1)
+    assert(threeRows.count(_.getString(8).contains("old")) == 3)
+    assert(threeRows.count(_.getString(8).contains("new")) == 3)
+    assert(threeRows.count(_.getString(8).contains("latest")) == 2)
 
     // Test specific only last versions
     val lastVersions: DataFrame = withCatalog(catalog, Map.empty)
 
     val lastRows = lastVersions.take(10)
     assert(lastRows.size == 3)
-    assert(lastRows.count(_.getString(7).contains("new")) == 1)
-    assert(lastRows.count(_.getString(7).contains("latest")) == 2)
+    assert(lastRows.count(_.getString(8).contains("new")) == 1)
+    assert(lastRows.count(_.getString(8).contains("latest")) == 2)
   }
 }
