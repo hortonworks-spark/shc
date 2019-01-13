@@ -305,8 +305,8 @@ case class HBaseRelation(
     requiredColumns.map(catalog.sMap.getField(_)).zipWithIndex
   }
   // Retrieve all columns we will return in the scanner
-  def splitRowKeyColumns(requiredColumns: Array[String]): (Seq[Field], Seq[Field]) = {
-    val (l, r) = requiredColumns.map(catalog.sMap.getField(_)).partition(_.cf == HBaseTableCatalog.rowKey)
+  def splitReservedColumns(requiredColumns: Array[String]): (Seq[Field], Seq[Field]) = {
+    val (l, r) = requiredColumns.map(catalog.sMap.getField(_)).partition(c => HBaseTableCatalog.isReserved(c.cf))
     (l, r)
   }
 
