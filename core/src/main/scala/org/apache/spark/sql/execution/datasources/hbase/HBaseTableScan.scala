@@ -35,6 +35,8 @@ import org.apache.spark.sql.execution.datasources.hbase.types.{SHCDataType, SHCD
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types._
 import org.apache.spark.util.ShutdownHookManager
+import com.github.blemale.scaffeine.{ LoadingCache, Scaffeine }
+import scala.concurrent.duration._
 
 import scala.collection.mutable
 import scala.util.matching.Regex
@@ -51,6 +53,15 @@ private[hbase] case class HBaseScanPartition(
     scanRanges: Array[ScanRange[Array[Byte]]],
     tf: SerializedTypedFilter) extends Partition
 
+object MetaCache {
+  private def sparkConf = SparkEnv.get.conf
+  private[this] val cache: LoadingCache[HBaseRelation, RegionResource] = Scaffeine()
+    .expireAfterWrite(5.minutes)
+    .build((relation: HBaseRelation) => RegionResource(relation))
+
+  def get(relation: HBaseRelation) : RegionResource = this.cache.get(relation)
+}
+
 private[hbase] class HBaseTableScanRDD(
     relation: HBaseRelation,
     requiredColumns: Array[String],
@@ -63,7 +74,7 @@ private[hbase] class HBaseTableScanRDD(
   override def getPartitions: Array[Partition] = {
     val hbaseFilter = HBaseFilter.buildFilters(filters, relation)
     var idx = 0
-    val r = RegionResource(relation)
+    val r = MetaCache.get(relation)
     logDebug(s"There are ${r.size} regions")
     val ps = r.flatMap { x=>
       // HBase take maximum as empty byte array, change it here.

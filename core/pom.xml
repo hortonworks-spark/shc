@@ -126,6 +126,11 @@
       <version>${avro.version}</version>
     </dependency>
     <dependency>
+      <groupId>com.github.blemale</groupId>
+      <artifactId>scaffeine_2.11</artifactId>
+      <version>2.5.0</version>
+    </dependency>
+    <dependency>
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest_${scala.binary.version}</artifactId>
       <version>2.2.1</version>
