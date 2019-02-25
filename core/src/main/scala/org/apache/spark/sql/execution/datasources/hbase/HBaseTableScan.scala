@@ -35,9 +35,8 @@ import org.apache.spark.sql.execution.datasources.hbase.types.{SHCDataType, SHCD
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types._
 import org.apache.spark.util.ShutdownHookManager
-import com.github.blemale.scaffeine.{ LoadingCache, Scaffeine }
+import com.github.blemale.scaffeine.{LoadingCache, Scaffeine}
 import scala.concurrent.duration._
-
 import scala.collection.mutable
 import scala.util.matching.Regex
 
@@ -55,8 +54,9 @@ private[hbase] case class HBaseScanPartition(
 
 object MetaCache {
   private def sparkConf = SparkEnv.get.conf
+  private[this] val expirySeconds = sparkConf.getTimeAsSeconds(SparkHBaseConf.MetaCacheDuration, SparkHBaseConf.defaultMetaCacheDuration)
   private[this] val cache: LoadingCache[HBaseRelation, RegionResource] = Scaffeine()
-    .expireAfterWrite(5.minutes)
+    .expireAfterWrite(Duration(expirySeconds, SECONDS))
     .build((relation: HBaseRelation) => RegionResource(relation))
 
   def get(relation: HBaseRelation) : RegionResource = this.cache.get(relation)
@@ -71,10 +71,13 @@ private[hbase] class HBaseTableScanRDD(
   private def sparkConf = SparkEnv.get.conf
   val serializedToken = relation.serializedToken
 
+  val useCache = sparkConf.getBoolean(SparkHBaseConf.MetaCacheEnabled, SparkHBaseConf.defaultMetaCacheEnabled)
+  var regionHook : HBaseRelation => RegionResource = if (useCache) relation => MetaCache.get(relation) else relation => RegionResource(relation)
+
   override def getPartitions: Array[Partition] = {
     val hbaseFilter = HBaseFilter.buildFilters(filters, relation)
     var idx = 0
-    val r = MetaCache.get(relation)
+    val r = regionHook(relation)
     logDebug(s"There are ${r.size} regions")
     val ps = r.flatMap { x=>
       // HBase take maximum as empty byte array, change it here.
