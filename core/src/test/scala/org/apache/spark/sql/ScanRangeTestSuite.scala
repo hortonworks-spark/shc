@@ -17,12 +17,11 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.sql.execution.datasources.hbase.Logging
+import org.apache.spark.sql.execution.datasources.hbase.{Bound, BoundRange, Field, Logging, ScanRange}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
-
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.execution.datasources.hbase
-import org.apache.spark.sql.execution.datasources.hbase.{Bound, ScanRange}
+import org.apache.spark.sql.execution.datasources.hbase.types.SHCDataTypeFactory
 import org.apache.spark.sql.types.BinaryType
 
 class ScanRangeTestSuite  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with Logging {
@@ -486,5 +485,14 @@ class ScanRangeTestSuite  extends FunSuite with BeforeAndAfterEach with BeforeAn
         Some(Bound[Array[Byte]](Array.fill(6)(-1: Byte), true))))
 
     assert(v.size == ret.size && v.toSet == ret)
+  }
+
+  test("Test BoundRange") {
+    val f = Field("col1", "f", "col1", "PrimitiveType", Some("boolean"), None, -1)
+    val coder = SHCDataTypeFactory.create(f)
+    val bBoolean = BoundRange(true.asInstanceOf[Any], f)
+
+    display
+    assert(!bBoolean.isEmpty && coder.fromBytes(bBoolean.get.value).asInstanceOf[Boolean])
   }
 }
