@@ -76,9 +76,6 @@ private[hbase] class HBaseTableScanRDD(
   private def sparkConf = SparkEnv.get.conf
   val serializedToken = relation.serializedToken
 
-  val useCache = sparkConf.getBoolean(SparkHBaseConf.MetaCacheEnabled, SparkHBaseConf.defaultMetaCacheEnabled)
-  var regionHook : HBaseRelation => RegionResource = if (useCache) relation => MetaCache.get(relation) else relation => RegionResource(relation)
-
   override def getPartitions: Array[Partition] = {
     val hbaseFilter = HBaseFilter.buildFilters(filters, relation)
     var idx = 0
