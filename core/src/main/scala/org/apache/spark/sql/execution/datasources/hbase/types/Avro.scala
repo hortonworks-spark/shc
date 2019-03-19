@@ -56,7 +56,7 @@ class Avro(f:Option[Field] = None) extends SHCDataType {
     // Here we assume the top level type is structType
     if (f.isDefined) {
       val record = f.get.catalystToAvro(input)
-      AvroSerde.serialize(record, f.get.schema.get)
+      AvroSerde.serialize(record, f.get.exeSchema.get)
     } else {
       throw new UnsupportedOperationException(
         "Avro coder: Without field metadata, 'toBytes' conversion can not be supported")
@@ -243,7 +243,8 @@ object SchemaConverters {
   // writing Avro records out to disk.
   def createConverterToAvro(
       dataType: DataType,
-      structName: String,
+      avroType: Schema,
+      currentFieldName: String,
       recordNamespace: String): (Any) => Any = {
 
     dataType match {
@@ -257,7 +258,11 @@ object SchemaConverters {
       case TimestampType => (item: Any) =>
         if (item == null) null else item.asInstanceOf[Timestamp].getTime
       case ArrayType(elementType, _) =>
-        val elementConverter = createConverterToAvro(elementType, structName, recordNamespace)
+        val elementConverter = createConverterToAvro(
+          elementType,
+          avroType.getElementType,
+          avroType.getElementType.getName,
+          recordNamespace)
         (item: Any) => {
           if (item == null) {
             null
@@ -274,7 +279,11 @@ object SchemaConverters {
           }
         }
       case MapType(StringType, valueType, _) =>
-        val valueConverter = createConverterToAvro(valueType, structName, recordNamespace)
+        val valueConverter = createConverterToAvro(
+          valueType,
+          avroType.getValueType,
+          avroType.getValueType.getName,
+          recordNamespace)
         (item: Any) => {
           if (item == null) {
             null
@@ -287,23 +296,44 @@ object SchemaConverters {
           }
         }
       case structType: StructType =>
-        val builder = SchemaBuilder.record(structName).namespace(recordNamespace)
-        val schema: Schema = SchemaConverters.convertSparkStructTypeToAvro(
-          structType, builder, recordNamespace)
+        // Avro schema is the user supplied one, not the one generated from the dataset
+        val schema: Schema = avroType
+        // Build in the structType order, which has been build for:
+        // schema.map{ x => SchemaConverters.toSqlType(x).dataType }.get
+        // where shema is the Avro schema => it is not the Dataframe field order!
         val fieldConverters = structType.fields.map(field =>
-          createConverterToAvro(field.dataType, field.name, recordNamespace))
+          createConverterToAvro(
+            field.dataType,
+            schema.getField(field.name).schema(),
+            field.name,
+            recordNamespace))
         (item: Any) => {
           if (item == null) {
             null
           } else {
             val record = new Record(schema)
+            val row = item.asInstanceOf[Row]
+            val rowIterator = row.toSeq.iterator
+            val fieldNamesIterator = structType.fieldNames.iterator
             val convertersIterator = fieldConverters.iterator
-            val fieldNamesIterator = dataType.asInstanceOf[StructType].fieldNames.iterator
-            val rowIterator = item.asInstanceOf[Row].toSeq.iterator
 
-            while (convertersIterator.hasNext) {
-              val converter = convertersIterator.next()
-              record.put(fieldNamesIterator.next(), converter(rowIterator.next()))
+            if (row.schema == null)  {
+              // It seems we can be here with a row without schema ...
+
+              // No schema: fields in the Row have to be in the expected order
+              // (defined by the avro schema)
+              while (convertersIterator.hasNext) {
+                val converter = convertersIterator.next()
+                record.put(fieldNamesIterator.next(), converter(rowIterator.next()))
+              }
+            } else {
+              // The row may come for a Dataframe with a different field order
+              // Take them by name and not by position
+              while (fieldNamesIterator.hasNext) {
+                val fieldname = fieldNamesIterator.next()
+                val converter = convertersIterator.next()
+                record.put(fieldname, converter(row.get(row.fieldIndex(fieldname))))
+              }
             }
             record
           }
