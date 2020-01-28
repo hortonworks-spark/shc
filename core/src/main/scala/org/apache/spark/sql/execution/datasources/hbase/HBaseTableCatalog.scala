@@ -251,8 +251,8 @@ object HBaseTableCatalog {
   val tableCoder = "tableCoder"
   // The version number of catalog
   val cVersion = "version"
-  val minRegionSplitPoint = "minregionsplitpoint"
-  val maxRegionSplitPoint = "maxregionsplitpoint"
+  val minRegionSplitPoint = "minRegionSplitPoint"
+  val maxRegionSplitPoint = "maxRegionSplitPoint"
   /**
    * User provide table schema definition
    * {"tablename":"name", "rowkey":"key1:key2",
