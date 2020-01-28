@@ -141,7 +141,7 @@ class DefaultSourceSuite extends SHC with Logging {
     val data = rawData.map { i =>
       HBaseRecord(5, i)
     }
-    val options = Map(HBaseTableCatalog.minRegionSplit -> minValue, HBaseTableCatalog.maxRegionSplit -> maxValue)
+    val options = Map(HBaseTableCatalog.minRegionSplitPoint -> minValue, HBaseTableCatalog.maxRegionSplitPoint -> maxValue)
     persistDataInHBase(numericCatalog, data, options)
     assert(testDistribution(numericTable, minValue, maxValue))
   }

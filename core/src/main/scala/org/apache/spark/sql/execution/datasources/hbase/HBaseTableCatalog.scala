@@ -251,8 +251,8 @@ object HBaseTableCatalog {
   val tableCoder = "tableCoder"
   // The version number of catalog
   val cVersion = "version"
-  val minRegionSplit = "minRegionSplit"
-  val maxRegionSplit = "maxRegionSplit"
+  val minRegionSplitPoint = "minRegionSplitPoint"
+  val maxRegionSplitPoint = "maxRegionSplitPoint"
   /**
    * User provide table schema definition
    * {"tablename":"name", "rowkey":"key1:key2",
@@ -298,8 +298,8 @@ object HBaseTableCatalog {
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)
     val rKey = RowKey(map.get(rowKey).get.asInstanceOf[String])
 
-    val minSplit = parameters.get(minRegionSplit).getOrElse("aaaaaa")
-    val maxSplit = parameters.get(maxRegionSplit).getOrElse("zzzzzz")
+    val minSplit = parameters.get(minRegionSplitPoint).getOrElse("aaaaaa")
+    val maxSplit = parameters.get(maxRegionSplitPoint).getOrElse("zzzzzz")
 
     HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), tCoder, coderSet, numReg, (minSplit, maxSplit))
   }
