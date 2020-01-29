@@ -167,7 +167,8 @@ case class HBaseTableCatalog(
     sMap: SchemaMap,
     tCoder: String,
     coderSet: Set[String],
-    val numReg: Int) extends Logging {
+    val numReg: Int,
+    val splitRange: (String, String)) extends Logging {
   def toDataType = StructType(sMap.toFields)
   def getField(name: String) = sMap.getField(name)
   def getRowKey: Seq[Field] = row.fields
@@ -250,6 +251,8 @@ object HBaseTableCatalog {
   val tableCoder = "tableCoder"
   // The version number of catalog
   val cVersion = "version"
+  val minTableSplitPoint = "minTableSplitPoint"
+  val maxTableSplitPoint = "maxTableSplitPoint"
   /**
    * User provide table schema definition
    * {"tablename":"name", "rowkey":"key1:key2",
@@ -295,7 +298,10 @@ object HBaseTableCatalog {
     val numReg = parameters.get(newTable).map(x => x.toInt).getOrElse(0)
     val rKey = RowKey(map.get(rowKey).get.asInstanceOf[String])
 
-    HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), tCoder, coderSet, numReg)
+    val minSplit = parameters.get(minTableSplitPoint).getOrElse("aaaaaa")
+    val maxSplit = parameters.get(maxTableSplitPoint).getOrElse("zzzzzz")
+
+    HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), tCoder, coderSet, numReg, (minSplit, maxSplit))
   }
 
   /**

@@ -20,7 +20,10 @@
 
 package org.apache.spark.sql
 
+import scala.collection.JavaConversions._
+
 import org.apache.hadoop.hbase.TableName
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.spark.sql.execution.datasources.hbase.Logging
 import org.apache.spark.sql.execution.datasources.hbase.{HBaseRelation, HBaseTableCatalog}
 import org.apache.spark.sql.functions._
@@ -91,6 +94,18 @@ class DefaultSourceSuite extends SHC with Logging {
       .save()
   }
 
+  def testDistribution(tableName: String, minimumValue: String, maximumValue: String): Boolean = {
+    val admin = htu.getConnection().getAdmin()
+    val regions = admin.getRegions(TableName.valueOf(tableName))
+    val minimumBytes = Bytes.toBytes(minimumValue)
+    val maximumBytes = Bytes.toBytes(maximumValue)
+
+    val minimumRegion = regions.filter(r => r.containsRow(minimumBytes)).head
+    val maximumRegion = regions.filter(r => r.containsRow(maximumBytes)).head
+
+    minimumRegion.getRegionName() != maximumRegion.getRegionName()
+  }
+
   test("populate table") {
     //createTable(tableName, columnFamilies)
     val sql = sqlContext
@@ -100,6 +115,35 @@ class DefaultSourceSuite extends SHC with Logging {
       HBaseRecord(i, "extra")
     }
     persistDataInHBase(catalog, data)
+  }
+
+  test("population distrubtion for alphabet") {
+    val sql = sqlContext
+    import sql.implicits._
+
+    val rawData = "acegikmoq".permutations.toList
+    val data = rawData.map { i =>
+      HBaseRecord(5, i)
+    }
+    persistDataInHBase(catalog, data)
+    assert(testDistribution(tableName, rawData.min(Ordering.String), rawData.max(Ordering.String)))
+  }
+
+  test("population distrubtion for numbers") {
+    val sql = sqlContext
+    import sql.implicits._
+
+    val numericTable = "numericTestTable"
+    val numericCatalog = defineCatalog(numericTable)
+    val rawData = (1 to 100000).map(_.toString).toList
+    val minValue = rawData.min(Ordering.String)
+    val maxValue = rawData.max(Ordering.String)
+    val data = rawData.map { i =>
+      HBaseRecord(5, i)
+    }
+    val options = Map(HBaseTableCatalog.minTableSplitPoint -> minValue, HBaseTableCatalog.maxTableSplitPoint -> maxValue)
+    persistDataInHBase(numericCatalog, data, options)
+    assert(testDistribution(numericTable, minValue, maxValue))
   }
 
   test("empty column") {
