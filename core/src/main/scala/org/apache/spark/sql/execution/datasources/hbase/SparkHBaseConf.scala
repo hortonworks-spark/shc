@@ -22,6 +22,7 @@ package org.apache.spark.sql.execution.datasources.hbase
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.execution.datasources.hbase.types._
+import scala.concurrent.duration._
 
 
 object SparkHBaseConf {
@@ -38,6 +39,12 @@ object SparkHBaseConf {
   var defaultBulkGetSize = 100
   var CachingSize = "spark.hbase.connector.cacheSize"
   var defaultCachingSize = 100
+
+  var MetaCacheEnabled = "spark.hbase.connector.meta.cache.enabled"
+  var defaultMetaCacheEnabled = false
+  var MetaCacheDuration = "spark.hbase.connector.meta.cache.expiry"
+  var defaultMetaCacheDuration = "5min"
+
   // in milliseconds
   val connectionCloseDelay = 10 * 60 * 1000
 
