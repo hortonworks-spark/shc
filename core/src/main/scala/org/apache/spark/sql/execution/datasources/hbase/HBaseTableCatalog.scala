@@ -95,7 +95,7 @@ case class Field(
 
   // converter from catalyst to avro
   lazy val catalystToAvro: (Any) => Any ={
-    SchemaConverters.createConverterToAvro(dt, colName, "recordNamespace")
+    SchemaConverters.createConverterToAvro(dt, exeSchema.get,colName, "recordNamespace")
   }
 
   val dt =
