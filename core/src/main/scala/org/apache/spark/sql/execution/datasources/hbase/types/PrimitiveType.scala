@@ -62,6 +62,7 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
       case data: Short => Bytes.toBytes(data)
       case data: UTF8String => data.getBytes
       case data: String => Bytes.toBytes(data)
+      case data:java.sql.Timestamp => Bytes.toBytes(data.getTime)
       case _ => throw new
           UnsupportedOperationException(s"PrimitiveType coder: unsupported data type $input")
     }
