@@ -76,6 +76,15 @@ class SHC  extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll  with
     val tempDir: File = Files.createTempDir
     tempDir.deleteOnExit
     htu.startMiniCluster
+
+    if (System.getProperty("os.name").startsWith("Windows")) {
+      // Add scheme to work on Windows
+      val filename = htu.getConfiguration.get("mapreduce.output.fileoutputformat.outputdir")
+        if (filename != null && filename.matches("(?i)^/?[a-z]:.*")) {
+            htu.getConfiguration.set("mapreduce.output.fileoutputformat.outputdir", "file:///" + filename)
+          }
+    }
+
     SparkHBaseConf.conf = htu.getConfiguration
     logInfo(" - minicluster started")
     println(" - minicluster started")
