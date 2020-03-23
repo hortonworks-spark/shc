@@ -153,23 +153,15 @@ class DefaultSourceSuite extends SHC with Logging {
     assert(c == 256)
   }
 
-  test("IN filter") {
+  test("IN filter for column") {
     val df = withCatalog(catalog)
-    df.show()
-    println(df.count())
     val s = df.filter($"col4" isin (4, 5, 6)).select("col0")
-    s.explain(true)
-    s.show
     assert(s.count() == 3)
   }
 
-  test("IN filter rowkey") {
+  test("IN filter for rowkey") {
     val df = withCatalog(catalog)
-    df.show()
-    println(df.count())
     val s = df.filter($"col0" isin ("row005", "row001", "row002")).select("col0")
-    s.explain(true)
-    s.show
     assert(s.count() == 3)
   }
 
