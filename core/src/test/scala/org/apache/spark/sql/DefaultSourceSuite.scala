@@ -167,7 +167,6 @@ class DefaultSourceSuite extends SHC with Logging {
 
   test("IN and Not IN filter1") {
     val df = withCatalog(catalog)
-    df.show()
     val s = df.filter(($"col0" isin ("row005", "row001", "row002")) and !($"col0" isin ("row001", "row002")))
       .select("col0")
     s.explain(true)
