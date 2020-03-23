@@ -369,13 +369,21 @@ object HBaseFilter extends Logging{
       case In(attribute: String, values: Array[Any]) =>
         //converting a "key in (x1, x2, x3..) filter to (key == x1) or (key == x2) or ...
         val ranges = new ArrayBuffer[ScanRange[Array[Byte]]]()
+        var typedFilters = ArrayBuffer[TypedFilter]()
         values.foreach{
           value =>
             val sparkFilter = EqualTo(attribute, value)
             val hbaseFilter = buildFilter(sparkFilter, relation)
             ranges ++= hbaseFilter.ranges
+            typedFilters += hbaseFilter.tf
         }
-        HRF[Array[Byte]](ranges.toArray, TypedFilter.empty, handled = true)
+        val resultingTypedFilter = typedFilters.foldLeft(TypedFilter.empty){
+          (acc, tf) => acc match {
+            case TypedFilter(None, FilterType.Und) => tf
+            case _ => TypedFilter.or(acc, tf)
+          }
+        }
+        HRF[Array[Byte]](ranges.toArray, resultingTypedFilter, handled = true)
       case Not(In(attribute: String, values: Array[Any])) =>
         //converting a "not(key in (x1, x2, x3..)) filter to (key != x1) and (key != x2) and ..
         val hrf = values.map{v => buildFilter(Not(EqualTo(attribute, v)),relation)}
