@@ -196,7 +196,8 @@ class DefaultSourceSuite extends SHC with Logging {
 
   test("IN filter column stack overflow") {
     val df = withCatalog(catalog)
-    val items = (0 to 2000).map(_ + df.count() + 1)
+    val df_size = df.count()
+    val items = (0 to 2000).map(_ + df_size + 1)
     val filterInItems = Seq(1) ++: items
 
     val s = df.filter($"col4" isin(filterInItems:_*)).select("col0")
