@@ -153,6 +153,18 @@ class DefaultSourceSuite extends SHC with Logging {
     assert(c == 256)
   }
 
+  test("IN filter for column") {
+    val df = withCatalog(catalog)
+    val s = df.filter($"col4" isin (4, 5, 6)).select("col0")
+    assert(s.count() == 3)
+  }
+
+  test("IN filter for rowkey") {
+    val df = withCatalog(catalog)
+    val s = df.filter($"col0" isin ("row005", "row001", "row002")).select("col0")
+    assert(s.count() == 3)
+  }
+
   test("IN and Not IN filter1") {
     val df = withCatalog(catalog)
     val s = df.filter(($"col0" isin ("row005", "row001", "row002")) and !($"col0" isin ("row001", "row002")))
@@ -171,12 +183,24 @@ class DefaultSourceSuite extends SHC with Logging {
     assert(s.count() == 1)
   }
 
-  test("IN filter stack overflow") {
+  test("IN filter rowkey stack overflow") {
     val df = withCatalog(catalog)
     val items = (0 to 2000).map{i => s"xaz$i"}
     val filterInItems = Seq("row001") ++: items
 
     val s = df.filter($"col0" isin(filterInItems:_*)).select("col0")
+    s.explain(true)
+    s.show()
+    assert(s.count() == 1)
+  }
+
+  test("IN filter column stack overflow") {
+    val df = withCatalog(catalog)
+    val df_size = df.count()
+    val items = (0 to 2000).map(_ + df_size + 1)
+    val filterInItems = Seq(1) ++: items
+
+    val s = df.filter($"col4" isin(filterInItems:_*)).select("col0")
     s.explain(true)
     s.show()
     assert(s.count() == 1)
