@@ -95,7 +95,7 @@ Given a DataFrame with specified schema, above will create an HBase table with 5
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .save()
 
-For Google BigTable, given a DataFrame with specified schema, above will create an HBase table with 5 regions and save the DataFrame inside. Note that if HBaseTableCatalog.newTable is not specified, the table has to be pre-created.
+For Google BigTable, given a DataFrame with specified schema, above will create an Google BigTable with 5 regions and save the DataFrame inside. Note that if HBaseTableCatalog.newTable is not specified, the table has to be pre-created.
 Also HBaseTableCatalog.tablePlatform -> "bigtable" must be specified explicitly for Google BigTable. If not specified By default this assumes table type as hbase.
 
 
