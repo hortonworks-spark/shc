@@ -169,6 +169,10 @@ case class HBaseTableCatalog(
     coderSet: Set[String],
     val numReg: Int,
     val splitRange: (String, String)) extends Logging {
+  // Table type can also be Google Big Table
+  var tablePlatform: String = "bigtable"
+  def setTablePlatform(tableplatform: String) = this.tablePlatform = tableplatform
+  def getTablePlatform: String = this.tablePlatform
   def toDataType = StructType(sMap.toFields)
   def getField(name: String) = sMap.getField(name)
   def getRowKey: Seq[Field] = row.fields
@@ -234,6 +238,8 @@ object HBaseTableCatalog {
   val rowKey = "rowkey"
   // The key for hbase table whose value specify namespace and table name
   val table = "table"
+  // type of table Hbase or BigTable
+  var tablePlatform = "tableplatform"
   // The namespace of hbase table
   val nameSpace = "namespace"
   // The name of hbase table
@@ -301,7 +307,11 @@ object HBaseTableCatalog {
     val minSplit = parameters.get(minTableSplitPoint).getOrElse("aaaaaa")
     val maxSplit = parameters.get(maxTableSplitPoint).getOrElse("zzzzzz")
 
-    HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), tCoder, coderSet, numReg, (minSplit, maxSplit))
+    // HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), tCoder, coderSet, numReg, (minSplit, maxSplit))
+    val hbasetablecatalogobject = HBaseTableCatalog(nSpace, tName, rKey, SchemaMap(schemaMap), tCoder, coderSet, numReg, (minSplit, maxSplit))
+    tablePlatform = tableMeta.get(tablePlatform).getOrElse("hbase").asInstanceOf[String]
+    hbasetablecatalogobject.setTablePlatform(tableplatform = tablePlatform)
+    hbasetablecatalogobject
   }
 
   /**
