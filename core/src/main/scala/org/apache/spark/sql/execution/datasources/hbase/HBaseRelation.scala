@@ -124,18 +124,26 @@ case class HBaseRelation(
   def createTableIfNotExist() {
     val cfs = catalog.getColumnFamilies
     val connection = HBaseConnectionCache.getConnection(hbaseConf)
+
+    // Get Table Type from HBaseTableCatalog expected values = "hbase" or "bigtable"
+    val tableType = catalog.getTableType
+
     // Initialize hBase table if necessary
     val admin = connection.getAdmin
     val isNameSpaceExist = try {
-      admin.getNamespaceDescriptor(catalog.namespace)
-      true
+      if(tableType.equals("hbase")) { // Google BigTable do not have namespaces, hence skip calling getNamespaceDescriptor if tableType is "bigtable"
+        admin.getNamespaceDescriptor(catalog.namespace)
+        true
+      }
+      else
+        false
     } catch {
       case e: NamespaceNotFoundException => false
       case NonFatal(e) =>
         logError("Unexpected error", e)
         false
     }
-    if (!isNameSpaceExist) {
+    if (!isNameSpaceExist && tableType.equals("hbase")) { // Google BigTable do not have namespaces, hence skip calling createNamespace
       admin.createNamespace(NamespaceDescriptor.create(catalog.namespace).build)
     }
     val tName = TableName.valueOf(s"${catalog.namespace}:${catalog.name}")
