@@ -82,7 +82,7 @@ The above defines a schema for a HBase table with name as table1, row key as key
 ### Write to HBase table to populate data
 
     sc.parallelize(data).toDF.write.options(
-      Map(HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5"))
+      Map(HBaseTableCatalog.tablePlatform -> "hbase", HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5"))
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .save()
 
