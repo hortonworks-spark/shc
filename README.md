@@ -88,6 +88,18 @@ The above defines a schema for a HBase table with name as table1, row key as key
       
 Given a DataFrame with specified schema, above will create an HBase table with 5 regions and save the DataFrame inside. Note that if HBaseTableCatalog.newTable is not specified, the table has to be pre-created.
 
+### Write to Google BigTable to populate data
+
+    sc.parallelize(data).toDF.write.options(
+      Map(HBaseTableCatalog.tableType -> "bigtable", HBaseTableCatalog.tableCatalog -> catalog, HBaseTableCatalog.newTable -> "5"))
+      .format("org.apache.spark.sql.execution.datasources.hbase")
+      .save()
+
+Given a DataFrame with specified schema, above will create an Google BigTable with 5 regions and save the DataFrame inside.  
+Note that if HBaseTableCatalog.newTable is not specified, the table has to be pre-created.  
+HBaseTableCatalog.tableType -> "bigtable" must be explicitly set for writing into Google BigTable, otherwise by default API assumes writing to HBase table
+
+
 ### Perform DataFrame operation on top of HBase table
 
     def withCatalog(cat: String): DataFrame = {
@@ -97,7 +109,9 @@ Given a DataFrame with specified schema, above will create an HBase table with 5
       .format("org.apache.spark.sql.execution.datasources.hbase")
       .load()
     }
-  
+
+Note: The above task remain same in case of writing  to Google BigTable
+
 ### Complicated query
 
     val df = withCatalog(catalog)
