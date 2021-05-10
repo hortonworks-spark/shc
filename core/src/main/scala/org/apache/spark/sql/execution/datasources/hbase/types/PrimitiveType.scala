@@ -22,8 +22,11 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.sql.execution.datasources.hbase._
 
+import scala.annotation.tailrec
+
 class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
 
+  @tailrec
   private def fromBytes(src: HBaseType, dt: DataType): Any  = dt match {
     case BooleanType => toBoolean(src)
     case ByteType => src(0)
@@ -62,6 +65,7 @@ class PrimitiveType(f:Option[Field] = None) extends SHCDataType {
       case data: Short => Bytes.toBytes(data)
       case data: UTF8String => data.getBytes
       case data: String => Bytes.toBytes(data)
+      case null => null
       case _ => throw new
           UnsupportedOperationException(s"PrimitiveType coder: unsupported data type $input")
     }
